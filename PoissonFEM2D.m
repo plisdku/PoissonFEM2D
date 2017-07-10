@@ -30,15 +30,25 @@ classdef PoissonFEM2D < handle
             Dx = obj.Dr*invJac(1,1) + obj.Ds*invJac(2,1);
             Dy = obj.Dr*invJac(1,2) + obj.Ds*invJac(2,2);
             
-            dDxdJ = cell(2,2);
-            dDydJ = cell(2,2);
+            dDxdJ = zeros([size(Dx), 2, 2]);
+            dDydJ = zeros([size(Dy), 2, 2]);
             
             for ii = 1:2
                 for jj = 1:2
-                    dDxdJ{ii,jj} = -invJac(1,ii)*invJac(jj,1)*obj.Dr - invJac(2,ii)*invJac(jj,1)*obj.Ds;
-                    dDydJ{ii,jj} = -invJac(1,ii)*invJac(jj,2)*obj.Dr - invJac(2,ii)*invJac(jj,2)*obj.Ds;
+                    dDxdJ(:,:,ii,jj) = -invJac(1,ii)*invJac(jj,1)*obj.Dr - invJac(2,ii)*invJac(jj,1)*obj.Ds;
+                    dDydJ(:,:,ii,jj) = -invJac(1,ii)*invJac(jj,2)*obj.Dr - invJac(2,ii)*invJac(jj,2)*obj.Ds;
                 end
             end
+            
+%             dDxdJ = cell(2,2);
+%             dDydJ = cell(2,2);
+%             
+%             for ii = 1:2
+%                 for jj = 1:2
+%                     dDxdJ{ii,jj} = -invJac(1,ii)*invJac(jj,1)*obj.Dr - invJac(2,ii)*invJac(jj,1)*obj.Ds;
+%                     dDydJ{ii,jj} = -invJac(1,ii)*invJac(jj,2)*obj.Dr - invJac(2,ii)*invJac(jj,2)*obj.Ds;
+%                 end
+%             end
         end % elementGradientMatrix
         
         
@@ -49,12 +59,19 @@ classdef PoissonFEM2D < handle
             
             dDetJ_dJ = detJac*transpose(invJac); % this is all 4 sensitivities in a matrix
             
-            dQdJ = cell(2,2);
+            dQdJ = zeros([size(Q), 2, 2]);
             for ii = 1:2
                 for jj = 1:2
-                    dQdJ{ii,jj} = obj.Q*dDetJ_dJ(ii,jj);
+                    dQdJ(:,:,ii,jj) = obj.Q*dDetJ_dJ(ii,jj);
                 end
             end
+            
+            %dQdJ = cell(2,2);
+%             for ii = 1:2
+%                 for jj = 1:2
+%                     dQdJ{ii,jj} = obj.Q*dDetJ_dJ(ii,jj);
+%                 end
+%             end
         end % elementQuadratureMatrix
             
             
@@ -78,14 +95,24 @@ classdef PoissonFEM2D < handle
             
             % Its sensitivities with respect to Jacobian elements
            
-            dAdJ = cell(2,2);
+            
+            dAdJ = zeros([size(A), 2,2]);
             for ii = 1:2
                 for jj = 1:2
                     
-                    dAdJ{ii,jj} = -(dDxdJ{ii,jj}'*QQ*Dx + Dx'*dQdJ{ii,jj}*Dx + Dx'*QQ*dDxdJ{ii,jj}) ...
-                        - (dDydJ{ii,jj}'*QQ*Dy + Dy'*dQdJ{ii,jj}*Dy + Dy'*QQ*dDydJ{ii,jj});
+                    dAdJ(:,:,ii,jj) = -(dDxdJ(:,:,ii,jj)'*QQ*Dx + Dx'*dQdJ(:,:,ii,jj)*Dx + Dx'*QQ*dDxdJ(:,:,ii,jj)) ...
+                        - (dDydJ(:,:,ii,jj)'*QQ*Dy + Dy'*dQdJ(:,:,ii,jj)*Dy + Dy'*QQ*dDydJ(:,:,ii,jj));
                 end
             end
+            
+%             dAdJ = cell(2,2);
+%             for ii = 1:2
+%                 for jj = 1:2
+%                     
+%                     dAdJ{ii,jj} = -(dDxdJ{ii,jj}'*QQ*Dx + Dx'*dQdJ{ii,jj}*Dx + Dx'*QQ*dDxdJ{ii,jj}) ...
+%                         - (dDydJ{ii,jj}'*QQ*Dy + Dy'*dQdJ{ii,jj}*Dy + Dy'*QQ*dDydJ{ii,jj});
+%                 end
+%             end
         end % elementPotentialMatrix()
         
         function [B, dBdJ] = elementChargeMatrix(obj, jacobian)
@@ -110,7 +137,7 @@ classdef PoissonFEM2D < handle
         
         % ---- System Matrices
         
-        function [systemMatrix, rhsMatrix, DsystemMatrix_dJ, DrhsMatrix_dJ] = systemMatrix(obj, varargin)
+        function [systemMatrix, rhsMatrix, DsystemMatrix_dv, DrhsMatrix_dv] = systemMatrix(obj, varargin)
             % [A, B, dAdJ, dBdJ] = systemMatrix(obj)
             % [A, B, dAdJ, dBdJ] = systemMatrix(obj, jacobianOverride)
             %

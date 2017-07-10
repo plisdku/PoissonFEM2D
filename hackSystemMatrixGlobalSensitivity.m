@@ -18,6 +18,32 @@ VVMesh.plotVV(vv, vertices, 'b-')
 hold on
 plot(meshNodes.vertices(:,1), meshNodes.vertices(:,2), 'o')
 
+%% Jacobian sensitivity to vertex perturbations
+
+ff = 1;
+ii = 1; jj = 1;
+delta = 1e-6;
+
+% perturb this vertex
+iVertInFace = 3;
+iVert = meshNodes.faces(ff,iVertInFace);
+iXY = 2;
+
+vertices2 = vertices;
+vertices2(iVert, iXY) = vertices2(iVert, iXY) + delta;
+meshNodes2 = MeshNodes(faces, vertices2, N);
+
+jac = meshNodes.getLinearJacobian(ff);
+jac2 = meshNodes2.getLinearJacobian(ff);
+Djac = meshNodes.getLinearJacobianSensitivity(ff);
+
+Djac_meas = (jac2-jac)/delta;
+Djac_calc = Djac(:,:, iVertInFace, iXY);
+
+%% Global Jacobian sensitivity
+
+%dJdv = meshNodes.getAllLinearJacobianSensitivities();
+
 %% FEM starts here
 
 fem = PoissonFEM2D(meshNodes);
@@ -29,7 +55,9 @@ ff = 1;
 
 % Jacobian element to perturb
 ii = 2;
-jj = 2;
+jj = 1;
+
+fprintf('Testing element sensitivities to perturbing J(%d,%d)\n', ii, jj);
 
 delta = 1e-6;
 jac = meshNodes.getLinearJacobian(ff);
@@ -44,8 +72,11 @@ jac2(ii,jj) = jac2(ii,jj) + delta;
 dDx_meas = (Dx2-Dx)/delta;
 dDy_meas = (Dy2-Dy)/delta;
 
-dDx_calc = dDx{ii,jj};
-dDy_calc = dDy{ii,jj};
+dDx_calc = dDx(:,:,ii,jj);
+dDy_calc = dDy(:,:,ii,jj);
+
+fprintf('dDx error: %g\n', norm(dDx_meas - dDx_calc));
+fprintf('dDy error: %g\n', norm(dDy_meas - dDy_calc));
 
 % TEST QUADRATURE SENSITIVITY
 
@@ -57,21 +88,60 @@ dDetJ_calc = detJ*transpose(inv(jac));
 [Q, dQdJ] = fem.elementQuadratureMatrix(jac);
 Q2 = fem.elementQuadratureMatrix(jac2);
 dQ_meas = (Q2-Q)/delta;
-dQ_calc = dQdJ{ii,jj};
+dQ_calc = dQdJ(:,:,ii,jj);
+
+fprintf('dQ error: %g\n', norm(dQ_meas - dQ_calc));
 
 % TEST POTENTIAL MATRIX SENSITIVITY
 
 [A, dAdJ] = fem.elementPotentialMatrix(jac);
 A2 = fem.elementPotentialMatrix(jac2);
 dA_meas = (A2-A)/delta;
-dA_calc = dAdJ{ii,jj};
+dA_calc = dAdJ(:,:,ii,jj);
+
+fprintf('dA error: %g\n', norm(dA_meas - dA_calc));
 
 % TEST CHARGE MATRIX SENSITIVITY
 
 [B, dBdJ] = fem.elementChargeMatrix(jac);
 B2 = fem.elementChargeMatrix(jac2);
 dB_meas = (B2-B)/delta;
-dB_calc = dBdJ{ii,jj};
+dB_calc = dBdJ(:,:,ii,jj);
+
+fprintf('dB error: %g\n', norm(dB_meas - dB_calc));
+
+%% Perturb vertices instead...
+
+ff = 1;
+iVertInFace = 1; % local vertex to perturb
+vv = meshNodes.faces(ff,iVertInFace);
+xy = 1; % direction to perturb
+delta = 1e-6;
+
+vertices2 = vertices;
+vertices2(vv, xy) = vertices2(vv, xy) + delta;
+meshNodes2 = MeshNodes(faces, vertices2, N);
+
+jacobian = meshNodes.getLinearJacobian(ff);
+jacobian2 = meshNodes2.getLinearJacobian(ff);
+
+dJdv = meshNodes.getLinearJacobianSensitivity(ff);
+
+% Test dJdv
+dJdv_meas = (jacobian2-jacobian)/delta;
+dJdv_calc = dJdv(:,:,iVertInFace, xy);
+fprintf('dJdv error: %g\n', norm(dJdv_meas - dJdv_calc));
+
+% Now let's try to get some matrix sensitivities to vertex perturbations
+
+[A, dAdJ] = fem.elementPotentialMatrix(jacobian);
+A2 = fem.elementPotentialMatrix(jacobian2);
+
+dAdv = multiplyTensors.txt(dAdJ, 4, dJdv, 4, 3:4, 1:2);
+
+dAdv_calc = dAdv(:,:,iVertInFace, xy);
+dAdv_meas = (A2-A)/delta;
+fprintf('dAdv error: %g\n', norm(dAdv_calc - dAdv_meas));
 
 %% System matrices and sensitivities
 
