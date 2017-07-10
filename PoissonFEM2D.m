@@ -110,6 +110,66 @@ classdef PoissonFEM2D < handle
         
         % ---- System Matrices
         
+        function [systemMatrix, rhsMatrix, DsystemMatrix_dJ, DrhsMatrix_dJ] = systemMatrix(obj, varargin)
+            % [A, B, dAdJ, dBdJ] = systemMatrix(obj)
+            % [A, B, dAdJ, dBdJ] = systemMatrix(obj, jacobianOverride)
+            %
+            % The jacobian override is for sensitivity testing.
+            
+            if nargin == 2
+                jacobianOverride = varargin{1};
+            else
+                jacobianOverride = [];
+            end
+            
+            numNodes = obj.meshNodes.getNumNodes();
+            systemMatrix = sparse(numNodes, numNodes);
+            rhsMatrix = sparse(numNodes, numNodes);
+
+            % We will accumulate the system matrix sensitivities with respect to
+            % elemental Jacobians, first.
+            %
+            % DsystemMatrix_dJ{ii,jj} is the matrix of sensitivity to J(ii,jj).
+
+            DsystemMatrix_dJ = cell(2,2);
+            DrhsMatrix_dJ = cell(2,2);
+            for nn = 1:4
+                DsystemMatrix_dJ{nn} = sparse(numNodes, numNodes);
+                DrhsMatrix_dJ{nn} = sparse(numNodes, numNodes);
+            end
+            
+            % Fill in the matrices!
+            numFaces = size(obj.meshNodes.faces,1);
+
+            for ff = 1:numFaces
+                % Pieces of the system matrix
+                if isempty(jacobianOverride)
+                    jac = obj.meshNodes.getLinearJacobian(ff);
+                else
+                    jac = jacobianOverride;
+                    %disp('JACKED')
+                end
+
+                [M1, dM1dJ] = obj.elementPotentialMatrix(jac);
+                [M2, dM2dJ] = obj.elementChargeMatrix(jac);
+
+                iGlobal = obj.meshNodes.local2global(ff);
+
+                systemMatrix(iGlobal,iGlobal) = systemMatrix(iGlobal, iGlobal) + M1;
+                rhsMatrix(iGlobal, iGlobal) = rhsMatrix(iGlobal, iGlobal) + M2;
+
+                for ii = 1:2
+                    for jj = 1:2
+                        DsystemMatrix_dJ{ii,jj}(iGlobal,iGlobal) = DsystemMatrix_dJ{ii,jj}(iGlobal,iGlobal) + dM1dJ{ii,jj};
+                        DrhsMatrix_dJ{ii,jj}(iGlobal,iGlobal) = DrhsMatrix_dJ{ii,jj}(iGlobal, iGlobal) + dM2dJ{ii,jj};
+                    end
+                end
+
+            end
+
+            
+        end % systemMatrix()
+        
         
     end % methods
     

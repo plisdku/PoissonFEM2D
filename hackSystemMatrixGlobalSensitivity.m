@@ -73,30 +73,21 @@ B2 = fem.elementChargeMatrix(jac2);
 dB_meas = (B2-B)/delta;
 dB_calc = dBdJ{ii,jj};
 
+%% System matrices and sensitivities
 
+ii = 2;
+jj = 2;
 
+jac = eye(2);
+jac2 = jac;
+jac2(ii,jj) = jac2(ii,jj) + delta;
+[A, B, dAdJ, dBdJ] = fem.systemMatrix(jac);
+[A2, B2] = fem.systemMatrix(jac2);
 
-
-
-
-
-
-
-
-
-
-%%
-
-[M1, M2, DM1, DM2] = poissonSystemMatrices(meshNodes);
-
-delta = 1e-6;
-meshNodes.vertices = meshNodes.vertices + delta*meshNodes.Dvertices;
-
-[M1b, M2b] = poissonSystemMatrices(meshNodes);
-meshNodes.vertices = vertices;
-
-DM1_meas = (M1b-M1)/delta;
-DM2_meas = (M2b-M2)/delta;
+dAdJ_meas = (A2-A)/delta;
+dBdJ_meas = (B2-B)/delta;
+dAdJ_calc = dAdJ{ii,jj};
+dBdJ_calc = dBdJ{ii,jj};
 
 %% Dirichlet boundary conditions
 
@@ -105,13 +96,13 @@ iEdgeNodes = meshNodes.getBoundaryNodes();
 iCenterNodes = meshNodes.getInteriorNodes();
 
 % The forward matrices
-M1_center = M1(iCenterNodes, iCenterNodes);
-M2_center = M2(iCenterNodes, iCenterNodes);
-M1_edges = M1(iCenterNodes, iEdgeNodes);
+M1_center = A(iCenterNodes, iCenterNodes);
+M2_center = B(iCenterNodes, iCenterNodes);
+M1_edges = A(iCenterNodes, iEdgeNodes);
 
-M1b_center = M1b(iCenterNodes, iCenterNodes);
-M2b_center = M2b(iCenterNodes, iCenterNodes);
-M1b_edges = M1b(iCenterNodes, iEdgeNodes);
+M1b_center = A2(iCenterNodes, iCenterNodes);
+M2b_center = B2(iCenterNodes, iCenterNodes);
+M1b_edges = A2(iCenterNodes, iEdgeNodes);
 
 % And for the sensitivity matrices:
 DM1_center = DM1(iCenterNodes, iCenterNodes);
