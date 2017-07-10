@@ -1,6 +1,6 @@
 %% Let's try to assemble a system matrix for a whole grid!!
 
-N = 4;
+N = 3;
 
 % Here is a mesh
 [vertices,faces] = VVMesh.wagonWheel(5);
@@ -17,6 +17,73 @@ figure(1); clf
 VVMesh.plotVV(vv, vertices, 'b-')
 hold on
 plot(meshNodes.vertices(:,1), meshNodes.vertices(:,2), 'o')
+
+%% FEM starts here
+
+fem = PoissonFEM2D(meshNodes);
+
+%% Element matrix sensitivity
+
+% face to test
+ff = 1;
+
+% Jacobian element to perturb
+ii = 2;
+jj = 2;
+
+delta = 1e-6;
+jac = meshNodes.getLinearJacobian(ff);
+jac2 = jac;
+jac2(ii,jj) = jac2(ii,jj) + delta;
+
+% TEST GRADIENT SENSITIVITY
+
+[Dx, Dy, dDx, dDy] = fem.elementGradientMatrix(jac);
+[Dx2, Dy2] = fem.elementGradientMatrix(jac2);
+
+dDx_meas = (Dx2-Dx)/delta;
+dDy_meas = (Dy2-Dy)/delta;
+
+dDx_calc = dDx{ii,jj};
+dDy_calc = dDy{ii,jj};
+
+% TEST QUADRATURE SENSITIVITY
+
+detJ = det(jac);
+detJ2 = det(jac2);
+dDetJ_meas = (detJ2-detJ)/delta;
+dDetJ_calc = detJ*transpose(inv(jac));
+
+[Q, dQdJ] = fem.elementQuadratureMatrix(jac);
+Q2 = fem.elementQuadratureMatrix(jac2);
+dQ_meas = (Q2-Q)/delta;
+dQ_calc = dQdJ{ii,jj};
+
+% TEST POTENTIAL MATRIX SENSITIVITY
+
+[A, dAdJ] = fem.elementPotentialMatrix(jac);
+A2 = fem.elementPotentialMatrix(jac2);
+dA_meas = (A2-A)/delta;
+dA_calc = dAdJ{ii,jj};
+
+% TEST CHARGE MATRIX SENSITIVITY
+
+[B, dBdJ] = fem.elementChargeMatrix(jac);
+B2 = fem.elementChargeMatrix(jac2);
+dB_meas = (B2-B)/delta;
+dB_calc = dBdJ{ii,jj};
+
+
+
+
+
+
+
+
+
+
+
+
 
 %%
 

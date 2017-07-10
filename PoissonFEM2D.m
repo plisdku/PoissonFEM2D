@@ -1,0 +1,118 @@
+classdef PoissonFEM2D < handle
+    
+    properties
+        meshNodes;
+        Dr;  % differentiation matrix on basis element
+        Ds;  % differentiation matrix on basis element
+        Q;   % quadrature matrix on basis element
+    end
+    
+    
+    methods
+        
+        % ---- CONSTRUCTOR
+        function obj = PoissonFEM2D(meshNodes)
+            
+            obj.meshNodes = meshNodes;
+            
+            rs = obj.meshNodes.nodesLocal_rs(:,1);
+            ss = obj.meshNodes.nodesLocal_rs(:,2);
+            
+            [obj.Dr, obj.Ds] = support2d.gradients(obj.meshNodes.N, rs, ss);
+            obj.Q = support2d.quadratureKernel(obj.meshNodes.N, rs, ss);
+        end
+        
+        % ---- Helper matrices
+        
+        function [Dx, Dy, dDxdJ, dDydJ] = elementGradientMatrix(obj, jacobian)
+            invJac = inv(jacobian);
+            
+            Dx = obj.Dr*invJac(1,1) + obj.Ds*invJac(2,1);
+            Dy = obj.Dr*invJac(1,2) + obj.Ds*invJac(2,2);
+            
+            dDxdJ = cell(2,2);
+            dDydJ = cell(2,2);
+            
+            for ii = 1:2
+                for jj = 1:2
+                    dDxdJ{ii,jj} = -invJac(1,ii)*invJac(jj,1)*obj.Dr - invJac(2,ii)*invJac(jj,1)*obj.Ds;
+                    dDydJ{ii,jj} = -invJac(1,ii)*invJac(jj,2)*obj.Dr - invJac(2,ii)*invJac(jj,2)*obj.Ds;
+                end
+            end
+        end % elementGradientMatrix
+        
+        
+        function [Q, dQdJ] = elementQuadratureMatrix(obj, jacobian)
+            invJac = inv(jacobian);
+            detJac = det(jacobian);
+            Q = obj.Q*detJac;
+            
+            dDetJ_dJ = detJac*transpose(invJac); % this is all 4 sensitivities in a matrix
+            
+            dQdJ = cell(2,2);
+            for ii = 1:2
+                for jj = 1:2
+                    dQdJ{ii,jj} = obj.Q*dDetJ_dJ(ii,jj);
+                end
+            end
+        end % elementQuadratureMatrix
+            
+            
+        
+        % ---- Elemental matrices
+        function [A, dAdJ] = elementPotentialMatrix(obj, jacobian)
+            % [A, dA_dJij] = elementPotentialMatrix(obj, jacobian)
+            %
+            % Sensitivities are indexed dA_dJij{ii}{jj}.
+            %
+            
+            [Dx, Dy, dDxdJ, dDydJ] = obj.elementGradientMatrix(jacobian);
+            [QQ, dQdJ] = obj.elementQuadratureMatrix(jacobian);
+            
+            % Matrix that multiplies the potential
+            A = - (Dx'*QQ*Dx + Dy'*QQ*Dy);
+            
+            if nargout == 1
+                return
+            end
+            
+            % Its sensitivities with respect to Jacobian elements
+           
+            dAdJ = cell(2,2);
+            for ii = 1:2
+                for jj = 1:2
+                    
+                    dAdJ{ii,jj} = -(dDxdJ{ii,jj}'*QQ*Dx + Dx'*dQdJ{ii,jj}*Dx + Dx'*QQ*dDxdJ{ii,jj}) ...
+                        - (dDydJ{ii,jj}'*QQ*Dy + Dy'*dQdJ{ii,jj}*Dy + Dy'*QQ*dDydJ{ii,jj});
+                end
+            end
+        end % elementPotentialMatrix()
+        
+        function [B, dBdJ] = elementChargeMatrix(obj, jacobian)
+            % [B, dBdJ_ij] = elementChargeMatrix(obj, jacobian)
+            %
+            % Sensitivities are indexed dB_dJ_ij{ii}{jj}.
+            %
+            
+            [B, dBdJ] = obj.elementQuadratureMatrix(jacobian);
+            
+        end % elementChargeMatrix()
+        
+        
+        function [C, dC_dJ_ij] = elementNeumannMatrix(obj, jacobian1d)
+            
+            error('Unimplemented');
+            
+            % C = L'*Q1d*det(J1d).  Must be done per edge.
+            
+        end % elementNeumannMatrix
+        
+        
+        % ---- System Matrices
+        
+        
+    end % methods
+    
+    
+    
+end

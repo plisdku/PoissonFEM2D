@@ -1,4 +1,4 @@
-function [Dr, Ds] = partialDerivativeOperators(N, rr, ss)
+function [Dr, Ds] = gradients(N, rr, ss)
 
 import support2d.*
 

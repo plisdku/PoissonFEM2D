@@ -250,7 +250,7 @@ detJac = det(jacobian);
 invJac = inv(jacobian);
 
 % Put the 4 gradient elements into a matrix.
-dinvJac_dJ = det(jacobian)*transpose(inv(jacobian));
+dDetJac_dJ = det(jacobian)*transpose(inv(jacobian));
 
 delta = 1e-6;
 for ii = 1:2
@@ -262,7 +262,7 @@ for ii = 1:2
         
         ddetJ_meas = (det(jac2)-det(jacobian))/delta;
         
-        relErr = abs(ddetJ_meas - dinvJac_dJ(ii,jj))/abs(ddetJ_meas);
+        relErr = abs(ddetJ_meas - dDetJac_dJ(ii,jj))/abs(ddetJ_meas);
         fprintf('Relative error(%g,%g) = %g\n', ii, jj, relErr);
     end
 end
