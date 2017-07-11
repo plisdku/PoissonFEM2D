@@ -8,8 +8,6 @@ classdef MeshNodes < handle
         faceEdgeOrientations;
         edgeVertices;
         
-        Dvertices; % Jacobian of vertices
-        
         iVertexNode0;
         iEdgeNode0;
         iFaceNode0;
@@ -32,7 +30,6 @@ classdef MeshNodes < handle
             obj.N = N;
             obj.faces = faces;
             obj.vertices = vertices;
-            obj.Dvertices = 0*vertices;
             [obj.faceEdges, obj.faceEdgeOrientations, obj.edgeVertices] = VVMesh.getEdges(obj.faces);
             
             obj.nodesPerEdge = max(0, N-2);
@@ -228,24 +225,6 @@ classdef MeshNodes < handle
         
         % ---- SENSITIVITY ANALYSIS
         
-        function setTestPerturbation(obj, iVert, iXY)
-            % Set the vertex Jacobian to represent a unit perturbation
-            % of one vertex in one direction.
-            assert(iVert >= 1 && iVert <= obj.getNumVertices());
-            assert(iXY >= 1 && iXY <= 2, 'iXY must be 1 or 2');
-            
-            obj.Dvertices = 0*obj.vertices;
-            obj.Dvertices(iVert, iXY) = 1.0;
-        end
-        
-%         function Djac = getLinearJacobianSensitivity(obj, iFace)
-%             % This is the sensitivity of the Jacobian of the mapping from
-%             % (r,s) to (x,y).
-%             
-%             threeVertices = obj.vertices(obj.faces(iFace,:),:);
-%             dThreeV = obj.Dvertices(obj.faces(iFace,:),:);
-%             Djac = support2d.rs2xy_affineParameterSensitivities(threeVertices', dThreeV');
-%         end
         
         function dJdv = getLinearJacobianSensitivity(obj, iFace)
             % dJdv = getLinearJacobianSensitivity(obj, iFace)
@@ -265,48 +244,6 @@ classdef MeshNodes < handle
                 end
             end
         end
-        
-        function dJdv = getAllLinearJacobianSensitivities(obj)
-            
-            numFaces = obj.getNumFaces();
-            
-            % Initialize the Jacobian Jacobian.  :-D
-            % It should be sparse.
-            dJdv = cell(2,2);
-            for nn = 1:4
-                dJdv{nn} = sparse(size(obj.vertices,1), size(obj.vertices,2));
-            end
-            
-            for ff = 1:numFaces
-                
-                dJ = obj.getLinearJacobianSensitivity(ff);
-                
-                for ii = 1:2
-                    for jj = 1:2
-                        dJ_sparse = sparse(size(obj.vertices,1), size(obj.vertices,2));
-                        dJ_sparse(obj.faces(ff,:), :) = dJ(ii,jj,:,:);
-                
-                        disp('----')
-                        disp(obj.faces(ff,:))
-                        disp(dJ_sparse)
-                        dJdv{ii,jj} = dJdv{ii,jj} + dJ_sparse;
-                    end
-                end
-                
-            end
-            
-        end % getAllLinearJacobianSensitivities
-        
-%         function Djac = getLinearJacobianSensitivity(obj, iFace, iVertInFace, iDirection)
-%             % This is the sensitivity of the Jacobian of the mapping from
-%             % (r,s) to (x,y).
-%             
-%             threeVertices = obj.vertices(obj.faces(iFace,:),:);
-%             Dvertices = 0*threeVertices;
-%             Dvertices(iVertInFace, iDirection) = 1;
-%             Djac = support2d.rs2xy_affineParameterSensitivities(threeVertices', Dvertices');
-%         end
-        
         
         
     end

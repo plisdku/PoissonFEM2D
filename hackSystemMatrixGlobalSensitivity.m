@@ -40,10 +40,6 @@ Djac = meshNodes.getLinearJacobianSensitivity(ff);
 Djac_meas = (jac2-jac)/delta;
 Djac_calc = Djac(:,:, iVertInFace, iXY);
 
-%% Global Jacobian sensitivity
-
-%dJdv = meshNodes.getAllLinearJacobianSensitivities();
-
 %% FEM starts here
 
 fem = PoissonFEM2D(meshNodes);
@@ -112,10 +108,12 @@ fprintf('dB error: %g\n', norm(dB_meas - dB_calc));
 
 %% Perturb vertices instead...
 
-ff = 1;
-iVertInFace = 1; % local vertex to perturb
+fprintf('Element matrices\n');
+
+ff = 3;
+iVertInFace = 3; % local vertex to perturb
 vv = meshNodes.faces(ff,iVertInFace);
-xy = 1; % direction to perturb
+xy = 2; % direction to perturb
 delta = 1e-6;
 
 vertices2 = vertices;
@@ -132,7 +130,8 @@ dJdv_meas = (jacobian2-jacobian)/delta;
 dJdv_calc = dJdv(:,:,iVertInFace, xy);
 fprintf('dJdv error: %g\n', norm(dJdv_meas - dJdv_calc));
 
-% Now let's try to get some matrix sensitivities to vertex perturbations
+% Sensitivity of system matrix to perturbation
+% Two parts: A and B (potential and charge)
 
 [A, dAdJ] = fem.elementPotentialMatrix(jacobian);
 A2 = fem.elementPotentialMatrix(jacobian2);
@@ -143,21 +142,43 @@ dAdv_calc = dAdv(:,:,iVertInFace, xy);
 dAdv_meas = (A2-A)/delta;
 fprintf('dAdv error: %g\n', norm(dAdv_calc - dAdv_meas));
 
+[B, dBdJ] = fem.elementChargeMatrix(jacobian);
+B2 = fem.elementChargeMatrix(jacobian2);
+dBdv = multiplyTensors.txt(dBdJ, 4, dJdv, 4, 3:4, 1:2);
+dBdv_calc = dBdv(:,:,iVertInFace, xy);
+dBdv_meas = (B2-B)/delta;
+fprintf('dBdv error: %g\n', norm(dBdv_calc - dBdv_meas));
+
 %% System matrices and sensitivities
 
-ii = 2;
-jj = 2;
+fprintf('System matrices\n')
 
-jac = eye(2);
-jac2 = jac;
-jac2(ii,jj) = jac2(ii,jj) + delta;
-[A, B, dAdJ, dBdJ] = fem.systemMatrix(jac);
-[A2, B2] = fem.systemMatrix(jac2);
+iVert = 5;
+iXY = 1;
 
-dAdJ_meas = (A2-A)/delta;
-dBdJ_meas = (B2-B)/delta;
-dAdJ_calc = dAdJ{ii,jj};
-dBdJ_calc = dBdJ{ii,jj};
+delta = 1e-6;
+vertices2 = vertices;
+vertices2(iVert, iXY) = vertices2(iVert, iXY) + delta;
+
+meshNodes = MeshNodes(faces, vertices, N);
+meshNodes2 = MeshNodes(faces, vertices2, N);
+
+fem = PoissonFEM2D(meshNodes);
+fem2 = PoissonFEM2D(meshNodes2);
+
+[A, B, dAdv, dBdv] = fem.systemMatrix();
+[A2, B2] = fem2.systemMatrix();
+
+
+dAdv_meas = (A2-A)/delta;
+dBdv_meas = (B2-B)/delta;
+
+dAdv_calc = dAdv{iVert,iXY};
+dBdv_calc = dBdv{iVert,iXY};
+
+fprintf('dAdv error %g\n', norm(full(dAdv_calc - dAdv_meas)));
+fprintf('dBdv error %g\n', norm(full(dBdv_calc - dBdv_meas)));
+
 
 %% Dirichlet boundary conditions
 
