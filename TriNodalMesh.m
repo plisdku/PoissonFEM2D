@@ -41,16 +41,27 @@ classdef TriNodalMesh < handle
             jac = support2d.rs2xy_affineParameters(threeVertices');
         end
         
-        function jac1d = getLinearJacobian1d(obj, iFace, iLocalEdge)
+        function jac1d = getLinearJacobian1d(obj, iEdge, orientation)
             % This is the Jacobian of the mapping from r to (x,y).
             %
             % xy = (v1+v2)/2 + (v2-v1)/2 * r;
             %
             % so d(xy)/dr = (v2-v1)/2.
             
-            twoVertices = obj.vertices(obj.topology.getFaceEdgeVertices(iFace, iLocalEdge), :);
+            twoVertices = obj.vertices(obj.topology.getEdgeVertices(iEdge, orientation), :);
             jac1d = 0.5*(twoVertices(2,:) - twoVertices(1,:))';
         end
+%         
+%         function jac1d = getLinearJacobian1d(obj, iFace, iLocalEdge)
+%             % This is the Jacobian of the mapping from r to (x,y).
+%             %
+%             % xy = (v1+v2)/2 + (v2-v1)/2 * r;
+%             %
+%             % so d(xy)/dr = (v2-v1)/2.
+%             
+%             twoVertices = obj.vertices(obj.topology.getFaceEdgeVertices(iFace, iLocalEdge), :);
+%             jac1d = 0.5*(twoVertices(2,:) - twoVertices(1,:))';
+%         end
         
         
         function dJdv = getLinearJacobianSensitivity(obj, iFace)
@@ -195,7 +206,7 @@ classdef TriNodalMesh < handle
         function plotMatrix(obj, A, varargin)
             % Draw every FEM node affected by this matrix.
             
-            assert(size(A,1) == obj.getNumNodes());
+            assert(size(A,1) == obj.topology.getNumNodes());
             
             [ii,~,~] = find(A);
             

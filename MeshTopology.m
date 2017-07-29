@@ -126,6 +126,20 @@ classdef MeshTopology < handle
             end
         end
         
+        
+        
+        function iVertices = getFaceEdgeVertices(obj, iFace, iLocalEdge)
+            % Return ordered vertex indices for an edge of a face
+            %
+            % getFaceEdgeVertices(iFace, iEdge)
+            %
+            % Convenience function.
+            
+            [iEdges, orientations] = obj.getFaceEdges(iFace);
+            iVertices = obj.getEdgeVertices(iEdges, orientations);
+        end
+        
+        
         % ---- ADJACENCY MATRICES
         
         function A = getFaceEdgeAdjacency(obj)

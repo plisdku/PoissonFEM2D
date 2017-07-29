@@ -1,26 +1,22 @@
-function [v, f] = meshPolygon(lx, ly, density)
+function [v, f] = meshPolygon(lx, ly, density, varargin)
 
 lx = reshape(lx, 1, []);
 ly = reshape(ly, 1, []);
 
-numEdges = length(lx);
+[lxx, lyy] = subdivide(lx, ly, density);
 
-%% subdivide the edges as needed
+in_lx = []; % one empty interior contour
+in_ly = [];
+in_lxx = [];
+in_lyy = [];
 
-% wrap
-lx2 = [lx, lx(1)];
-ly2 = [ly, ly(1)];
-lxx = [];
-lyy = [];
-
-for ee = 1:numEdges
-    edgeLength = sqrt( (lx2(ee+1)-lx2(ee))^2 + (ly2(ee+1)-ly2(ee))^2 );
-    x = linspace(lx2(ee), lx2(ee+1), density*edgeLength + 1);
-    y = linspace(ly2(ee), ly2(ee+1), density*edgeLength + 1);
+if length(varargin) >= 2 % there is a hole!
+    in_lx = varargin{1};
+    in_ly = varargin{2};
     
-    lxx = [lxx, x(1:end-1)];
-    lyy = [lyy, y(1:end-1)];
+    [in_lxx, in_lyy] = subdivide(in_lx, in_ly, density);
 end
+
 
 %% the innards
 
@@ -36,7 +32,11 @@ Ny = density*Ly;
 xs = xBounds(1) + Lx*rand(1, Nx*Ny);
 ys = yBounds(1) + Ly*rand(1, Nx*Ny);
 
-i_inside = inpolygon(xs, ys, lx, ly);
+if isempty(in_lx)
+    i_inside = inpolygon(xs, ys, lx, ly);
+else
+    i_inside = inpolygon(xs, ys, lx, ly) & ~inpolygon(xs, ys, in_lx, in_ly);
+end
 
 xs = xs(i_inside);
 ys = ys(i_inside);
@@ -45,6 +45,16 @@ ys = ys(i_inside);
 
 numEdgePts = length(lxx);
 constraints = [ 1:numEdgePts; [2:numEdgePts,1] ]';
+if ~isempty(in_lx)    
+    numEdgePts = length(in_lxx);
+    
+    moreConstraints = [ 1:numEdgePts; [2:numEdgePts,1] ]';
+    constraints = [constraints; moreConstraints + length(lxx)];
+    
+    lxx = [lxx, in_lxx];
+    lyy = [lyy, in_lyy];
+    numEdgePts = length(lxx);
+end
 
 xxx = [lxx, xs]';
 yyy = [lyy, ys]';
@@ -101,3 +111,25 @@ end
 v = tri.Points;
 f = tri.ConnectivityList;
 f = f(tri.isInterior(), :);
+end
+
+
+
+function [lxx,lyy] = subdivide(lx, ly, density)
+    numEdges = length(lx);
+    lxx = [];
+    lyy = [];
+    
+    % wrap
+    lx = [lx, lx(1)];
+    ly = [ly, ly(1)];
+
+    for ee = 1:numEdges
+        edgeLength = sqrt( (lx(ee+1)-lx(ee))^2 + (ly(ee+1)-ly(ee))^2 );
+        x = linspace(lx(ee), lx(ee+1), max(2, density*edgeLength + 1));
+        y = linspace(ly(ee), ly(ee+1), max(2, density*edgeLength + 1));
+
+        lxx = [lxx, x(1:end-1)];
+        lyy = [lyy, y(1:end-1)];
+    end
+end

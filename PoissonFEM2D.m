@@ -143,14 +143,11 @@ classdef PoissonFEM2D < handle
         end % elementChargeMatrix()
         
         
-        function [C, dCdJ] = elementNeumannMatrix(obj, jacobian1d, edge)
+        function [C, dCdJ] = elementNeumannMatrix(obj, jacobian1d)
             
-            L = obj.L{edge};
             Q = obj.Q1d;
-            
             detJ = sqrt(det(jacobian1d'*jacobian1d));
-            
-            C = L' * Q * detJ;
+            C = Q * detJ;
             dCdJ = [];
             
             % C = L'*Q1d*det(J1d).  Must be done per edge.
@@ -159,17 +156,36 @@ classdef PoissonFEM2D < handle
         
         % ---- System Matrices
         
-        function [N] = neumannMatrix(obj)
+        function [NM, DNM_dv] = neumannMatrix(obj)
             
+            % The Neumann matrix is sum( [get edge nodes] * Q * detJ ).
+            % Its raw dimensions are nNodes x nNodes and on the outside
+            % we can bake it down to the size of only the Neumann boundary
+            % nodes.
             
-            numNodes = obj.meshNodes.getNumNodes();
-            N = sparse(numNodes, numNodes);
+            numNodes = obj.meshNodes.topology.getNumNodes();
+            numVertices = obj.meshNodes.topology.getNumVertices();
             
-            boundaryEdges = obj.meshNodes.getBoundaryEdges();
+            NM = sparse(numNodes, numNodes);
             
-            numFaces = obj.meshNodes.getNumFaces();
-            %for ff = 1:numFaces
-                %for ee = 1:
+            [boundaryEdges, orientations] = obj.meshNodes.topology.getBoundaryEdges();
+            
+            numEdges = length(boundaryEdges);
+            
+            for ii = 1:numEdges
+                ee = boundaryEdges(ii);
+                oo = orientations(ii);
+                iGlobal = obj.meshNodes.topology.getEdgeNodes(ee, oo);
+                
+                jac1d = obj.meshNodes.getLinearJacobian1d(ee, oo);
+                neuMat = obj.elementNeumannMatrix(jac1d);
+                NM(iGlobal, iGlobal) = NM(iGlobal, iGlobal) + neuMat;
+            end
+            
+            DNM_dv = cell(numVertices, 2);
+            for nn = 1:numel(DNM_dv)
+                DNM_dv = sparse(numNodes, numNodes);
+            end
             
         end
         
