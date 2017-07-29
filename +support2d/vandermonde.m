@@ -6,6 +6,10 @@ pickThese = (is+js < N);
 is = is(pickThese);
 js = js(pickThese);
 
+if nargin < 3
+    [rr,ss] = support2d.nodes2d(N);
+end
+
 for nn = 1:length(is)
     [z, dzdr, dzds] = support2d.jacobiNormalized2D(N, is(nn), js(nn), rr, ss);
     V(:,nn) = z;

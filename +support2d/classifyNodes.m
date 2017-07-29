@@ -5,6 +5,9 @@ function [iCorners, iEdgeCenters, iCenters] = classifyNodes(N)
 % - three corners, [v0 v1 v2]
 % - edges excluding corners, { [v00 v01 v02...], [v10 v11 v12...], ... }
 % - remaining nodes in the middle, [v0 v1 v2 ...]
+%
+% The edge nodes are returned in counter-clockwise order (positive
+% orientation).
 
 allNodeIndices = 1:( N*(N+1)/2 );
 

@@ -1,6 +1,6 @@
 %% Let's try to assemble a system matrix for a whole grid!!
 
-N = 3;
+N = 4;
 
 % Here is a mesh
 [vertices,faces] = VVMesh.wagonWheel(5);
@@ -8,6 +8,8 @@ vertices = vertices(:,1:2);
 
 vertices(1,1) = 3;
 meshNodes = MeshNodes(faces,vertices,N);
+
+numNodes = meshNodes.getNumNodes();
 
 %% 
 
@@ -39,6 +41,20 @@ Djac = meshNodes.getLinearJacobianSensitivity(ff);
 
 Djac_meas = (jac2-jac)/delta;
 Djac_calc = Djac(:,:, iVertInFace, iXY);
+
+
+%% Functional sensitivities
+% dI/du!!
+%
+% Point evaluation
+% Integral on domain
+
+% Point evaluation
+
+
+
+
+
 
 %% FEM starts here
 
@@ -153,10 +169,13 @@ fprintf('dBdv error: %g\n', norm(dBdv_calc - dBdv_meas));
 
 fprintf('System matrices\n')
 
-iVert = 5;
-iXY = 1;
+numVerts = meshNodes.getNumVertices();
 
-delta = 1e-6;
+iVert = 2;
+iXY = 1;
+%for iVert = 1:numVerts
+
+delta = 1e-3;
 vertices2 = vertices;
 vertices2(iVert, iXY) = vertices2(iVert, iXY) + delta;
 
@@ -169,7 +188,6 @@ fem2 = PoissonFEM2D(meshNodes2);
 [A, B, dAdv, dBdv] = fem.systemMatrix();
 [A2, B2] = fem2.systemMatrix();
 
-
 dAdv_meas = (A2-A)/delta;
 dBdv_meas = (B2-B)/delta;
 
@@ -178,6 +196,7 @@ dBdv_calc = dBdv{iVert,iXY};
 
 fprintf('dAdv error %g\n', norm(full(dAdv_calc - dAdv_meas)));
 fprintf('dBdv error %g\n', norm(full(dBdv_calc - dBdv_meas)));
+%end
 
 
 %% Dirichlet boundary conditions
@@ -196,18 +215,37 @@ M2b_center = B2(iCenterNodes, iCenterNodes);
 M1b_edges = A2(iCenterNodes, iEdgeNodes);
 
 % And for the sensitivity matrices:
-DM1_center = DM1(iCenterNodes, iCenterNodes);
-DM2_center = DM2(iCenterNodes, iCenterNodes);
-DM1_edges = DM1(iCenterNodes, iEdgeNodes);
+DM1_center = dAdv_calc(iCenterNodes, iCenterNodes);
+DM2_center = dBdv_calc(iCenterNodes, iCenterNodes);
+DM1_edges = dAdv_calc(iCenterNodes, iEdgeNodes);
 
 %% Define a really dumb objective function: a'*u.
 
+iObjectiveFnNode = 6;
 objectiveFuncWeights = zeros(numNodes,1);
-objectiveFuncWeights(12) = 1; % just pick randomly... should be a center val
+objectiveFuncWeights(iObjectiveFnNode) = 1; % just pick randomly... should be a center val
+
+doPlot = 1;
+if doPlot
+    vv = VVMesh.fv2vv(faces,vertices);
+    
+    nodeXY = meshNodes.getNodeCoordinates();
+    
+    figure(1); clf
+    VVMesh.plotVV(vv, vertices, 'b-')
+    ax = axis;
+    hold on
+    VVMesh.plotVV(vv, vertices + 10*(vertices2-vertices), 'b--')
+    plot(meshNodes.vertices(:,1), meshNodes.vertices(:,2), 'o')
+    plot(nodeXY(:,1), nodeXY(:,2), 'r.', 'MarkerSize', 20);
+    plot(nodeXY(iObjectiveFnNode,1), nodeXY(iObjectiveFnNode,2), 'ko', 'MarkerSize', 10);
+    axis(ax);
+end
 
 %% Solve the system
 
 xy = meshNodes.getNodeCoordinates();
+xy2 = meshNodes2.getNodeCoordinates();
 xy_edges = xy(iEdgeNodes,:);
 
 u0 = zeros(numNodes,1);
@@ -234,6 +272,8 @@ ub(iCenterNodes) = ub_center;
 
 Fb = objectiveFuncWeights'*ub;
 
+fprintf('Measured gradient of F is %.15g\n', (Fb-F)/delta);
+
 %% Solve the primal (DD) system
 
 Df_center = 0*f_center;
@@ -252,6 +292,8 @@ Du(iCenterNodes) = Du_center;
 
 % Objective function
 DF = objectiveFuncWeights'*Du;
+
+fprintf('Primal gradient of F is %.15g\n', DF);
 
 %% Adjoint system?  Separated edge and centers: barking up the wrong tree?
 
@@ -275,6 +317,7 @@ RHS = DM2_center * f_center + M2_center * Df_center ...
 DF_dual = u_adj_center' * RHS + ...
     u_adj_edge' * Du0_edges;
 
+fprintf('Dual gradient of F is %0.15g\n', DF_dual);
 
 %% Interpolate onto a triangular grid
 
@@ -284,6 +327,8 @@ ys = linspace(-1, 1, 100);
 
 interpolant = scatteredInterpolant(xy, u, 'linear', 'none');
 u_grid = interpolant(xx,yy);
+interpolant_b = scatteredInterpolant(xy2, ub, 'linear', 'none');
+u_grid_b = interpolant_b(xx,yy);
 
 Dinterpolant = scatteredInterpolant(xy, Du, 'linear', 'none');
 Du_grid = Dinterpolant(xx,yy);
@@ -296,9 +341,21 @@ hold on
 plot(meshNodes.vertices(:,1), meshNodes.vertices(:,2), 'wo')
 plot(xy(:,1), xy(:,2), 'w.', 'MarkerSize', 20)
 colorbar
+axis xy
 title('Linear interpolation')
-%%
+
 figure(3); clf
+imagesc(xs, ys, u_grid_b');
+hold on
+VVMesh.plotVV(vv, vertices2, 'w-')
+hold on
+plot(vertices2(:,1), vertices2(:,2), 'wo')
+plot(xy2(:,1), xy2(:,2), 'w.', 'MarkerSize', 20)
+colorbar
+axis xy
+title('Linear interpolation (2)')
+%%
+figure(4); clf
 imagesc(xs, ys, Du_grid');
 set(gca, 'CLim', [-1,1]*max(abs(get(gca, 'CLim'))));
 hold on

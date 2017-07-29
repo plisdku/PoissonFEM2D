@@ -5,6 +5,8 @@ classdef PoissonFEM2D < handle
         Dr;  % differentiation matrix on basis element
         Ds;  % differentiation matrix on basis element
         Q;   % quadrature matrix on basis element
+        Q1d; % quadrature matrix on basis edge
+        L;   % cell array of three lift matrices
     end
     
     
@@ -15,11 +17,26 @@ classdef PoissonFEM2D < handle
             
             obj.meshNodes = meshNodes;
             
-            rs = obj.meshNodes.nodesLocal_rs(:,1);
-            ss = obj.meshNodes.nodesLocal_rs(:,2);
+            rs = obj.meshNodes.basis.r;
+            ss = obj.meshNodes.basis.s;
             
             [obj.Dr, obj.Ds] = support2d.gradients(obj.meshNodes.N, rs, ss);
             obj.Q = support2d.quadratureKernel(obj.meshNodes.N, rs, ss);
+            
+            obj.Q1d = support.quadratureKernel(obj.meshNodes.N, obj.meshNodes.basis1d.r);
+            
+            % make the lift matrices
+            [iCorners, iEdgeCenters, ~] = support2d.classifyNodes(obj.meshNodes.N);
+            
+            iEdge1 = [iCorners(1), iEdgeCenters{1}, iCorners(2)];
+            iEdge2 = [iCorners(2), iEdgeCenters{2}, iCorners(3)];
+            iEdge3 = [iCorners(3), iEdgeCenters{3}, iCorners(1)];
+            nEdge = length(iEdge1);
+            nNodes = size(obj.Q,1);
+            unos = ones(size(iEdge1));
+            obj.L{1} = sparse(1:nEdge, iEdge1, unos, nEdge, nNodes);
+            obj.L{2} = sparse(1:nEdge, iEdge2, unos, nEdge, nNodes);
+            obj.L{3} = sparse(1:nEdge, iEdge3, unos, nEdge, nNodes);
         end
         
         % ---- Helper matrices
@@ -126,26 +143,47 @@ classdef PoissonFEM2D < handle
         end % elementChargeMatrix()
         
         
-        function [C, dC_dJ_ij] = elementNeumannMatrix(obj, jacobian1d)
+        function [C, dCdJ] = elementNeumannMatrix(obj, jacobian1d, edge)
             
-            error('Unimplemented');
+            L = obj.L{edge};
+            Q = obj.Q1d;
+            
+            detJ = sqrt(det(jacobian1d'*jacobian1d));
+            
+            C = L' * Q * detJ;
+            dCdJ = [];
             
             % C = L'*Q1d*det(J1d).  Must be done per edge.
             
         end % elementNeumannMatrix
         
-        
         % ---- System Matrices
+        
+        function [N] = neumannMatrix(obj)
+            
+            
+            numNodes = obj.meshNodes.getNumNodes();
+            N = sparse(numNodes, numNodes);
+            
+            boundaryEdges = obj.meshNodes.getBoundaryEdges();
+            
+            numFaces = obj.meshNodes.getNumFaces();
+            %for ff = 1:numFaces
+                %for ee = 1:
+            
+        end
         
         function [systemMatrix, rhsMatrix, DsystemMatrix_dv, DrhsMatrix_dv] = systemMatrix(obj)
             % [A, B, dAdJ, dBdJ] = systemMatrix(obj)
             %
             % The jacobian override is for sensitivity testing.
             
-            numNodes = obj.meshNodes.getNumNodes();
-            numVertices = obj.meshNodes.getNumVertices();
+            numNodes = obj.meshNodes.topology.getNumNodes();
+            numVertices = obj.meshNodes.topology.getNumVertices();
+            
             systemMatrix = sparse(numNodes, numNodes);
             rhsMatrix = sparse(numNodes, numNodes);
+            neumannMatrix = sparse(numNodes, numNodes);
 
             % We will accumulate the system matrix sensitivities with respect to
             % elemental Jacobians, first.
@@ -160,7 +198,7 @@ classdef PoissonFEM2D < handle
             end
             
             % Fill in the matrices!
-            numFaces = size(obj.meshNodes.faces,1);
+            numFaces = obj.meshNodes.topology.getNumFaces();
 
             for ff = 1:numFaces
                 
@@ -172,9 +210,9 @@ classdef PoissonFEM2D < handle
                 
                 [M2, dM2dJ] = obj.elementChargeMatrix(jacobian);
                 dM2dv = multiplyTensors.txt(dM2dJ, 4, dJdv, 4, 3:4, 1:2);
-
-                iVertices = obj.meshNodes.faces(ff,:);
-                iGlobal = obj.meshNodes.local2global(ff);
+                
+                iVertices = obj.meshNodes.topology.getFaceVertices(ff);
+                iGlobal = obj.meshNodes.topology.getFaceNodes(ff);
 
                 systemMatrix(iGlobal,iGlobal) = systemMatrix(iGlobal, iGlobal) + M1;
                 rhsMatrix(iGlobal, iGlobal) = rhsMatrix(iGlobal, iGlobal) + M2;
@@ -202,6 +240,7 @@ classdef PoissonFEM2D < handle
 
             
         end % systemMatrix()
+        
         
         
     end % methods
