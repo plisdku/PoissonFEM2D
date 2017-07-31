@@ -90,8 +90,8 @@ classdef TriNodalMesh < handle
         end
         
         
-        function dJdv1d = getLinearJacobianSensitivity1d(obj, iFace, iLocalEdge)
-            % dJdv1d = getLinearJacobianSensitivity1d(iFace, iLocalEdge)
+        function dJdv1d = getLinearJacobianSensitivity1d(obj, iEdge, orientation)
+            % dJdv1d = getLinearJacobianSensitivity1d(iEdge, orientation)
             %
             % dJdv is a 3D array indexed by (row, vertex, xy).
             %
@@ -118,6 +118,12 @@ classdef TriNodalMesh < handle
             dJdv1d(:,1,2) = 0.5*[0; -1];
             dJdv1d(:,2,1) = 0.5*[1; 0];
             dJdv1d(:,2,2) = 0.5*[0; 1];
+            
+            % uh... i don't think we need to flip the sign because of
+            % the orientation...
+            %if orientation < 0
+            %    dJdv1d = -dJdv1d;
+            %end
         end
         
         

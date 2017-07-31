@@ -43,7 +43,8 @@ plot(xy(iCenterNodes,1), xy(iCenterNodes,2), 'go');
 fem = PoissonFEM2D(meshNodes);
 numNodes = meshNodes.topology.getNumNodes();
 
-[A, B] = fem.systemMatrix();
+A = fem.systemMatrix();
+B = fem.rhsMatrix();
 NM = fem.neumannMatrix();
 
 % Separate edges from centers
@@ -157,3 +158,5 @@ axis xy image vis3d
 %title('Linear interpolation')
 title('Basis interpolation')
 %title('Difference')
+
+%%

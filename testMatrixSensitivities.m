@@ -6,10 +6,9 @@ N = 4;
 [vertices,faces] = VVMesh.wagonWheel(5);
 vertices = vertices(:,1:2);
 
-vertices(1,1) = 3;
-meshNodes = MeshNodes(faces,vertices,N);
+meshNodes = TriNodalMesh(N,faces,vertices);
 
-numNodes = meshNodes.getNumNodes();
+numNodes = meshNodes.topology.getNumNodes();
 
 %% 
 
@@ -28,12 +27,13 @@ delta = 1e-6;
 
 % perturb this vertex
 iVertInFace = 3;
-iVert = meshNodes.faces(ff,iVertInFace);
+tmp = meshNodes.topology.getFaceVertices(ff);
+iVert = tmp(iVertInFace);
 iXY = 2;
 
 vertices2 = vertices;
 vertices2(iVert, iXY) = vertices2(iVert, iXY) + delta;
-meshNodes2 = MeshNodes(faces, vertices2, N);
+meshNodes2 = TriNodalMesh(N, faces, vertices2);
 
 jac = meshNodes.getLinearJacobian(ff);
 jac2 = meshNodes2.getLinearJacobian(ff);
@@ -128,13 +128,14 @@ fprintf('Element matrices\n');
 
 ff = 3;
 iVertInFace = 3; % local vertex to perturb
-vv = meshNodes.faces(ff,iVertInFace);
+tmp = meshNodes.topology.getFaceVertices(ff);
+vv = tmp(iVertInFace);
 xy = 2; % direction to perturb
 delta = 1e-6;
 
 vertices2 = vertices;
 vertices2(vv, xy) = vertices2(vv, xy) + delta;
-meshNodes2 = MeshNodes(faces, vertices2, N);
+meshNodes2 = TriNodalMesh(N, faces, vertices2);
 
 jacobian = meshNodes.getLinearJacobian(ff);
 jacobian2 = meshNodes2.getLinearJacobian(ff);
@@ -169,7 +170,7 @@ fprintf('dBdv error: %g\n', norm(dBdv_calc - dBdv_meas));
 
 fprintf('System matrices\n')
 
-numVerts = meshNodes.getNumVertices();
+numVerts = meshNodes.topology.getNumVertices();
 
 iVert = 2;
 iXY = 1;
@@ -179,31 +180,38 @@ delta = 1e-3;
 vertices2 = vertices;
 vertices2(iVert, iXY) = vertices2(iVert, iXY) + delta;
 
-meshNodes = MeshNodes(faces, vertices, N);
-meshNodes2 = MeshNodes(faces, vertices2, N);
+meshNodes = TriNodalMesh(N, faces, vertices);
+meshNodes2 = TriNodalMesh(N, faces, vertices2);
 
 fem = PoissonFEM2D(meshNodes);
 fem2 = PoissonFEM2D(meshNodes2);
 
-[A, B, dAdv, dBdv] = fem.systemMatrix();
-[A2, B2] = fem2.systemMatrix();
+[A, dAdv] = fem.systemMatrix();
+[B, dBdv] = fem.rhsMatrix();
+[C, dCdv] = fem.neumannMatrix();
+A2 = fem2.systemMatrix();
+B2 = fem2.rhsMatrix();
+C2 = fem2.neumannMatrix();
 
 dAdv_meas = (A2-A)/delta;
 dBdv_meas = (B2-B)/delta;
+dCdv_meas = (C2-C)/delta;
 
 dAdv_calc = dAdv{iVert,iXY};
 dBdv_calc = dBdv{iVert,iXY};
+dCdv_calc = dCdv{iVert,iXY};
 
 fprintf('dAdv error %g\n', norm(full(dAdv_calc - dAdv_meas)));
 fprintf('dBdv error %g\n', norm(full(dBdv_calc - dBdv_meas)));
+fprintf('dCdv error %g\n', norm(full(dCdv_calc - dCdv_meas)));
 %end
 
 
 %% Dirichlet boundary conditions
 
 % Separate edges from centers
-iEdgeNodes = meshNodes.getBoundaryNodes();
-iCenterNodes = meshNodes.getInteriorNodes();
+iEdgeNodes = meshNodes.topology.getBoundaryNodes();
+iCenterNodes = meshNodes.topology.getInteriorNodes();
 
 % The forward matrices
 M1_center = A(iCenterNodes, iCenterNodes);

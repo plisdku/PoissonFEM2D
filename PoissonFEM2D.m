@@ -145,12 +145,17 @@ classdef PoissonFEM2D < handle
         
         function [C, dCdJ] = elementNeumannMatrix(obj, jacobian1d)
             
-            Q = obj.Q1d;
             detJ = sqrt(det(jacobian1d'*jacobian1d));
-            C = Q * detJ;
-            dCdJ = [];
+            C = obj.Q1d * detJ;
             
-            % C = L'*Q1d*det(J1d).  Must be done per edge.
+            %dDetJ_dJ = detJ*transpose(invJac); % this is all 4 sensitivities in a matrix
+            dDetJ_dJ = detJ*jacobian1d*inv(jacobian1d'*jacobian1d);
+            
+            dCdJ = zeros([size(C), 2]);
+            
+            for ii = 1:2
+                dCdJ(:,:,ii) = obj.Q1d*dDetJ_dJ(ii);
+            end
             
         end % elementNeumannMatrix
         
@@ -167,6 +172,10 @@ classdef PoissonFEM2D < handle
             numVertices = obj.meshNodes.topology.getNumVertices();
             
             NM = sparse(numNodes, numNodes);
+            DNM_dv = cell(numVertices, 2);
+            for nn = 1:numel(DNM_dv)
+                DNM_dv{nn} = sparse(numNodes, numNodes);
+            end
             
             [boundaryEdges, orientations] = obj.meshNodes.topology.getBoundaryEdges();
             
@@ -175,21 +184,71 @@ classdef PoissonFEM2D < handle
             for ii = 1:numEdges
                 ee = boundaryEdges(ii);
                 oo = orientations(ii);
+                
+                dJdv = obj.meshNodes.getLinearJacobianSensitivity1d(ee, oo);
+                
+                iVertices = obj.meshNodes.topology.getEdgeVertices(ee,oo);
                 iGlobal = obj.meshNodes.topology.getEdgeNodes(ee, oo);
                 
                 jac1d = obj.meshNodes.getLinearJacobian1d(ee, oo);
-                neuMat = obj.elementNeumannMatrix(jac1d);
+                [neuMat, dNdJ] = obj.elementNeumannMatrix(jac1d);
+                dNdv_local = multiplyTensors.txt(dNdJ, 3, dJdv, 3, 3, 1);
+                
                 NM(iGlobal, iGlobal) = NM(iGlobal, iGlobal) + neuMat;
-            end
-            
-            DNM_dv = cell(numVertices, 2);
-            for nn = 1:numel(DNM_dv)
-                DNM_dv = sparse(numNodes, numNodes);
+                
+                for iVert = 1:2
+                    iVertGlobal = iVertices(iVert);
+                    for iXY = 1:2
+                        DNM_dv{iVertGlobal, iXY}(iGlobal, iGlobal) = ...
+                            DNM_dv{iVertGlobal, iXY}(iGlobal, iGlobal) + ...
+                            dNdv_local(:,:,iVert,iXY);
+                    end
+                end
+                
             end
             
         end
         
-        function [systemMatrix, rhsMatrix, DsystemMatrix_dv, DrhsMatrix_dv] = systemMatrix(obj)
+        function [rhsMatrix, DrhsMatrix_dv] = rhsMatrix(obj)
+            
+            numNodes = obj.meshNodes.topology.getNumNodes();
+            numVertices = obj.meshNodes.topology.getNumVertices();
+            rhsMatrix = sparse(numNodes, numNodes);
+            
+            DrhsMatrix_dv = cell(numVertices,2);
+            
+            for nn = 1:numel(DrhsMatrix_dv)
+                DrhsMatrix_dv{nn} = sparse(numNodes, numNodes);
+            end
+            
+            
+            % Fill in the matrix!
+            numFaces = obj.meshNodes.topology.getNumFaces();
+
+            for ff = 1:numFaces
+                jacobian = obj.meshNodes.getLinearJacobian(ff);
+                dJdv = obj.meshNodes.getLinearJacobianSensitivity(ff);
+                
+                [M2, dM2dJ] = obj.elementChargeMatrix(jacobian);
+                dM2dv = multiplyTensors.txt(dM2dJ, 4, dJdv, 4, 3:4, 1:2);
+                
+                iVertices = obj.meshNodes.topology.getFaceVertices(ff);
+                iGlobal = obj.meshNodes.topology.getFaceNodes(ff);
+
+                rhsMatrix(iGlobal, iGlobal) = rhsMatrix(iGlobal, iGlobal) + M2;
+                
+                for iVert = 1:3
+                    iVertGlobal = iVertices(iVert);
+                    for iXY = 1:2
+                        DrhsMatrix_dv{iVertGlobal, iXY}(iGlobal, iGlobal) = ...
+                            DrhsMatrix_dv{iVertGlobal, iXY}(iGlobal, iGlobal) + ...
+                            dM2dv(:,:,iVert,iXY);
+                    end
+                end
+            end
+        end
+        
+        function [systemMatrix, DsystemMatrix_dv] = systemMatrix(obj)
             % [A, B, dAdJ, dBdJ] = systemMatrix(obj)
             %
             % The jacobian override is for sensitivity testing.
@@ -198,8 +257,6 @@ classdef PoissonFEM2D < handle
             numVertices = obj.meshNodes.topology.getNumVertices();
             
             systemMatrix = sparse(numNodes, numNodes);
-            rhsMatrix = sparse(numNodes, numNodes);
-            neumannMatrix = sparse(numNodes, numNodes);
 
             % We will accumulate the system matrix sensitivities with respect to
             % elemental Jacobians, first.
@@ -207,10 +264,8 @@ classdef PoissonFEM2D < handle
             % DsystemMatrix_dJ{ii,jj} is the matrix of sensitivity to J(ii,jj).
 
             DsystemMatrix_dv = cell(numVertices,2);
-            DrhsMatrix_dv = cell(numVertices,2);
             for nn = 1:numel(DsystemMatrix_dv)
                 DsystemMatrix_dv{nn} = sparse(numNodes, numNodes);
-                DrhsMatrix_dv{nn} = sparse(numNodes, numNodes);
             end
             
             % Fill in the matrices!
@@ -224,14 +279,10 @@ classdef PoissonFEM2D < handle
                 [M1, dM1dJ] = obj.elementPotentialMatrix(jacobian);
                 dM1dv = multiplyTensors.txt(dM1dJ, 4, dJdv, 4, 3:4, 1:2);
                 
-                [M2, dM2dJ] = obj.elementChargeMatrix(jacobian);
-                dM2dv = multiplyTensors.txt(dM2dJ, 4, dJdv, 4, 3:4, 1:2);
-                
                 iVertices = obj.meshNodes.topology.getFaceVertices(ff);
                 iGlobal = obj.meshNodes.topology.getFaceNodes(ff);
-
+                
                 systemMatrix(iGlobal,iGlobal) = systemMatrix(iGlobal, iGlobal) + M1;
-                rhsMatrix(iGlobal, iGlobal) = rhsMatrix(iGlobal, iGlobal) + M2;
                 
                 for iVert = 1:3
                     for iXY = 1:2
@@ -239,18 +290,8 @@ classdef PoissonFEM2D < handle
                         DsystemMatrix_dv{iVertGlobal, iXY}(iGlobal, iGlobal) = ...
                             DsystemMatrix_dv{iVertGlobal, iXY}(iGlobal, iGlobal) + ...
                             dM1dv(:,:,iVert,iXY);
-                        DrhsMatrix_dv{iVertGlobal, iXY}(iGlobal, iGlobal) = ...
-                            DrhsMatrix_dv{iVertGlobal, iXY}(iGlobal, iGlobal) + ...
-                            dM2dv(:,:,iVert,iXY);
                     end
                 end
-
-%                 for ii = 1:2
-%                     for jj = 1:2
-%                         DsystemMatrix_dJ{ii,jj}(iGlobal,iGlobal) = DsystemMatrix_dJ{ii,jj}(iGlobal,iGlobal) + dM1dJ{ii,jj};
-%                         DrhsMatrix_dJ{ii,jj}(iGlobal,iGlobal) = DrhsMatrix_dJ{ii,jj}(iGlobal, iGlobal) + dM2dJ{ii,jj};
-%                     end
-%                 end
 
             end
 
