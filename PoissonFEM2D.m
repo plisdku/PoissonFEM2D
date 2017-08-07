@@ -346,8 +346,6 @@ classdef PoissonFEM2D < handle
             
             numIntegrandFaces = length(elementIndices);
             
-            unos = ones([1, size(obj.Q,2)]);
-            
             F = 0;
             for ii = 1:numIntegrandFaces
                 ff = elementIndices(ii);
@@ -365,6 +363,9 @@ classdef PoissonFEM2D < handle
         end
         
         function [F, dFdp, dFdu] = pointEvaluationFunctional(obj, pointFunction, xy, u)
+            % [F, dFdp, dFdu] = pointEvaluationFunctional(pointFunction, xy, u)
+            %
+            % Calculate f(u) and df/du at a single point.
             
             assert(length(xy) == 2, 'Functional must be evaluated at a single point');
             

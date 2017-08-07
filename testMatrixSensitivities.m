@@ -44,19 +44,6 @@ Djac_calc = Djac(:,:, iVertInFace, iXY);
 
 fprintf('dJdv error: %g\n', norm(Djac_meas - Djac_calc));
 
-%% Functional sensitivities
-% dI/du!!
-%
-% Point evaluation
-% Integral on domain
-
-% Point evaluation
-
-
-
-
-
-
 %% FEM starts here
 
 fem = PoissonFEM2D(meshNodes);
