@@ -24,7 +24,7 @@ classdef PoissonFEM2D < handle
             obj.Q = support2d.quadratureKernel(obj.meshNodes.N, rs, ss);
             
             obj.Q1d = support.quadratureKernel(obj.meshNodes.N, obj.meshNodes.basis1d.r);
-            
+
             % make the lift matrices
             [iCorners, iEdgeCenters, ~] = support2d.classifyNodes(obj.meshNodes.N);
             
@@ -87,15 +87,23 @@ classdef PoissonFEM2D < handle
                     dQdJ(:,:,ii,jj) = obj.Q*dDetJ_dJ(ii,jj);
                 end
             end
-            
-            %dQdJ = cell(2,2);
-%             for ii = 1:2
-%                 for jj = 1:2
-%                     dQdJ{ii,jj} = obj.Q*dDetJ_dJ(ii,jj);
-%                 end
-%             end
         end % elementQuadratureMatrix
+        
+        
+        function [Qv, dQvdJ] = elementQuadratureVector(obj, jacobian)
+            % [Qv, dQvdJ] = elementQuadratureVector(obj, jacobian)
+            %
+            % Qv is a column vector indexed Qv(node)
+            % dQvdJ is indexed dQvdJ(node, jacobian1, jacobian2)
             
+            [Q, dQdJ] = obj.elementQuadratureMatrix(jacobian);
+            
+            sz_dQdJ = size(dQdJ);
+            
+            Qv = reshape(sum(Q, 1), [], 1);
+            dQvdJ = reshape(sum(dQdJ, 1), sz_dQdJ(2:4));
+            
+        end
             
         
         % ---- Elemental matrices
@@ -306,12 +314,19 @@ classdef PoissonFEM2D < handle
         
         % ---- Functionals
         
-        function [F, dFdp, dFdu] = elementIntegralFunctional(obj, f, dfdu, jacobian)
+        function [I, dIdJ, dIdu] = elementIntegralFunctional(obj, f, dfdu, jacobian)
             % Evaluate integral in a single element
             
-            [Q, dQdJ] = obj.elementQuadratureMatrix(jacobian);
+            assert(iscolumn(f), 'f must be a column vector');
+            assert(iscolumn(dfdu), 'dfdu must be a column vector, pointwise sensitivities df/du');
             
-            F = Q*f;
+            [Qv, dQvdJ] = obj.elementQuadratureVector(jacobian);
+            % dQvdJ indices are (q1, jacobian1, jacobian2)
+            
+            I = Qv'*f;
+            dIdJ = multiplyTensors.txt(dQvdJ, 3, f, 1, 1, 1);
+            
+            dIdu = Qv'.*dfdu';
         end
         
         function [F, dFdp, dFdu] = surfaceIntegralFunctional(obj, integrandFunction, elementIndices, u)
