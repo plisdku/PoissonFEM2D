@@ -364,6 +364,22 @@ classdef PoissonFEM2D < handle
             
         end
         
+        function [F, dFdp, dFdu] = pointEvaluationFunctional(obj, pointFunction, xy, u)
+            
+            assert(length(xy) == 2, 'Functional must be evaluated at a single point');
+            
+            interpMatrix = obj.meshNodes.getInterpolationOperator(xy(1), xy(2));
+            
+            uEval = interpMatrix*u;
+            
+            [F, dfunc_du] = pointFunction(uEval);
+            dFdu = interpMatrix * dfunc_du;
+            
+            assert(isrow(dFdu));
+            
+            dFdp = [];
+            
+        end
         
         
     end % methods

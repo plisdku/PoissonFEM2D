@@ -80,5 +80,23 @@ dF_meas = F2-F;
 dF_calc = dFdu*(u2-u);
 checkClose(dF_meas, dF_calc);
 
+fprintf('Mesh integral with sensitivity tests PASSED\n');
 
-fprintf('Mesh integral and sensitivity tests PASSED\n');
+
+%% Test pointEvaluationFunctional
+
+xy = meshNodes.getNodeCoordinates();
+u = xy(:,1); % u = x
+
+[F, ~, dFdu] = fem.pointEvaluationFunctional(@multiplyByOne, [0.2,0.2], u);
+checkClose(F, 0.2);
+
+u2 = u + 1e-3*(1:length(u))';
+[F2, ~, ~] = fem.pointEvaluationFunctional(@multiplyByOne, [0.2,0.2], u2);
+
+dF_meas = F2-F;
+dF_calc = dFdu*(u2-u);
+checkClose(dF_meas, dF_calc);
+
+fprintf('Mesh point evaluation with sensitivity tests PASSED\n');
+
