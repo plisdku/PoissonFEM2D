@@ -59,3 +59,26 @@ f2 = u2.^2;
 dF_meas = F2-F;
 dF_calc = dot(dFdu(:), u2(:)-u(:));
 checkClose(dF_meas, dF_calc);
+
+
+fprintf('Element integral and sensitivity tests PASSED\n');
+
+
+%% Test surfaceIntegralFunctional
+
+% Integrate 1 and get the triangle area.
+
+u = ones(meshNodes.getNumNodes(), 1);
+[F, ~, dFdu] = fem.surfaceIntegralFunctional(@multiplyByOne, [1], u);
+checkClose(F, 0.5);
+
+% Perturb u somehow and check the sensitivity.
+
+u2 = u + 1e-3*(1:length(u))';
+[F2, ~, ~] = fem.surfaceIntegralFunctional(@multiplyByOne, [1], u2);
+dF_meas = F2-F;
+dF_calc = dFdu*(u2-u);
+checkClose(dF_meas, dF_calc);
+
+
+fprintf('Mesh integral and sensitivity tests PASSED\n');

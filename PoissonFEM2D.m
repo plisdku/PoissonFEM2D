@@ -315,7 +315,9 @@ classdef PoissonFEM2D < handle
         % ---- Functionals
         
         function [I, dIdJ, dIdu] = elementIntegralFunctional(obj, f, dfdu, jacobian)
-            % Evaluate integral in a single element
+            % [I, dIdJ, dIdu] = elementIntegralFunctional(f, dfdu, jacobian)
+            %
+            % Evaluate integral of f(u) in a single element.
             
             assert(iscolumn(f), 'f must be a column vector');
             assert(iscolumn(dfdu), 'dfdu must be a column vector, pointwise sensitivities df/du');
@@ -330,6 +332,13 @@ classdef PoissonFEM2D < handle
         end
         
         function [F, dFdp, dFdu] = surfaceIntegralFunctional(obj, integrandFunction, elementIndices, u)
+            % [F, dFdp, dFdu] = surfaceIntegralFunctional(integrandFunction, elementIndices, u)
+            %
+            % Evaluate the integral of a function of u over selected
+            % elements.
+            %
+            % The sensitivity dFdp is not calculated yet because I don't
+            % know if I want to jump to d/dvertex or not.
             
             numNodes = obj.meshNodes.getNumNodes();
             dFdu = sparse(1, numNodes);
@@ -339,23 +348,18 @@ classdef PoissonFEM2D < handle
             
             unos = ones([1, size(obj.Q,2)]);
             
+            F = 0;
             for ii = 1:numIntegrandFaces
                 ff = elementIndices(ii);
                 
-                jacobian = obj.meshNodes.getLinearJacobian(ff);
-                [Q, dQdJ] = obj.elementQuadratureMatrix(jacobian);
-                
-                iVertices = obj.meshNodes.getFaceVertices(ff);
                 iGlobal = obj.meshNodes.getFaceNodes(ff);
-                
                 [func, dfunc_du] = integrandFunction(u(iGlobal));
+                jacobian = obj.meshNodes.getLinearJacobian(ff);
                 
-                myQuadrature = unos*Q; % quadrature row vector
-                DmyQuadrature = multiplyTensors.txt(unos, 2, dQdJ, 4, 2, 1); % d(row vector)/dJ(i,j)
+                [I, ~, dIdu] = obj.elementIntegralFunctional(func, dfunc_du, jacobian);
                 
-                elementIntegral = myQuadrature*func
-                dIntegral_dJ = squish(multiplyTensors.txt(DmyQuadrature, 4, func, 1, 2, 1))
-                dIntegral_du = myQuadrature.*dfunc_du'
+                F = F + I;
+                dFdu(iGlobal) = dFdu(iGlobal) + dIdu;
             end
             
         end
