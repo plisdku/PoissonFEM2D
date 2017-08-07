@@ -8,7 +8,7 @@ vertices = vertices(:,1:2);
 
 meshNodes = TriNodalMesh(N,faces,vertices);
 
-numNodes = meshNodes.topology.getNumNodes();
+numNodes = meshNodes.getNumNodes();
 
 %% 
 
@@ -27,7 +27,7 @@ delta = 1e-6;
 
 % perturb this vertex
 iVertInFace = 3;
-tmp = meshNodes.topology.getFaceVertices(ff);
+tmp = meshNodes.getFaceVertices(ff);
 iVert = tmp(iVertInFace);
 iXY = 2;
 
@@ -42,6 +42,7 @@ Djac = meshNodes.getLinearJacobianSensitivity(ff);
 Djac_meas = (jac2-jac)/delta;
 Djac_calc = Djac(:,:, iVertInFace, iXY);
 
+fprintf('dJdv error: %g\n', norm(Djac_meas - Djac_calc));
 
 %% Functional sensitivities
 % dI/du!!
@@ -122,13 +123,21 @@ dB_calc = dBdJ(:,:,ii,jj);
 
 fprintf('dB error: %g\n', norm(dB_meas - dB_calc));
 
+% TEST NEUMANN MATRIX SENSITIVITY
+[C, dCdJ] = fem.elementNeumannMatrix(jac);
+C2 = fem.elementNeumannMatrix(jac2);
+dC_meas = (C2-C)/delta;
+dC_calc = dCdJ(:,:,ii,jj);
+
+fprintf('dC error: %g\n', norm(dC_meas - dC_calc));
+
 %% Perturb vertices instead...
 
 fprintf('Element matrices\n');
 
 ff = 3;
 iVertInFace = 3; % local vertex to perturb
-tmp = meshNodes.topology.getFaceVertices(ff);
+tmp = meshNodes.getFaceVertices(ff);
 vv = tmp(iVertInFace);
 xy = 2; % direction to perturb
 delta = 1e-6;
@@ -166,13 +175,21 @@ dBdv_calc = dBdv(:,:,iVertInFace, xy);
 dBdv_meas = (B2-B)/delta;
 fprintf('dBdv error: %g\n', norm(dBdv_calc - dBdv_meas));
 
+% Need to do this with a 1D Jacobian.
+%[C, dCdJ] = fem.elementNeumannMatrix(jacobian);
+%C2 = fem.elementNeumannMatrix(jacobian2);
+%dCdv = multiplyTensors.txt(dCdJ, 3, dJdv, 3, 3, 1);
+%dCdv_calc = dCdv(:,:,iVertInFace, xy);
+%dCdv_meas = (C2-C)/delta;
+%fprintf('dCdv error: %g\n', norm(dCdv_calc - dCdv_meas));
+
 %% System matrices and sensitivities
 
 fprintf('System matrices\n')
 
-numVerts = meshNodes.topology.getNumVertices();
+numVerts = meshNodes.getNumVertices();
 
-iVert = 2;
+iVert = 1;
 iXY = 1;
 %for iVert = 1:numVerts
 
@@ -201,17 +218,17 @@ dAdv_calc = dAdv{iVert,iXY};
 dBdv_calc = dBdv{iVert,iXY};
 dCdv_calc = dCdv{iVert,iXY};
 
-fprintf('dAdv error %g\n', norm(full(dAdv_calc - dAdv_meas)));
-fprintf('dBdv error %g\n', norm(full(dBdv_calc - dBdv_meas)));
-fprintf('dCdv error %g\n', norm(full(dCdv_calc - dCdv_meas)));
+fprintf('dAdv error %g / %g\n', norm(full(dAdv_calc - dAdv_meas)), norm(full(dAdv_meas)));
+fprintf('dBdv error %g / %g\n', norm(full(dBdv_calc - dBdv_meas)), norm(full(dBdv_meas)));
+fprintf('dCdv error %g / %g\n', norm(full(dCdv_calc - dCdv_meas)), norm(full(dCdv_meas)));
 %end
 
 
 %% Dirichlet boundary conditions
 
 % Separate edges from centers
-iEdgeNodes = meshNodes.topology.getBoundaryNodes();
-iCenterNodes = meshNodes.topology.getInteriorNodes();
+iEdgeNodes = meshNodes.getBoundaryNodes();
+iCenterNodes = meshNodes.getInteriorNodes();
 
 % The forward matrices
 M1_center = A(iCenterNodes, iCenterNodes);

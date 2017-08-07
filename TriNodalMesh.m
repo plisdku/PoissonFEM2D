@@ -1,9 +1,9 @@
-classdef TriNodalMesh < handle
+classdef TriNodalMesh < MeshTopology
 % TriNodalMesh Geometry and topology of a triangulated FEM mesh with nodes
     
     properties
         N;
-        topology;   % MeshTopology
+        %topology;   % MeshTopology
         basis;      % BasisNodes
         basis1d;
         
@@ -18,9 +18,9 @@ classdef TriNodalMesh < handle
         
         
         function obj = TriNodalMesh(N, faces, vertices)
-            
+            obj@MeshTopology(faces, N);
             obj.N = N;
-            obj.topology = MeshTopology(faces, N);
+            %obj.topology = MeshTopology(faces, N);
             obj.basis = BasisNodes(N);
             obj.basis1d = BasisNodes1d(N);
             
@@ -37,7 +37,7 @@ classdef TriNodalMesh < handle
             % xy = bsxfun(@plus, v0, T*rs);
             % so the Jacobian is just T.
             
-            threeVertices = obj.vertices(obj.topology.getFaceVertices(iFace),:);
+            threeVertices = obj.vertices(obj.getFaceVertices(iFace),:);
             jac = support2d.rs2xy_affineParameters(threeVertices');
         end
         
@@ -48,7 +48,7 @@ classdef TriNodalMesh < handle
             %
             % so d(xy)/dr = (v2-v1)/2.
             
-            twoVertices = obj.vertices(obj.topology.getEdgeVertices(iEdge, orientation), :);
+            twoVertices = obj.vertices(obj.getEdgeVertices(iEdge, orientation), :);
             jac1d = 0.5*(twoVertices(2,:) - twoVertices(1,:))';
         end
 %         
@@ -59,7 +59,7 @@ classdef TriNodalMesh < handle
 %             %
 %             % so d(xy)/dr = (v2-v1)/2.
 %             
-%             twoVertices = obj.vertices(obj.topology.getFaceEdgeVertices(iFace, iLocalEdge), :);
+%             twoVertices = obj.vertices(obj.getFaceEdgeVertices(iFace, iLocalEdge), :);
 %             jac1d = 0.5*(twoVertices(2,:) - twoVertices(1,:))';
 %         end
         
@@ -74,7 +74,7 @@ classdef TriNodalMesh < handle
             
             dJdv = zeros(2,2,3,2); % row, col, vertex, vertex xy
             
-            threeVertices = obj.vertices(obj.topology.getFaceVertices(iFace),:);
+            threeVertices = obj.vertices(obj.getFaceVertices(iFace),:);
             
             % I could build this without the affineParameter... abstraction
             % if I did it like getLinearJacobianSensitivity1d.  Think about
@@ -132,13 +132,13 @@ classdef TriNodalMesh < handle
         
         function [outDx, outDy, count] = getGradientOperators(obj)
             
-            numNodes = obj.topology.getNumNodes();
+            numNodes = obj.getNumNodes();
             outDx = sparse(numNodes, numNodes);
             outDy = sparse(numNodes, numNodes);
             
             count = zeros(numNodes, 1);
             
-            numFaces = obj.topology.getNumFaces();
+            numFaces = obj.getNumFaces();
             
             rs = obj.basis.getNodes();
             [Dr, Ds] = support2d.gradients(obj.N, rs(:,1), rs(:,2));
@@ -154,7 +154,7 @@ classdef TriNodalMesh < handle
                 
                 % first silly approach: on edges between faces we will
                 % repeatedly overwrite the matrix elements.  Bogus!!
-                iGlobal = obj.topology.getFaceNodes(ff);
+                iGlobal = obj.getFaceNodes(ff);
                 outDx(iGlobal, iGlobal) = outDx(iGlobal, iGlobal) + Dx;
                 outDy(iGlobal, iGlobal) = outDy(iGlobal, iGlobal) + Dy;
                 
@@ -172,7 +172,7 @@ classdef TriNodalMesh < handle
         function outI = getInterpolationOperator(obj, xs, ys)
             
             numPts = length(xs);
-            numNodes = obj.topology.getNumNodes();
+            numNodes = obj.getNumNodes();
             outI = sparse(numPts, numNodes);
             count = zeros(numPts, 1);
             
@@ -180,20 +180,20 @@ classdef TriNodalMesh < handle
                 return
             end
             
-            tr = triangulation(obj.topology.getFaceVertices(), obj.vertices);
+            tr = triangulation(obj.getFaceVertices(), obj.vertices);
             iFaces = tr.pointLocation(xs(:), ys(:));
-            numFaces = obj.topology.getNumFaces();
+            numFaces = obj.getNumFaces();
             
             for ff = 1:numFaces
                 ii = find(iFaces == ff);
                 xy = [xs(ii)'; ys(ii)'];
                 
-                xyTri = obj.vertices(obj.topology.getFaceVertices(ff), :)';
+                xyTri = obj.vertices(obj.getFaceVertices(ff), :)';
                 rs = support2d.xy2rs(xyTri, xy);
                 
                 M = obj.basis.interpolationMatrix(rs(1,:), rs(2,:));
                 
-                iGlobal = obj.topology.getFaceNodes(ff);
+                iGlobal = obj.getFaceNodes(ff);
                 outI(ii, iGlobal) = outI(ii, iGlobal) + M;
                 count(ii) = count(ii)+1;
                 
@@ -212,7 +212,7 @@ classdef TriNodalMesh < handle
         function plotMatrix(obj, A, varargin)
             % Draw every FEM node affected by this matrix.
             
-            assert(size(A,1) == obj.topology.getNumNodes());
+            assert(size(A,1) == obj.getNumNodes());
             
             [ii,~,~] = find(A);
             
@@ -253,8 +253,8 @@ classdef TriNodalMesh < handle
                 return
             end
             
-            verts = obj.vertices(obj.topology.getEdgeVertices(iEdge),:);
-            %v2 = obj.vertices(obj.topology.getEdgeVertices(iEdge),:);
+            verts = obj.vertices(obj.getEdgeVertices(iEdge),:);
+            %v2 = obj.vertices(obj.getEdgeVertices(iEdge),:);
             
             %d = linspace(0, 1, obj.N)';
             %d = d(2:end-1);
@@ -279,7 +279,7 @@ classdef TriNodalMesh < handle
             % getEdgeNodeCoordinates(iEdge)
             % getEdgeNodeCoordinates(iEdge, orientation)
             
-            verts = obj.vertices(obj.topology.getEdgeVertices(iEdge),:);
+            verts = obj.vertices(obj.getEdgeVertices(iEdge),:);
             
             d = 0.5 + 0.5*transpose(obj.basis1d.getNodes());
             
@@ -306,7 +306,7 @@ classdef TriNodalMesh < handle
                 xy = zeros(0,2);
                 return
             end
-            threeVertices = obj.vertices(obj.topology.getFaceVertices(iFace),:);
+            threeVertices = obj.vertices(obj.getFaceVertices(iFace),:);
             xy = support2d.rs2xy(threeVertices', obj.basis.getInteriorNodes()')';
         end
         
@@ -320,7 +320,7 @@ classdef TriNodalMesh < handle
                 xy = zeros(0,2);
                 return
             end
-            threeVertices = obj.vertices(obj.topology.getFaceVertices(iFace),:);
+            threeVertices = obj.vertices(obj.getFaceVertices(iFace),:);
             xy = support2d.rs2xy(threeVertices', obj.basis.getNodes()')';
         end
         
@@ -337,31 +337,31 @@ classdef TriNodalMesh < handle
             % with vertex nodes ordered by vertex number, edge nodes
             % ordered by edge number and face nodes ordered by face number.
             
-            numNodes = obj.topology.getNumNodes();
+            numNodes = obj.getNumNodes();
             xyz = zeros(numNodes,2);
 
             % Nodes, section 1/3: Vertices
-            xyz(1:obj.topology.getNumVertices(),:) = obj.vertices;
+            xyz(1:obj.getNumVertices(),:) = obj.vertices;
             
             % Nodes, section 2/3: Edge-centers
-            for iEdge = 1:obj.topology.getNumEdges()
-                xyz(obj.topology.getEdgeInteriorNodes(iEdge),:) = obj.getEdgeInteriorNodeCoordinates(iEdge);
+            for iEdge = 1:obj.getNumEdges()
+                xyz(obj.getEdgeInteriorNodes(iEdge),:) = obj.getEdgeInteriorNodeCoordinates(iEdge);
             end
 
             % Nodes, section 3/3: Face-centers
-            for iFace = 1:obj.topology.getNumFaces()
-                xyz(obj.topology.getFaceNodes(iFace),:) = obj.getFaceNodeCoordinates(iFace);
+            for iFace = 1:obj.getNumFaces()
+                xyz(obj.getFaceNodes(iFace),:) = obj.getFaceNodeCoordinates(iFace);
             end
         end
         
         function xy = getBoundaryNodeCoordinates(obj)
             xy = obj.getNodeCoordinates();
-            xy = xy(obj.topology.getBoundaryNodes(),:);
+            xy = xy(obj.getBoundaryNodes(),:);
         end
         
         function xy = getInteriorNodeCoordinates(obj)
             xy = obj.getNodeCoordinates();
-            xy = xy(obj.topology.getInteriorNodes(),:);
+            xy = xy(obj.getInteriorNodes(),:);
         end
         
     end % methods

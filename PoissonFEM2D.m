@@ -1,7 +1,7 @@
 classdef PoissonFEM2D < handle
     
     properties
-        meshNodes;
+        meshNodes@TriNodalMesh
         Dr;  % differentiation matrix on basis element
         Ds;  % differentiation matrix on basis element
         Q;   % quadrature matrix on basis element
@@ -70,6 +70,11 @@ classdef PoissonFEM2D < handle
         
         
         function [Q, dQdJ] = elementQuadratureMatrix(obj, jacobian)
+            % [Q, dQdJ] = elementQuadratureMatrix(obj, jacobian)
+            %
+            % Sensitivities to jacobian(ii,jj) are indexed dQdJ(iNode1, iNode2, ii, jj).
+            %
+            
             invJac = inv(jacobian);
             detJac = det(jacobian);
             Q = obj.Q*detJac;
@@ -168,8 +173,8 @@ classdef PoissonFEM2D < handle
             % we can bake it down to the size of only the Neumann boundary
             % nodes.
             
-            numNodes = obj.meshNodes.topology.getNumNodes();
-            numVertices = obj.meshNodes.topology.getNumVertices();
+            numNodes = obj.meshNodes.getNumNodes();
+            numVertices = obj.meshNodes.getNumVertices();
             
             NM = sparse(numNodes, numNodes);
             DNM_dv = cell(numVertices, 2);
@@ -177,7 +182,7 @@ classdef PoissonFEM2D < handle
                 DNM_dv{nn} = sparse(numNodes, numNodes);
             end
             
-            [boundaryEdges, orientations] = obj.meshNodes.topology.getBoundaryEdges();
+            [boundaryEdges, orientations] = obj.meshNodes.getBoundaryEdges();
             
             numEdges = length(boundaryEdges);
             
@@ -187,8 +192,8 @@ classdef PoissonFEM2D < handle
                 
                 dJdv = obj.meshNodes.getLinearJacobianSensitivity1d(ee, oo);
                 
-                iVertices = obj.meshNodes.topology.getEdgeVertices(ee,oo);
-                iGlobal = obj.meshNodes.topology.getEdgeNodes(ee, oo);
+                iVertices = obj.meshNodes.getEdgeVertices(ee,oo);
+                iGlobal = obj.meshNodes.getEdgeNodes(ee, oo);
                 
                 jac1d = obj.meshNodes.getLinearJacobian1d(ee, oo);
                 [neuMat, dNdJ] = obj.elementNeumannMatrix(jac1d);
@@ -211,8 +216,8 @@ classdef PoissonFEM2D < handle
         
         function [rhsMatrix, DrhsMatrix_dv] = rhsMatrix(obj)
             
-            numNodes = obj.meshNodes.topology.getNumNodes();
-            numVertices = obj.meshNodes.topology.getNumVertices();
+            numNodes = obj.meshNodes.getNumNodes();
+            numVertices = obj.meshNodes.getNumVertices();
             rhsMatrix = sparse(numNodes, numNodes);
             
             DrhsMatrix_dv = cell(numVertices,2);
@@ -223,7 +228,7 @@ classdef PoissonFEM2D < handle
             
             
             % Fill in the matrix!
-            numFaces = obj.meshNodes.topology.getNumFaces();
+            numFaces = obj.meshNodes.getNumFaces();
 
             for ff = 1:numFaces
                 jacobian = obj.meshNodes.getLinearJacobian(ff);
@@ -232,8 +237,8 @@ classdef PoissonFEM2D < handle
                 [M2, dM2dJ] = obj.elementChargeMatrix(jacobian);
                 dM2dv = multiplyTensors.txt(dM2dJ, 4, dJdv, 4, 3:4, 1:2);
                 
-                iVertices = obj.meshNodes.topology.getFaceVertices(ff);
-                iGlobal = obj.meshNodes.topology.getFaceNodes(ff);
+                iVertices = obj.meshNodes.getFaceVertices(ff);
+                iGlobal = obj.meshNodes.getFaceNodes(ff);
 
                 rhsMatrix(iGlobal, iGlobal) = rhsMatrix(iGlobal, iGlobal) + M2;
                 
@@ -253,8 +258,8 @@ classdef PoissonFEM2D < handle
             %
             % The jacobian override is for sensitivity testing.
             
-            numNodes = obj.meshNodes.topology.getNumNodes();
-            numVertices = obj.meshNodes.topology.getNumVertices();
+            numNodes = obj.meshNodes.getNumNodes();
+            numVertices = obj.meshNodes.getNumVertices();
             
             systemMatrix = sparse(numNodes, numNodes);
 
@@ -269,7 +274,7 @@ classdef PoissonFEM2D < handle
             end
             
             % Fill in the matrices!
-            numFaces = obj.meshNodes.topology.getNumFaces();
+            numFaces = obj.meshNodes.getNumFaces();
 
             for ff = 1:numFaces
                 
@@ -279,8 +284,8 @@ classdef PoissonFEM2D < handle
                 [M1, dM1dJ] = obj.elementPotentialMatrix(jacobian);
                 dM1dv = multiplyTensors.txt(dM1dJ, 4, dJdv, 4, 3:4, 1:2);
                 
-                iVertices = obj.meshNodes.topology.getFaceVertices(ff);
-                iGlobal = obj.meshNodes.topology.getFaceNodes(ff);
+                iVertices = obj.meshNodes.getFaceVertices(ff);
+                iGlobal = obj.meshNodes.getFaceNodes(ff);
                 
                 systemMatrix(iGlobal,iGlobal) = systemMatrix(iGlobal, iGlobal) + M1;
                 
@@ -297,6 +302,48 @@ classdef PoissonFEM2D < handle
 
             
         end % systemMatrix()
+        
+        
+        % ---- Functionals
+        
+        function [F, dFdp, dFdu] = elementIntegralFunctional(obj, f, dfdu, jacobian)
+            % Evaluate integral in a single element
+            
+            [Q, dQdJ] = obj.elementQuadratureMatrix(jacobian);
+            
+            F = Q*f;
+        end
+        
+        function [F, dFdp, dFdu] = surfaceIntegralFunctional(obj, integrandFunction, elementIndices, u)
+            
+            numNodes = obj.meshNodes.getNumNodes();
+            dFdu = sparse(1, numNodes);
+            dFdp = [];
+            
+            numIntegrandFaces = length(elementIndices);
+            
+            unos = ones([1, size(obj.Q,2)]);
+            
+            for ii = 1:numIntegrandFaces
+                ff = elementIndices(ii);
+                
+                jacobian = obj.meshNodes.getLinearJacobian(ff);
+                [Q, dQdJ] = obj.elementQuadratureMatrix(jacobian);
+                
+                iVertices = obj.meshNodes.getFaceVertices(ff);
+                iGlobal = obj.meshNodes.getFaceNodes(ff);
+                
+                [func, dfunc_du] = integrandFunction(u(iGlobal));
+                
+                myQuadrature = unos*Q; % quadrature row vector
+                DmyQuadrature = multiplyTensors.txt(unos, 2, dQdJ, 4, 2, 1); % d(row vector)/dJ(i,j)
+                
+                elementIntegral = myQuadrature*func
+                dIntegral_dJ = squish(multiplyTensors.txt(DmyQuadrature, 4, func, 1, 2, 1))
+                dIntegral_du = myQuadrature.*dfunc_du'
+            end
+            
+        end
         
         
         

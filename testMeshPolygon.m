@@ -27,8 +27,8 @@ xy = meshNodes.getNodeCoordinates();
 %%
 %iEdgeNodes = meshNodes.getBoundaryNodeCoordinates();
 %iCenterNodes = meshNodes.getInteriorNodeCoordinates();
-iEdgeNodes = meshNodes.topology.getBoundaryNodes();
-iCenterNodes = meshNodes.topology.getInteriorNodes();
+iEdgeNodes = meshNodes.getBoundaryNodes();
+iCenterNodes = meshNodes.getInteriorNodes();
 
 figure(1); clf
 VVMesh.plotFV(domainF, domainV, 'b-');
@@ -41,15 +41,15 @@ plot(xy(iCenterNodes,1), xy(iCenterNodes,2), 'go');
 %% Set up matrices
 
 fem = PoissonFEM2D(meshNodes);
-numNodes = meshNodes.topology.getNumNodes();
+numNodes = meshNodes.getNumNodes();
 
 A = fem.systemMatrix();
 B = fem.rhsMatrix();
 NM = fem.neumannMatrix();
 
 % Separate edges from centers
-iEdgeNodes = meshNodes.topology.getBoundaryNodes();
-iCenterNodes = meshNodes.topology.getInteriorNodes();
+iEdgeNodes = meshNodes.getBoundaryNodes();
+iCenterNodes = meshNodes.getInteriorNodes();
 
 % Make the left side be Neumann boundaries
 iNearCenter = find(abs(xy(iEdgeNodes,1)-0.5) > 0.49 & abs(xy(iEdgeNodes,2)-0.5) > 0.49);
