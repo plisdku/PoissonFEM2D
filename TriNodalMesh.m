@@ -186,6 +186,11 @@ classdef TriNodalMesh < MeshTopology
             
             for ff = 1:numFaces
                 ii = find(iFaces == ff);
+                
+                if isempty(ii)
+                    continue
+                end
+                
                 xy = [xs(ii)'; ys(ii)'];
                 
                 xyTri = obj.vertices(obj.getFaceVertices(ff), :)';
