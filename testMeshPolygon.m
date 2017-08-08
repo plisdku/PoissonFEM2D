@@ -64,7 +64,10 @@ iCenterNodes = meshNodes.getInteriorNodes();
 
 %% NEW WAY: Dirichlet and Neumann are both Robin boundary conditions.
 
-
+% General idea: we have selected nodes that are Neumann and nodes that
+% are Dirichlet.  We will make matrices... accordingly... :-O
+%
+% Key tasks: choosing edges, then finding nodes for those edges.
 
 
 

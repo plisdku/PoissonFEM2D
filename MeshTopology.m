@@ -237,7 +237,35 @@ classdef MeshTopology < handle
         function iNodes = getEdgeNodes(obj, iEdge, varargin)
             % getEdgeNodes(iEdge)
             % getEdgeNodes(iEdge, orientation)
-            assert(numel(iEdge) == 1, 'Only one edge at a time');
+            
+            
+            % MULTIPLE EDGE CASE
+            if numel(iEdge) > 1
+                numEdges = length(iEdge);
+                
+                allNodes = zeros(1, numEdges*obj.N); % overestimate
+                iNextNode = 1;
+                
+                if ~isempty(varargin)
+                    orientations = varargin{1};
+                    assert(numel(varargin{1}) == numel(iEdge), 'Must supply one orientation per edge');
+                else
+                    orientations = ones(numEdges,1);
+                end
+                
+                for ii = 1:numEdges
+                    allNodes(iNextNode:iNextNode+obj.N-1) = obj.getEdgeNodes(iEdge(ii),orientations(ii));
+                    iNextNode = iNextNode + obj.N;
+                end
+                
+                iNodes = unique(allNodes);
+                
+                return
+            end
+            
+            
+            % SINGLE EDGE CASE
+            %assert(numel(iEdge) == 1, 'Only one edge at a time');
             
             iInteriorNodes = obj.iEdgeNode0 + (iEdge-1)*obj.interiorNodesPerEdge + ...
                 (1:obj.interiorNodesPerEdge);
