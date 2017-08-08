@@ -156,10 +156,20 @@ classdef PoissonFEM2D < handle
         end % elementChargeMatrix()
         
         
-        function [C, dCdJ] = elementNeumannMatrix(obj, jacobian1d)
+        function [C, dCdJ] = elementNeumannMatrix(obj, jacobian1d, nodeFactors)
+            % [C, dCdJ] = elementNeumannMatrix(jacobian1d)
+            % [C, dCdJ] = elementNeumannMatrix(jacobian1d, nodeFactors)
+            %
+            % Calculate Neumann matrix for a single edge, with or without
+            % factors.
             
             detJ = sqrt(det(jacobian1d'*jacobian1d));
-            C = obj.Q1d * detJ;
+            
+            if nargin < 3
+                C = obj.Q1d * detJ;
+            else
+                C = obj.Q1d * detJ * diag(nodeFactors);
+            end
             
             %dDetJ_dJ = detJ*transpose(invJac); % this is all 4 sensitivities in a matrix
             dDetJ_dJ = detJ*jacobian1d*inv(jacobian1d'*jacobian1d);
@@ -167,14 +177,18 @@ classdef PoissonFEM2D < handle
             dCdJ = zeros([size(C), 2]);
             
             for ii = 1:2
-                dCdJ(:,:,ii) = obj.Q1d*dDetJ_dJ(ii);
+                if nargin < 3
+                    dCdJ(:,:,ii) = obj.Q1d*dDetJ_dJ(ii);
+                else
+                    dCdJ(:,:,ii) = obj.Q1d*dDetJ_dJ(ii) * diag(nodeFactors);
+                end
             end
             
         end % elementNeumannMatrix
         
         % ---- System Matrices
         
-        function [NM, DNM_dv] = neumannMatrix(obj)
+        function [NM, DNM_dv] = neumannMatrix(obj, nodeFactors)
             
             % The Neumann matrix is sum( [get edge nodes] * Q * detJ ).
             % Its raw dimensions are nNodes x nNodes and on the outside
@@ -204,7 +218,12 @@ classdef PoissonFEM2D < handle
                 iGlobal = obj.meshNodes.getEdgeNodes(ee, oo);
                 
                 jac1d = obj.meshNodes.getLinearJacobian1d(ee, oo);
-                [neuMat, dNdJ] = obj.elementNeumannMatrix(jac1d);
+                
+                if nargin < 2
+                    [neuMat, dNdJ] = obj.elementNeumannMatrix(jac1d);
+                else
+                    [neuMat, dNdJ] = obj.elementNeumannMatrix(jac1d, nodeFactors(iGlobal));
+                end
                 dNdv_local = multiplyTensors.txt(dNdJ, 3, dJdv, 3, 3, 1);
                 
                 NM(iGlobal, iGlobal) = NM(iGlobal, iGlobal) + neuMat;

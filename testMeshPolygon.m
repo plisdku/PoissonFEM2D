@@ -1,9 +1,5 @@
 %% Meshing demos!!!!
 
-
-%lx = [0, 1, 1, 2, 2, 3, 3, 2, 2, 1, 1, 0];
-%ly = [0, 0, 1, 1, 0, 0, 3, 3, 2, 2, 3, 3];
-
 lx = [0, 1, 1, 0];
 ly = [0, 0, 1, 1];
 
@@ -12,6 +8,19 @@ in_ly = 0.5 + 0.05*[-1, 1, 1, -1];
 
 density = 4;
 [domainV,domainF] = meshPolygon(lx, ly, density, in_lx, in_ly);
+
+%% The input to my FEM monster:
+% domainV
+% domainF
+% choice of functional
+% choice of boundary conditions
+% choice of source terms
+
+xyEval = [0.4; 0.2];
+
+thing
+
+
 %%
 figure(1); clf
 VVMesh.plotFV(domainF, domainV, 'k-');
@@ -51,6 +60,15 @@ NM = fem.neumannMatrix();
 iEdgeNodes = meshNodes.getBoundaryNodes();
 iCenterNodes = meshNodes.getInteriorNodes();
 
+% Choose the Neumann edges somehow
+
+%% NEW WAY: Dirichlet and Neumann are both Robin boundary conditions.
+
+
+
+
+
+%% OLD WAY
 % Make the left side be Neumann boundaries
 iNearCenter = find(abs(xy(iEdgeNodes,1)-0.5) > 0.49 & abs(xy(iEdgeNodes,2)-0.5) > 0.49);
 iNeumann = iEdgeNodes(iNearCenter);
@@ -155,8 +173,6 @@ hold on
 plot(xy(:,1), xy(:,2), 'w.', 'MarkerSize', 2)
 colorbar
 axis xy image vis3d
-%title('Linear interpolation')
 title('Basis interpolation')
-%title('Difference')
 
 %%

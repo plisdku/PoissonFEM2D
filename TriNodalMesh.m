@@ -232,6 +232,30 @@ classdef TriNodalMesh < MeshTopology
             
         end
         
+        function plotEdgeIndices(obj)
+            
+            edges = obj.getEdgeVertices();
+            
+            for ii = 1:size(edges,1)
+                
+                v0 = obj.vertices(edges(ii,1),:);
+                v1 = obj.vertices(edges(ii,2),:);
+                
+                vCenter = 0.5*(v0+v1);
+                
+                text(vCenter(1), vCenter(2), num2str(ii));
+                
+            end
+        end
+        
+        function plotFaceIndices(obj)
+            
+            for ff = 1:obj.getNumFaces()
+                vCenter = mean(obj.vertices(obj.getFaceVertices(ff),:), 1);
+                text(vCenter(1), vCenter(2), num2str(ff));
+            end
+        end
+        
         % ---- NODE COORDINATES
         
         function xyz = getVertexNodeCoordinates(obj, iVertex)
