@@ -333,6 +333,40 @@ xy2 = xy + delta*Dxy;
 [T, v0] = support2d.rs2xy_affineParameters(xy');
 [T2,v02] = support2d.rs2xy_affineParameters(xy2');
 
+%% Sensitivity of rs2xy
+
+% Make two triangles
+xyTri = [0, 0; 1, 0; 0, 1];
+DxyTri = [1, 0; 0, 0; 0, 0];
+delta = 1e-6;
+xyTri2 = xyTri + delta*DxyTri;
+
+% 
+rs = [0.2; 0.2];
+
+xy = support2d.rs2xy(xyTri', rs);
+xy2 = support2d.rs2xy(xyTri2', rs);
+Dxy = support2d.rs2xySensitivity(xyTri', DxyTri', rs);
+
+Dxy_meas = (xy2-xy)/delta;
+fprintf('Relative error in d(xy)/d(tri) = %g\n', norm(Dxy_meas-Dxy)/norm(Dxy));
+
+%% Sensitivity of xy2rs
+
+xyTri = [0, 0; 1, 0; 0, 1];
+DxyTri = [1, 0; 0, 1; 1, 1];
+delta = 1e-6;
+xyTri2 = xyTri + delta*DxyTri;
+
+xy = [0; 0];
+
+rs = support2d.xy2rs(xyTri', xy);
+rs2 = support2d.xy2rs(xyTri2', xy);
+Drs = support2d.xy2rsSensitivity(xyTri', DxyTri', xy);
+
+Drs_meas = (rs2-rs)/delta;
+fprintf('Relative error in d(rs)/d(tri) = %g\n', norm(Drs_meas-Drs)/norm(Drs));
+
 
 
 
