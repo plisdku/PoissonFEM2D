@@ -354,11 +354,11 @@ fprintf('Relative error in d(xy)/d(tri) = %g\n', norm(Dxy_meas-Dxy)/norm(Dxy));
 %% Sensitivity of xy2rs
 
 xyTri = [0, 0; 1, 0; 0, 1];
-DxyTri = [1, 0; 0, 1; 1, 1];
+DxyTri = [1, 0; 0, 0; 0, 0];
 delta = 1e-6;
 xyTri2 = xyTri + delta*DxyTri;
 
-xy = [0; 0];
+xy = [0.2; 0.3];
 
 rs = support2d.xy2rs(xyTri', xy);
 rs2 = support2d.xy2rs(xyTri2', xy);

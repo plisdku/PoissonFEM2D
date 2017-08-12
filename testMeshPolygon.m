@@ -16,11 +16,6 @@ density = 4;
 % choice of boundary conditions
 % choice of source terms
 
-xyEval = [0.4; 0.2];
-
-thing
-
-
 %%
 figure(1); clf
 VVMesh.plotFV(domainF, domainV, 'k-');
@@ -43,6 +38,8 @@ figure(1); clf
 VVMesh.plotFV(domainF, domainV, 'b-');
 hold on
 axis xy image
+%meshNodes.plotEdgeIndices();
+%meshNodes.plotNodeIndices();
 plot(xy(:,1), xy(:,2), 'b.');
 plot(xy(iEdgeNodes,1), xy(iEdgeNodes,2), 'ro');
 plot(xy(iCenterNodes,1), xy(iCenterNodes,2), 'go');
@@ -52,79 +49,174 @@ plot(xy(iCenterNodes,1), xy(iCenterNodes,2), 'go');
 fem = PoissonFEM2D(meshNodes);
 numNodes = meshNodes.getNumNodes();
 
-A = fem.systemMatrix();
-B = fem.rhsMatrix();
-NM = fem.neumannMatrix();
+[A, dA_dv] = fem.systemMatrix();
+[B, dB_dv] = fem.rhsMatrix();
+[NM, dNM_dv] = fem.neumannMatrix();
 
 % Separate edges from centers
-iEdgeNodes = meshNodes.getBoundaryNodes();
-iCenterNodes = meshNodes.getInteriorNodes();
-
+%iEdgeNodes = meshNodes.getBoundaryNodes();
+%iCenterNodes = meshNodes.getInteriorNodes();
+%%
 % Choose the Neumann edges somehow
-
-%% NEW WAY: Dirichlet and Neumann are both Robin boundary conditions.
 
 % General idea: we have selected nodes that are Neumann and nodes that
 % are Dirichlet.  We will make matrices... accordingly... :-O
 %
 % Key tasks: choosing edges, then finding nodes for those edges.
 
+boundaryEdges = meshNodes.getBoundaryEdges();
 
+predicate = @(v0,v1) norm(v0-0.5) < 0.25;
 
-%% OLD WAY
-% Make the left side be Neumann boundaries
-iNearCenter = find(abs(xy(iEdgeNodes,1)-0.5) > 0.49 & abs(xy(iEdgeNodes,2)-0.5) > 0.49);
-iNeumann = iEdgeNodes(iNearCenter);
-%iNeumann = iEdgeNodes;
-iDirichlet = setdiff(iEdgeNodes, iNeumann);
+chooseMe = false(length(boundaryEdges), 1);
+for ii = 1:length(boundaryEdges)
+    iEdge = boundaryEdges(ii);
+    verts = meshNodes.getVertexNodeCoordinates(meshNodes.getEdgeVertices(iEdge));
+    
+    chooseMe(ii) = predicate(verts(1,:), verts(2,:));
+end
 
-% Quick reset center nodes:
-iCenterNodes = [iCenterNodes, iNeumann'];
+innerEdges = boundaryEdges(chooseMe);
+outerEdges = setdiff(boundaryEdges, innerEdges);
 
-% The forward matrices
-M1_center = A(iCenterNodes, iCenterNodes);
-M2_center = B(iCenterNodes, iCenterNodes);
-NM_center = NM(iCenterNodes, iNeumann);
-M1_edges = A(iCenterNodes, iDirichlet);
+innerNodes = meshNodes.getEdgeNodes(innerEdges);
+outerNodes = meshNodes.getEdgeNodes(outerEdges);
 
-%% Set up boundary conditions
-
-xy = meshNodes.getNodeCoordinates();
-xy_edges = xy(iDirichlet,:);
-
-u0 = zeros(numNodes,1);
-%u0_edges = u0(iDirichlet);
-u0_edges = zeros(numel(iDirichlet),1); %xy_edges(:,1) > 0.99;
-%u0_edges = cos(0.25*pi*xy_edges(:,1));
-%u0_edges = xy_edges(:,1);
-
-en_edges = xy(iNeumann,1) < 1e-3;
-en_edges = 0*en_edges;
+%iNeumann = outerNodes;
+%iDirichlet = [innerNodes, outerNodes];
+iDirichlet = innerNodes;
+iNeumann = setdiff(meshNodes.getBoundaryNodes(), iDirichlet);
 
 %% Set up free charge
 
-xy_centers = xy(iCenterNodes,:);
-
 f = zeros(numNodes,1);
-
-% Blob of charge at 2.25, 1.25
-
 x0 = 0.25;
 y0 = 0.5;
 sigma = 0.05;
 fFunc = @(x,y) exp( (-(x-x0).^2 - (y-y0).^2)/(2*sigma^2));
 f = fFunc(xy(:,1), xy(:,2));
 
+%% NEW WAY: Dirichlet and Neumann are both Robin boundary conditions.
+
+if 0
+    % Dirichlet: k is big, RHS = k*u0
+    % Neumann: k is small, RHS = e_n
+
+    % Put Dirichlet on the ... inner nodes?
+
+    k_Dirichlet = 1e1*ones(numNodes, 1);
+    k_Dirichlet(iNeumann) = 0;
+
+    k_Neumann = 1e-1*ones(numNodes, 1);
+    k_Neumann(iDirichlet) = 0;
+
+    neumannMatrix = fem.neumannMatrix(k_Neumann);
+    dirichletMatrix = fem.neumannMatrix(k_Dirichlet);
+
+    lhsRobinMatrix = neumannMatrix + dirichletMatrix;
+
+    rhsDirichletMatrix = dirichletMatrix(:,iDirichlet);
+    u0_dirichlet = zeros(length(iDirichlet),1) + 4;
+    u0_dirichlet(1:length(innerNodes)) = 0;
+    
+    u = (A - lhsRobinMatrix) \ (B*f - rhsDirichletMatrix*u0_dirichlet);
+end
+
+%% Old-style solve!!
+
+iCenterNodes = setdiff(1:numNodes, iDirichlet);
+
+A_center = A(iCenterNodes, iCenterNodes);
+B_center = B(iCenterNodes, iCenterNodes);
+NM_center = NM(iCenterNodes, iCenterNodes);
+NM_neumann = NM(iCenterNodes, iNeumann);
+
+A_dirichlet = A(iCenterNodes, iDirichlet);
+
 f_center = f(iCenterNodes);
-%f_center = 0*f_center;
+u0_dirichlet = zeros(length(iDirichlet),1); % + randn(length(iDirichlet),1);
+%u0_dirichlet(1:length(innerNodes)) = 0;
+en_neumann = 0*iNeumann;
 
-%% Solve!!
-
-% Unperturbed forward system
-u_center = M1_center \ (M2_center*f_center - M1_edges*u0_edges - NM_center*en_edges);
-u = u0;
-u(iDirichlet) = u0_edges;
+if numel(iNeumann) > 0
+    u_center = A_center \ (B_center*f_center - A_dirichlet*u0_dirichlet - NM_neumann*en_neumann);
+else
+    u_center = A_center \ (B_center*f_center - A_dirichlet*u0_dirichlet);
+end
+u = zeros(numNodes,1);
 u(iCenterNodes) = u_center;
+u(iDirichlet) = u0_dirichlet;
+
+%% Evaluate a functional!!
+
+% Point evaluation of u.
+xyMeas = [0.2; 0.2];
+
+[F, ~, dFdu] = fem.pointEvaluationFunctional(@multiplyByOne, xyMeas, u);
+
+%% Solve the adjoint system!
+
+dFdu_center = dFdu(iCenterNodes);
+
+v = A_center' \ dFdu_center';
+
+% just for making a plot if you want to
+v_big = 0*u;
+v_big(iCenterNodes) = v;
+
+%% Get some fucking sensitivities!!!!
+
+% Sensitivity with respect to Dirichlet boundary values
+dF_dud = -v'*A_dirichlet;
+dF_dud_big = 0*u;
+dF_dud_big(iDirichlet) = dF_dud;
+
+% Sensitivity with respect to free charge
+dF_df = v'*B_center;
+dF_df_big = 0*u;
+dF_df_big(iCenterNodes) = dF_df;
+
+% Sensitivity with respect to normal E on Neumann boundary nodes
+dF_den = -v'*NM_neumann;
+dF_den_big = 0*u;
+dF_den_big(iNeumann) = dF_den;
+
+%% Sensitivity to geometry changes?
+
+numVerts = size(domainV, 1);
+
+dFdv = 0*domainV;
+
+for vv = 1:numVerts
+    
+    wx = -dA_dv{vv,1}(iCenterNodes, iCenterNodes)*u_center ...
+        - dNM_dv{vv,1}(iCenterNodes, iNeumann)*en_neumann ...
+        - dA_dv{vv,1}(iCenterNodes, iDirichlet)*u0_dirichlet ...
+        - dB_dv{vv,1}(iCenterNodes, iCenterNodes)*f_center;
+    
+    wy = -dA_dv{vv,2}(iCenterNodes, iCenterNodes)*u_center ...
+        - dNM_dv{vv,2}(iCenterNodes, iNeumann)*en_neumann ...
+        - dA_dv{vv,2}(iCenterNodes, iDirichlet)*u0_dirichlet ...
+        - dB_dv{vv,2}(iCenterNodes, iCenterNodes)*f_center;
+    
+    dFdvx = v'*wx;
+    dFdvy = v'*wy;
+    
+    dFdv(vv,1) = dFdvx;
+    dFdv(vv,2) = dFdvy;
+end
+
+%%
+
+figure(1); clf
+VVMesh.plotFV(domainF, domainV, 'k-');
+patch('Faces', domainF, 'Vertices', domainV, 'FaceColor', 'g', 'FaceAlpha', 0.1, 'EdgeAlpha', 0);
+hold on
+plot(domainV(:,1), domainV(:,2), 'o')
+quiver(domainV(:,1), domainV(:,2), dFdv(:,1), dFdv(:,2), 'linewidth', 2);
+axis xy image
+title('Vertex sensitivities??')
+
 
 %% Calculate the Ex and Ey fields
 
@@ -146,31 +238,22 @@ II = meshNodes.getInterpolationOperator(xx(:), yy(:));
 
 %%
 
-u_grid = reshape(II*u, size(xx));
+u_grid = reshape(II*dF_df_big, size(xx));
 
-%% Interpolate onto a triangular grid
+%%
 
-if 0
-    xs = linspace(-1, 4, 400);
-    ys = linspace(-1, 4, 400);
-    [xx, yy] = ndgrid(xs, ys);
-
-    interpolant = scatteredInterpolant(xy, Ex, 'linear', 'none');
-    %interpolant = scatteredInterpolant(xy, Dx*xy(:,1), 'linear', 'none');
-    u_grid = interpolant(xx,yy);
-
-    iiIn = inpolygon(xx(:), yy(:), lx(:), ly(:));
-    u_grid(~iiIn) = 0;
-end
+interpolant = scatteredInterpolant(xy, dF_df_big, 'linear', 'none');
+u_grid = interpolant(xx,yy);
+u_grid(isnan(u_grid)) = 0;
 
 %%
 figure(2); clf
-imagesc_centered(xs, ys, u_grid');
+imagesc_centered(xs, ys, u_grid'); %, [0, 0.1]);
 colormap orangecrush(0.7)
 %colorbar
 %
 hold on
-VVMesh.plotFV(domainF, domainV, 'w-', 'linewidth', 0.01)
+%VVMesh.plotFV(domainF, domainV, 'w-', 'linewidth', 0.01)
 hold on
 %plot(meshNodes.vertices(:,1), meshNodes.vertices(:,2), 'wo');
 plot(xy(:,1), xy(:,2), 'w.', 'MarkerSize', 2)
@@ -179,3 +262,7 @@ axis xy image vis3d
 title('Basis interpolation')
 
 %%
+
+plot(domainV(:,1), domainV(:,2), 'wo')
+hold on
+quiver(domainV(:,1), domainV(:,2), dFdv(:,1), dFdv(:,2), 'r');

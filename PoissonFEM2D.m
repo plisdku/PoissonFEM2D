@@ -350,7 +350,7 @@ classdef PoissonFEM2D < handle
             dIdu = Qv'.*dfdu';
         end
         
-        function [F, dFdp, dFdu] = surfaceIntegralFunctional(obj, integrandFunction, elementIndices, u)
+        function [F, dFdv, dFdu] = surfaceIntegralFunctional(obj, integrandFunction, elementIndices, u)
             % [F, dFdp, dFdu] = surfaceIntegralFunctional(integrandFunction, elementIndices, u)
             %
             % Evaluate the integral of a function of u over selected
@@ -361,7 +361,7 @@ classdef PoissonFEM2D < handle
             
             numNodes = obj.meshNodes.getNumNodes();
             dFdu = sparse(1, numNodes);
-            dFdp = [];
+            dFdv = [];
             
             numIntegrandFaces = length(elementIndices);
             
@@ -372,11 +372,14 @@ classdef PoissonFEM2D < handle
                 iGlobal = obj.meshNodes.getFaceNodes(ff);
                 [func, dfunc_du] = integrandFunction(u(iGlobal));
                 jacobian = obj.meshNodes.getLinearJacobian(ff);
+                dJdv = obj.meshNodes.getLinearJacobianSensitivity(ff);
                 
-                [I, ~, dIdu] = obj.elementIntegralFunctional(func, dfunc_du, jacobian);
+                [I, dIdJ, dIdu] = obj.elementIntegralFunctional(func, dfunc_du, jacobian);
+                dIdv = multiplyTensors.txt(dIdJ, 2, dJdv, 4, 1:2, 1:2);
                 
                 F = F + I;
                 dFdu(iGlobal) = dFdu(iGlobal) + dIdu;
+                dFdv(iGlobal) = dFdv(iGlobal) + dIdv;
             end
             
         end

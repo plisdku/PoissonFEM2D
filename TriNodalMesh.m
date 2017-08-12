@@ -169,7 +169,8 @@ classdef TriNodalMesh < MeshTopology
             
         end
         
-        function outI = getInterpolationOperator(obj, xs, ys)
+        % todo dIdv
+        function [outI] = getInterpolationOperator(obj, xs, ys)
             
             numPts = length(xs);
             numNodes = obj.getNumNodes();
@@ -345,10 +346,6 @@ classdef TriNodalMesh < MeshTopology
             %
             % getFaceNodeCoordinates(iFace)
             
-            if obj.N < 4
-                xy = zeros(0,2);
-                return
-            end
             threeVertices = obj.vertices(obj.getFaceVertices(iFace),:);
             xy = support2d.rs2xy(threeVertices', obj.basis.getNodes()')';
         end

@@ -8,7 +8,7 @@ assert(size(xyTri,2) == 3);
 % Input points are column vectors
 assert(size(rs,1) == 2);
 
-[T, v0] = support2d.rs2xy_affineParameters(xyTri);
+[T, x0] = support2d.rs2xy_affineParameters(xyTri);
 
-xy = bsxfun(@plus, v0, T*rs);
+xy = bsxfun(@plus, x0, T*rs);
 
