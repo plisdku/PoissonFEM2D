@@ -66,7 +66,7 @@ classdef BasisNodes
             if nargin == 4
                 rr = varargin{1};
                 ss = varargin{2};
-                M = obj.interpolationMatrix(rr,ss);
+                M = obj.interpolationMatrix_rs(rr,ss);
                 outVals = M*vals;
             elseif nargin == 5
                 triVerts = varargin{1};
@@ -75,11 +75,6 @@ classdef BasisNodes
                 
                 M = obj.interpolationMatrix_xy(triVerts, xx, yy);
                 outVals = M*vals;
-                
-                %xy = [reshape(xx,1,[]); reshape(yy,1,[])];
-                %rs = support2d.xy2rs(triVerts, xy);
-                %M = obj.interpolationMatrix(rs(1,:), rs(2,:));
-                %outVals = M*vals;
             else
                 error('shit');
             end

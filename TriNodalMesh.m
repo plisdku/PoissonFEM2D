@@ -197,7 +197,7 @@ classdef TriNodalMesh < MeshTopology
                 xyTri = obj.vertices(obj.getFaceVertices(ff), :)';
                 rs = support2d.xy2rs(xyTri, xy);
                 
-                M = obj.basis.interpolationMatrix(rs(1,:), rs(2,:));
+                M = obj.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
                 
                 iGlobal = obj.getFaceNodes(ff);
                 outI(ii, iGlobal) = outI(ii, iGlobal) + M;
