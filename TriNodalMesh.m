@@ -51,17 +51,6 @@ classdef TriNodalMesh < MeshTopology
             twoVertices = obj.vertices(obj.getEdgeVertices(iEdge, orientation), :);
             jac1d = 0.5*(twoVertices(2,:) - twoVertices(1,:))';
         end
-%         
-%         function jac1d = getLinearJacobian1d(obj, iFace, iLocalEdge)
-%             % This is the Jacobian of the mapping from r to (x,y).
-%             %
-%             % xy = (v1+v2)/2 + (v2-v1)/2 * r;
-%             %
-%             % so d(xy)/dr = (v2-v1)/2.
-%             
-%             twoVertices = obj.vertices(obj.getFaceEdgeVertices(iFace, iLocalEdge), :);
-%             jac1d = 0.5*(twoVertices(2,:) - twoVertices(1,:))';
-%         end
         
         
         function dJdv = getLinearJacobianSensitivity(obj, iFace)
@@ -169,7 +158,6 @@ classdef TriNodalMesh < MeshTopology
             
         end
         
-        % todo dIdv
         function [outI] = getInterpolationOperator(obj, xs, ys)
             
             numPts = length(xs);
@@ -422,7 +410,7 @@ classdef TriNodalMesh < MeshTopology
         end
         
         
-        function xyz = getNodeCoordinates(obj)
+        function xy = getNodeCoordinates(obj)
             % Get ordered [x,y] coordinates of all nodes in the mesh
             %
             % getNodeCoordinates()
@@ -435,19 +423,19 @@ classdef TriNodalMesh < MeshTopology
             % ordered by edge number and face nodes ordered by face number.
             
             numNodes = obj.getNumNodes();
-            xyz = zeros(numNodes,2);
+            xy = zeros(numNodes,2);
 
             % Nodes, section 1/3: Vertices
-            xyz(1:obj.getNumVertices(),:) = obj.vertices;
+            xy(1:obj.getNumVertices(),:) = obj.vertices;
             
             % Nodes, section 2/3: Edge-centers
             for iEdge = 1:obj.getNumEdges()
-                xyz(obj.getEdgeInteriorNodes(iEdge),:) = obj.getEdgeInteriorNodeCoordinates(iEdge);
+                xy(obj.getEdgeInteriorNodes(iEdge),:) = obj.getEdgeInteriorNodeCoordinates(iEdge);
             end
 
             % Nodes, section 3/3: Face-centers
             for iFace = 1:obj.getNumFaces()
-                xyz(obj.getFaceNodes(iFace),:) = obj.getFaceNodeCoordinates(iFace);
+                xy(obj.getFaceNodes(iFace),:) = obj.getFaceNodeCoordinates(iFace);
             end
         end
         
@@ -459,6 +447,77 @@ classdef TriNodalMesh < MeshTopology
         function xy = getInteriorNodeCoordinates(obj)
             xy = obj.getNodeCoordinates();
             xy = xy(obj.getInteriorNodes(),:);
+        end
+        
+        % ---- Node coordinate sensitivities
+        
+        function dxy_dv = getNodeCoordinateSensitivities(obj)
+            
+            numNodes = obj.getNumNodes();
+            numVertices = obj.getNumVertices();
+            numEdges = obj.getNumEdges();
+            numFaces = obj.getNumFaces();
+            
+            dxy_dv = cell(numVertices,2);
+            for nn = 1:numel(dxy_dv)
+                dxy_dv{nn} = sparse(numNodes, 2);
+            end
+            
+            % Nodes, section 1/3: Vertices
+            for iVert = 1:numVertices
+                for iXY = 1:2
+                    dxy_dv{iVert,iXY}(iVert, iXY) = 1;
+                end
+            end
+            
+            % Nodes, section 2/3: Edge-centers
+            
+            r_1d = obj.basis1d.getInteriorNodes();
+            for iEdge = 1:numEdges
+                iEdgeVertices = obj.getEdgeVertices(iEdge);
+                iv0 = iEdgeVertices(1);
+                iv1 = iEdgeVertices(2);
+                
+                iNodes = obj.getEdgeInteriorNodes(iEdge);
+                
+                % Get fractional distance from one end to the other
+                d = 0.5 + 0.5*r_1d;
+                
+                % ... so node = v0(1-d) + v1(d)
+                dxy_dv0 = 1-d;
+                dxy_dv1 = d;
+                
+                dxy_dv{iv0,1}(iNodes,1) = dxy_dv0;
+                dxy_dv{iv0,2}(iNodes,2) = dxy_dv0;
+                dxy_dv{iv1,1}(iNodes,1) = dxy_dv1;
+                dxy_dv{iv1,2}(iNodes,2) = dxy_dv1;
+            end
+            
+            % Nodes, section 3/3: Face-centers
+            
+            rs = obj.basis.getInteriorNodes()';
+            for iFace = 1:numFaces
+                iFaceVertices = obj.getFaceVertices(iFace);
+                
+                xyTri = obj.vertices(iFaceVertices, :)';
+                
+                iNodes = obj.getFaceInteriorNodes(iFace);
+                
+                for iLocalVert = 1:3
+                    iGlobalVert = iFaceVertices(iLocalVert);
+                    for iXY = 1:2
+                        DxyTri = zeros(2,3);
+                        DxyTri(iXY, iLocalVert) = 1.0;
+                        
+                        [DT, Dx0] = support2d.rs2xy_affineParameterSensitivities(xyTri, DxyTri);
+                        
+                        Dxy = bsxfun(@plus, DT*rs, Dx0);
+                        dxy_dv{iGlobalVert,iXY}(iNodes,:) = Dxy';
+                    end
+                end
+                
+            end
+            
         end
         
     end % methods

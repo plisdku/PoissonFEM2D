@@ -27,7 +27,35 @@ N = 8;
 %meshNodes = MeshNodes(domainF, domainV, N);
 meshNodes = TriNodalMesh(N, domainF, domainV);
 
-xy = meshNodes.getNodeCoordinates();
+xy_nodes = meshNodes.getNodeCoordinates();
+
+%%
+
+Dxy_nodes = meshNodes.getNodeCoordinateSensitivities();
+
+figure(10);
+clf
+%plot(xy_nodes(:,1), xy_nodes(:,2), '.', 'color', [0.8, 0.8, 0.8]);
+VVMesh.plotFV(domainF, domainV, '-', 'color', [0.8, 0.8, 0.8]);
+hold on
+axis xy image
+ax = axis;
+title('Perturbation of nodes by mesh perturbation');
+%%
+for iVert = 1:meshNodes.getNumVertices()
+    for iXY = 1:2
+        Dxy = Dxy_nodes{iVert,iXY};
+        ph = plot(xy_nodes(iVert,1), xy_nodes(iVert,2), 'bo');
+        qh = quiver(xy_nodes(:,1), xy_nodes(:,2), Dxy(:,1), Dxy(:,2), 'b');        
+        axis(ax);
+        pause(0.25)
+        delete(qh)
+        delete(ph)
+    end
+end
+
+
+
 %%
 %iEdgeNodes = meshNodes.getBoundaryNodeCoordinates();
 %iCenterNodes = meshNodes.getInteriorNodeCoordinates();
@@ -40,9 +68,9 @@ hold on
 axis xy image
 %meshNodes.plotEdgeIndices();
 %meshNodes.plotNodeIndices();
-plot(xy(:,1), xy(:,2), 'b.');
-plot(xy(iEdgeNodes,1), xy(iEdgeNodes,2), 'ro');
-plot(xy(iCenterNodes,1), xy(iCenterNodes,2), 'go');
+plot(xy_nodes(:,1), xy_nodes(:,2), 'b.');
+plot(xy_nodes(iEdgeNodes,1), xy_nodes(iEdgeNodes,2), 'ro');
+plot(xy_nodes(iCenterNodes,1), xy_nodes(iCenterNodes,2), 'go');
 
 %% Set up matrices
 
@@ -94,7 +122,9 @@ x0 = 0.25;
 y0 = 0.5;
 sigma = 0.05;
 fFunc = @(x,y) exp( (-(x-x0).^2 - (y-y0).^2)/(2*sigma^2));
-f = fFunc(xy(:,1), xy(:,2));
+f = fFunc(xy_nodes(:,1), xy_nodes(:,2));
+
+[f, dfdv] = fem.evaluateOnNodes(fFunc);
 
 %% NEW WAY: Dirichlet and Neumann are both Robin boundary conditions.
 
@@ -251,7 +281,7 @@ u_grid = reshape(II*u, size(xx));
 
 %%
 
-interpolant = scatteredInterpolant(xy, dF_df_big, 'linear', 'none');
+interpolant = scatteredInterpolant(xy_nodes, dF_df_big, 'linear', 'none');
 u_grid = interpolant(xx,yy);
 u_grid(isnan(u_grid)) = 0;
 
@@ -265,7 +295,7 @@ hold on
 %VVMesh.plotFV(domainF, domainV, 'w-', 'linewidth', 0.01)
 hold on
 %plot(meshNodes.vertices(:,1), meshNodes.vertices(:,2), 'wo');
-plot(xy(:,1), xy(:,2), 'w.', 'MarkerSize', 2)
+plot(xy_nodes(:,1), xy_nodes(:,2), 'w.', 'MarkerSize', 2)
 colorbar
 axis xy image vis3d
 title('Basis interpolation')

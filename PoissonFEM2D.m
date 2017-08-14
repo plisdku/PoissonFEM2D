@@ -57,15 +57,6 @@ classdef PoissonFEM2D < handle
                 end
             end
             
-%             dDxdJ = cell(2,2);
-%             dDydJ = cell(2,2);
-%             
-%             for ii = 1:2
-%                 for jj = 1:2
-%                     dDxdJ{ii,jj} = -invJac(1,ii)*invJac(jj,1)*obj.Dr - invJac(2,ii)*invJac(jj,1)*obj.Ds;
-%                     dDydJ{ii,jj} = -invJac(1,ii)*invJac(jj,2)*obj.Dr - invJac(2,ii)*invJac(jj,2)*obj.Ds;
-%                 end
-%             end
         end % elementGradientMatrix
         
         
@@ -107,6 +98,7 @@ classdef PoissonFEM2D < handle
             
         
         % ---- Elemental matrices
+        
         function [A, dAdJ] = elementPotentialMatrix(obj, jacobian)
             % [A, dA_dJij] = elementPotentialMatrix(obj, jacobian)
             %
@@ -322,6 +314,22 @@ classdef PoissonFEM2D < handle
             
         end % systemMatrix()
         
+        
+        % ---- Function evaluation
+        
+        function [f, dfdv] = evaluateOnNodes(obj, func)
+            % [f, dfdv] = evaluateOnNodes(func)
+            %
+            % Evaluate the given function on the mesh nodes.
+            % Calculate the sensitivity of the evaluated values to changing
+            % the mesh vertices.
+            
+            % I guess it will work like... uhhhhhh...
+            
+            
+            
+            
+        end
         
         % ---- Functionals
         

@@ -1,4 +1,5 @@
 function [T, x0] = rs2xy_affineParameters(xyTri)
+% [T, x0] = rs2xy_affineParameters(xyTri)
 
 % Triangle vertices are three column vectors
 assert(size(xyTri,1) == 2);

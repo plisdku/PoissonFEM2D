@@ -1,4 +1,5 @@
 function [DT, Dx0] = rs2xy_affineParameterSensitivities(xyTri, DxyTri)
+% [DT, Dx0] = rs2xy_affineParameterSensitivities(xyTri, DxyTri)
 
 % Triangle vertices are three column vectors
 assert(size(xyTri,1) == 2, 'xyTri must be 2x3 (xy x numVertices)');
