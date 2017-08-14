@@ -44,7 +44,7 @@ classdef BasisNodes
             M = V2 * obj.invV;
         end
         
-        function DM = interpolationMatrixSensivitity_nodal_xy(obj, triVerts, DtriVerts, xx, yy)
+        function DM = interpolationMatrixSensitivity_nodal_xy(obj, triVerts, DtriVerts, xx, yy)
             % Works for interpolating nodal fields (values stuck to nodes)
             % but not for interpolating fields in xy space.  For that,
             % need the full derivative D(V2*inv(V)) instead of this which

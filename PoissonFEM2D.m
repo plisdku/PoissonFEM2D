@@ -384,7 +384,7 @@ classdef PoissonFEM2D < handle
             
         end
         
-        function [F, dFdp, dFdu] = pointEvaluationFunctional(obj, pointFunction, xy, u)
+        function [F, dFdv, dFdu] = pointEvaluationFunctional(obj, pointFunction, xy, u)
             % [F, dFdp, dFdu] = pointEvaluationFunctional(pointFunction, xy, u)
             %
             % Calculate f(u) and df/du at a single point.
@@ -400,7 +400,7 @@ classdef PoissonFEM2D < handle
             
             assert(isrow(dFdu));
             
-            dFdp = [];
+            dFdv = [];
             
         end
         

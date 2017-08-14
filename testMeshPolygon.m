@@ -154,6 +154,11 @@ xyMeas = [0.2; 0.2];
 
 [F, ~, dFdu] = fem.pointEvaluationFunctional(@multiplyByOne, xyMeas, u);
 
+%%
+
+%meshNodes.getInterpolationOperator();
+dIdv = meshNodes.getInterpolationOperatorSensitivity([0.2], [0.3]);
+
 %% Solve the adjoint system!
 
 dFdu_center = dFdu(iCenterNodes);

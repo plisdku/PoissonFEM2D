@@ -182,32 +182,103 @@ classdef TriNodalMesh < MeshTopology
             end
             
             tr = triangulation(obj.getFaceVertices(), obj.vertices);
-            iFaces = tr.pointLocation(xs(:), ys(:));
+            iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
             numFaces = obj.getNumFaces();
             
             for ff = 1:numFaces
-                ii = find(iFaces == ff);
+                iPoint = find(iEnclosingFaces == ff);
                 
-                if isempty(ii)
+                if isempty(iPoint)
                     continue
                 end
                 
-                xy = [xs(ii)'; ys(ii)'];
+                xy = [xs(iPoint)'; ys(iPoint)'];
                 
                 xyTri = obj.vertices(obj.getFaceVertices(ff), :)';
-                rs = support2d.xy2rs(xyTri, xy);
-                
-                M = obj.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
+                %rs = support2d.xy2rs(xyTri, xy);
+                M = obj.basis.interpolationMatrix_xy(xyTri, xy(1,:), xy(2,:));
+                %M = obj.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
                 
                 iGlobal = obj.getFaceNodes(ff);
-                outI(ii, iGlobal) = outI(ii, iGlobal) + M;
-                count(ii) = count(ii)+1;
+                
+                outI(iPoint, iGlobal) = M;
+                % Original idea: sum and then keep a count to handle the
+                % averaging on boundaries.  I want to be simpler.
+                %outI(iPoint, iGlobal) = outI(iPoint, iGlobal) + M;
+                %count(iPoint) = count(iPoint)+1;
                 
             end
 
-            % this handles averaging on boundaries
-            normalizer = spdiags(1./count, 0, numPts, numPts);
-            outI = normalizer * outI;
+            % This handles averaging on boundaries.
+            % Usually each output point will inside only one face.
+            % However in case a point is on a boundary between faces
+            % ...
+            % Instead of summing up above let's just overwrite.
+            %normalizer = spdiags(1./count, 0, numPts, numPts);
+            %outI = normalizer * outI;
+            
+        end
+        
+        
+        function dIdv = getInterpolationOperatorSensitivity(obj, xs, ys)
+            % dIdv = getInterpolationOperatorSensitivity(xs, ys)
+            %
+            
+            numPts = length(xs);
+            numNodes = obj.getNumNodes();
+            numVertices = obj.getNumVertices();
+            numFaces = obj.getNumFaces();
+            
+            if numPts == 0
+                return
+            end
+            
+            dIdv = cell(numVertices, 2);
+            for nn = 1:numel(dIdv)
+                dIdv{nn} = sparse(numPts, numNodes);
+            end
+            
+            %count = cell(numVertices,2);
+            %for nn = 1:numel(count)
+            %    count{nn} = zeros(numPts, 1);
+            %end
+            
+            tr = triangulation(obj.getFaceVertices(), obj.vertices);
+            iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
+            
+            for ff = 1:numFaces
+                iPoint = find(iEnclosingFaces == ff);
+                if isempty(iPoint)
+                    continue
+                end
+                iGlobal = obj.getFaceNodes(ff);
+                iGlobalVertices = obj.getFaceVertices(ff);
+                
+                xy = [xs(iPoint)'; ys(iPoint)'];
+                xyTri = obj.vertices(obj.getFaceVertices(ff),:)';
+                
+                %M = obj.basis.interpolationMatrix_xy(xyTri, xy(1,:), xy(2,:));
+                
+                for iVert = 1:3
+                    iGlobalVert = iGlobalVertices(iVert);
+                    for iXY = 1:2
+                        DxyTri = zeros(size(xyTri));
+                        DxyTri(iXY, iVert) = 1;
+                        
+                        DM = obj.basis.interpolationMatrixSensitivity_nodal_xy(xyTri, DxyTri, xy(1,:), xy(2,:));
+                        dIdv{iGlobalVert,iXY}(iPoint, iGlobal) = DM;
+                        %dIdv{iVert,iXY}(iPoint, iGlobal) = dIdv{iVert,iXY}(iPoint, iGlobal) + DM;
+                        %count{iVert,iXY}(iPoint) = count{iVert,iXY}(iPoint) + 1;
+                    end
+                end
+                
+            end
+            
+            %for nn = 1:numel(dIdv)
+            %    % this handles averaging on boundaries
+            %    normalizer = spdiags(1./count{nn}, 0, numPts, numPts);
+            %    dIdv{nn} = normalizer * dIdv{nn};
+            %end
             
         end
         

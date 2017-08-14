@@ -61,3 +61,6 @@ DinterpMatrix = DV*basis.invV;
 
 DM = basis.interpolationMatrixSensivitity_nodal_xy(triVerts', DxyTri', xy_query(1,:), xy_query(2,:));
 Dinterped_basis = DM*rNodes;
+
+
+
