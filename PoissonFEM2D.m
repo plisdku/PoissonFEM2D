@@ -135,14 +135,6 @@ classdef PoissonFEM2D < handle
                 end
             end
             
-%             dAdJ = cell(2,2);
-%             for ii = 1:2
-%                 for jj = 1:2
-%                     
-%                     dAdJ{ii,jj} = -(dDxdJ{ii,jj}'*QQ*Dx + Dx'*dQdJ{ii,jj}*Dx + Dx'*QQ*dDxdJ{ii,jj}) ...
-%                         - (dDydJ{ii,jj}'*QQ*Dy + Dy'*dQdJ{ii,jj}*Dy + Dy'*QQ*dDydJ{ii,jj});
-%                 end
-%             end
         end % elementPotentialMatrix()
         
         function [B, dBdJ] = elementChargeMatrix(obj, jacobian)
@@ -400,7 +392,14 @@ classdef PoissonFEM2D < handle
             
             assert(isrow(dFdu));
             
-            dFdv = [];
+            % now the sensitivity.
+            
+            dIdv = obj.meshNodes.getInterpolationOperatorSensitivity(xy(1), xy(2));
+            dFdv = zeros(size(dIdv));
+            
+            for nn = 1:numel(dFdv)
+                dFdv(nn) = dIdv{nn}*u;
+            end
             
         end
         

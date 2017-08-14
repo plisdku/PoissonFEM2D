@@ -152,7 +152,7 @@ u(iDirichlet) = u0_dirichlet;
 % Point evaluation of u.
 xyMeas = [0.2; 0.2];
 
-[F, ~, dFdu] = fem.pointEvaluationFunctional(@multiplyByOne, xyMeas, u);
+[F, dFdv, dFdu] = fem.pointEvaluationFunctional(@multiplyByOne, xyMeas, u);
 
 %%
 
@@ -190,7 +190,7 @@ dF_den_big(iNeumann) = dF_den;
 
 numVerts = size(domainV, 1);
 
-dFdv = 0*domainV;
+dFdv_total = 0*domainV;
 
 for vv = 1:numVerts
     
@@ -207,9 +207,11 @@ for vv = 1:numVerts
     dFdvx = v'*wx;
     dFdvy = v'*wy;
     
-    dFdv(vv,1) = dFdvx;
-    dFdv(vv,2) = dFdvy;
+    dFdv_total(vv,1) = dFdvx;
+    dFdv_total(vv,2) = dFdvy;
 end
+
+dFdv_total = dFdv_total + dFdv;
 
 %%
 
@@ -218,9 +220,11 @@ VVMesh.plotFV(domainF, domainV, 'k-');
 patch('Faces', domainF, 'Vertices', domainV, 'FaceColor', 'g', 'FaceAlpha', 0.1, 'EdgeAlpha', 0);
 hold on
 plot(domainV(:,1), domainV(:,2), 'o')
-quiver(domainV(:,1), domainV(:,2), dFdv(:,1), dFdv(:,2), 'linewidth', 2);
+quiver(domainV(:,1), domainV(:,2), dFdv_total(:,1), dFdv_total(:,2), 'linewidth', 2);
+%quiver(domainV(:,1), domainV(:,2), dFdv(:,1), dFdv(:,2), 'linewidth', 2);
 axis xy image
 title('Vertex sensitivities??')
+plot(xyMeas(1), xyMeas(2), 'rx', 'MarkerSize', 10)
 
 
 %% Calculate the Ex and Ey fields
@@ -243,7 +247,7 @@ II = meshNodes.getInterpolationOperator(xx(:), yy(:));
 
 %%
 
-u_grid = reshape(II*dF_df_big, size(xx));
+u_grid = reshape(II*u, size(xx));
 
 %%
 
@@ -270,4 +274,4 @@ title('Basis interpolation')
 
 plot(domainV(:,1), domainV(:,2), 'wo')
 hold on
-quiver(domainV(:,1), domainV(:,2), dFdv(:,1), dFdv(:,2), 'r');
+quiver(domainV(:,1), domainV(:,2), dFdv_total(:,1), dFdv_total(:,2), 'r');
