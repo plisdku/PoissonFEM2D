@@ -326,8 +326,31 @@ classdef PoissonFEM2D < handle
             
             % I guess it will work like... uhhhhhh...
             
+            xy = obj.meshNodes.getNodeCoordinates();
+            dxy_dv = obj.meshNodes.getNodeCoordinateSensitivities();
             
+            % Calculate f and its gradient components
+            f = func(xy(:,1), xy(:,2));
             
+            delta = 1e-6;
+            dfdx = (func(xy(:,1)+delta, xy(:,2)) - func(xy(:,1)-delta, xy(:,2)))/2/delta;
+            dfdy = (func(xy(:,1), xy(:,2)+delta) - func(xy(:,1), xy(:,2)-delta))/2/delta;
+            
+            % Somehow we need to get dfdv now...
+            
+            dfdv = cell(obj.meshNodes.getNumVertices(), 2);
+            for nn = 1:numel(dfdv)
+                dfdv{nn} = sparse(obj.meshNodes.getNumNodes(), 1);
+            end
+            
+            % Chain rule to get dfdv
+            
+            for iVert = 1:size(dxy_dv,1)
+                for iXY = 1:2
+                    dfdv{iVert,iXY} = dfdx .* dxy_dv{iVert,iXY}(:,1) + ...
+                        dfdy .* dxy_dv{iVert,iXY}(:,2);
+                end
+            end
             
         end
         

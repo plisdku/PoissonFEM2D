@@ -31,30 +31,32 @@ xy_nodes = meshNodes.getNodeCoordinates();
 
 %%
 
-Dxy_nodes = meshNodes.getNodeCoordinateSensitivities();
+plotNodePerturbations = 0;
 
-figure(10);
-clf
-%plot(xy_nodes(:,1), xy_nodes(:,2), '.', 'color', [0.8, 0.8, 0.8]);
-VVMesh.plotFV(domainF, domainV, '-', 'color', [0.8, 0.8, 0.8]);
-hold on
-axis xy image
-ax = axis;
-title('Perturbation of nodes by mesh perturbation');
-%%
-for iVert = 1:meshNodes.getNumVertices()
-    for iXY = 1:2
-        Dxy = Dxy_nodes{iVert,iXY};
-        ph = plot(xy_nodes(iVert,1), xy_nodes(iVert,2), 'bo');
-        qh = quiver(xy_nodes(:,1), xy_nodes(:,2), Dxy(:,1), Dxy(:,2), 'b');        
-        axis(ax);
-        pause(0.25)
-        delete(qh)
-        delete(ph)
+if plotNodePerturbations
+    Dxy_nodes = meshNodes.getNodeCoordinateSensitivities();
+    
+    figure(10);
+    clf
+    %plot(xy_nodes(:,1), xy_nodes(:,2), '.', 'color', [0.8, 0.8, 0.8]);
+    VVMesh.plotFV(domainF, domainV, '-', 'color', [0.8, 0.8, 0.8]);
+    hold on
+    axis xy image
+    ax = axis;
+    title('Perturbation of nodes by mesh perturbation');
+    
+    for iVert = 1:meshNodes.getNumVertices()
+        for iXY = 1:2
+            Dxy = Dxy_nodes{iVert,iXY};
+            ph = plot(xy_nodes(iVert,1), xy_nodes(iVert,2), 'bo');
+            qh = quiver(xy_nodes(:,1), xy_nodes(:,2), Dxy(:,1), Dxy(:,2), 'b');        
+            axis(ax);
+            pause(0.25)
+            delete(qh)
+            delete(ph)
+        end
     end
 end
-
-
 
 %%
 %iEdgeNodes = meshNodes.getBoundaryNodeCoordinates();
@@ -227,12 +229,15 @@ for vv = 1:numVerts
     wx = -dA_dv{vv,1}(iCenterNodes, iCenterNodes)*u_center ...
         - dNM_dv{vv,1}(iCenterNodes, iNeumann)*en_neumann ...
         - dA_dv{vv,1}(iCenterNodes, iDirichlet)*u0_dirichlet ...
-        - dB_dv{vv,1}(iCenterNodes, iCenterNodes)*f_center;
+        - dB_dv{vv,1}(iCenterNodes, iCenterNodes)*f_center ...
+        - dfdv{vv,1}(iCenterNodes)/2000;
+    
     
     wy = -dA_dv{vv,2}(iCenterNodes, iCenterNodes)*u_center ...
         - dNM_dv{vv,2}(iCenterNodes, iNeumann)*en_neumann ...
         - dA_dv{vv,2}(iCenterNodes, iDirichlet)*u0_dirichlet ...
-        - dB_dv{vv,2}(iCenterNodes, iCenterNodes)*f_center;
+        - dB_dv{vv,2}(iCenterNodes, iCenterNodes)*f_center ...
+        - dfdv{vv,2}(iCenterNodes)/2000;
     
     dFdvx = v'*wx;
     dFdvy = v'*wy;
