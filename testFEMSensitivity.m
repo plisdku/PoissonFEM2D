@@ -1,7 +1,5 @@
 %% Test a whole adjoint thing
 
-
-
 lx = [0, 1, 1, 0];
 ly = [0, 0, 1, 1];
 
@@ -15,126 +13,72 @@ figure(1); clf
 VVMesh.plotFV(domainF, domainV, 'k-');
 patch('Faces', domainF, 'Vertices', domainV, 'FaceColor', 'r', 'FaceAlpha', 0.1, 'EdgeAlpha', 0);
 
-%% Make an FEM mesh
+%% Make an FEM object
 
-N = 4;
-%meshNodes = MeshNodes(domainF, domainV, N);
-meshNodes = TriNodalMesh(N, domainF, domainV);
+dirichletPredicate = @(v1,v2) norm(v1) < 0.25 || norm(v2) < 0.25;
+femp = FEMProblem(N, domainF, domainV, dirichletPredicate);
 
-xy = meshNodes.getNodeCoordinates();
-%%
-iEdgeNodes = meshNodes.getBoundaryNodes();
-iCenterNodes = meshNodes.getInteriorNodes();
-
-figure(1); clf
-VVMesh.plotFV(domainF, domainV, 'b-');
-hold on
-axis xy image
-plot(xy(:,1), xy(:,2), 'b.');
-plot(xy(iEdgeNodes,1), xy(iEdgeNodes,2), 'ro');
-plot(xy(iCenterNodes,1), xy(iCenterNodes,2), 'go');
-
-%% Set up matrices
-
-fem = PoissonFEM2D(meshNodes);
-numNodes = meshNodes.getNumNodes();
-
-A = fem.systemMatrix();
-B = fem.rhsMatrix();
-NM = fem.neumannMatrix();
-
-% Separate edges from centers
-iEdgeNodes = meshNodes.getBoundaryNodes();
-iCenterNodes = meshNodes.getInteriorNodes();
-
-% Make the left side be Neumann boundaries
-iNearCenter = find(abs(xy(iEdgeNodes,1)-0.5) > 0.49 & abs(xy(iEdgeNodes,2)-0.5) > 0.49);
-iNeumann = iEdgeNodes(iNearCenter);
-iDirichlet = setdiff(iEdgeNodes, iNeumann);
-
-% Quick reset center nodes:
-iCenterNodes = [iCenterNodes, iNeumann'];
-
-% The forward matrices
-M1_center = A(iCenterNodes, iCenterNodes);
-M2_center = B(iCenterNodes, iCenterNodes);
-NM_center = NM(iCenterNodes, iNeumann);
-M1_edges = A(iCenterNodes, iDirichlet);
-
-
-%% Set up boundary conditions
-
-xy = meshNodes.getNodeCoordinates();
-xy_edges = xy(iDirichlet,:);
-
-u0 = zeros(numNodes,1);
-%u0_edges = u0(iDirichlet);
-u0_edges = zeros(numel(iDirichlet),1); %xy_edges(:,1) > 0.99;
-%u0_edges = cos(0.25*pi*xy_edges(:,1));
-%u0_edges = xy_edges(:,1);
-
-en_edges = xy(iNeumann,1) < 1e-3;
-en_edges = 0*en_edges;
-
-%% Set up free charge
-
-xy_centers = xy(iCenterNodes,:);
-
-f = zeros(numNodes,1);
-
-% Blob of charge!
+%% Define some shit
 
 x0 = 0.25;
 y0 = 0.5;
 sigma = 0.05;
-fFunc = @(x,y) exp( (-(x-x0).^2 - (y-y0).^2)/(2*sigma^2));
-f = fFunc(xy(:,1), xy(:,2));
+freeCharge = @(x,y) exp( (-(x-x0).^2 - (y-y0).^2)/(2*sigma^2));
 
-f_center = f(iCenterNodes);
+dirichletVal = @(xy) zeros(size(xy,1),1);
 
-%% Solve!!
+neumannVal = @(xy) zeros(size(xy,1),1);
 
-% Unperturbed forward system
-u_center = M1_center \ (M2_center*f_center - M1_edges*u0_edges - NM_center*en_edges);
-u = u0;
-u(iDirichlet) = u0_edges;
-u(iCenterNodes) = u_center;
+measPt = [0.2, 0.22];
 
-%% Calculate the Ex and Ey fields
+femp.setSources(freeCharge, dirichletVal, neumannVal);
+femp.solve(measPt);
 
-[Dx, Dy, count] = meshNodes.getGradientOperators();
-Ex = Dx*u;
-Ey = Dy*u;
+%% Perturb (Dirichlet)
 
-magE = sqrt(abs(Ex).^2 + abs(Ey).^2);
+delta = 1e-6;
+femp2 = FEMProblem(N, domainF, domainV, dirichletPredicate);
+femp2.setSources(freeCharge, dirichletVal, neumannVal);
+femp2.u0_dirichlet(1) = femp2.u0_dirichlet(1) + delta;
+femp2.solve(measPt);
 
-%% Good interpolation
+dF_meas = (femp2.F - femp.F)/delta;
+dF_calc = femp.dF_dud(1);
 
-%xs = linspace(-1, 4, 400);
-%ys = linspace(-1, 4, 400);
-xs = linspace(-0.1, 1.1, 400);
-ys = linspace(-0.1, 1.1, 400);
-[xx, yy] = ndgrid(xs, ys);
+%% Perturb (Neumann)
 
-II = meshNodes.getInterpolationOperator(xx(:), yy(:));
+femp2.setSources(freeCharge, dirichletVal, neumannVal);
+femp2.en_neumann(1) = femp2.en_neumann(1) + delta;
+femp2.solve(measPt);
+
+dF_meas = (femp2.F - femp.F)/delta;
+dF_calc = femp.dF_den(1);
+
+%% Perturb (free charge)
+
+femp2.setSources(freeCharge, dirichletVal, neumannVal);
+femp2.freeCharge(10) = femp2.freeCharge(1) + delta;
+femp2.solve(measPt);
+
+dF_meas = (femp2.F - femp.F)/delta;
+dF_calc = femp.dF_df(10);
+
+%% Perturb (vertices)
+
+iXY = 1;
+for iVert = 1
+
+    femp2.fem.meshNodes.vertices(iVert,iXY) = femp2.fem.meshNodes.vertices(iVert,iXY) + delta;
+    femp2.setSources(freeCharge, dirichletVal, neumannVal);
+    femp2.solve(measPt);
+
+    dF_meas = (femp2.F - femp.F)/delta;
+    dF_calc = femp.dFdv_total(iVert,iXY);
+    
+    
+end
 
 
-%% Plot
+% TODO: check all the pieces
 
-u_grid = reshape(II*magE, size(xx));
 
-figure(2); clf
-imagesc_centered(xs, ys, u_grid');
-colormap orangecrush(0.7)
-%colorbar
-%
-hold on
-VVMesh.plotFV(domainF, domainV, 'w-', 'linewidth', 0.01)
-hold on
-%plot(meshNodes.vertices(:,1), meshNodes.vertices(:,2), 'wo');
-plot(xy(:,1), xy(:,2), 'w.', 'MarkerSize', 2)
-colorbar
-axis xy image vis3d
-%title('Linear interpolation')
-title('Basis interpolation')
-%title('Difference')

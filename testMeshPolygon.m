@@ -119,13 +119,10 @@ iNeumann = setdiff(meshNodes.getBoundaryNodes(), iDirichlet);
 
 %% Set up free charge
 
-f = zeros(numNodes,1);
 x0 = 0.25;
 y0 = 0.5;
 sigma = 0.05;
 fFunc = @(x,y) exp( (-(x-x0).^2 - (y-y0).^2)/(2*sigma^2));
-f = fFunc(xy_nodes(:,1), xy_nodes(:,2));
-
 [f, dfdv] = fem.evaluateOnNodes(fFunc);
 
 %% NEW WAY: Dirichlet and Neumann are both Robin boundary conditions.
@@ -189,7 +186,7 @@ xyMeas = [0.2; 0.2];
 %%
 
 %meshNodes.getInterpolationOperator();
-dIdv = meshNodes.getInterpolationOperatorSensitivity([0.2], [0.3]);
+%dIdv = meshNodes.getInterpolationOperatorSensitivity([0.2], [0.3]);
 
 %% Solve the adjoint system!
 
@@ -202,6 +199,7 @@ v_big = 0*u;
 v_big(iCenterNodes) = v;
 
 %% Get some fucking sensitivities!!!!
+% Test them too?  Please?
 
 % Sensitivity with respect to Dirichlet boundary values
 dF_dud = -v'*A_dirichlet;
@@ -230,14 +228,14 @@ for vv = 1:numVerts
         - dNM_dv{vv,1}(iCenterNodes, iNeumann)*en_neumann ...
         - dA_dv{vv,1}(iCenterNodes, iDirichlet)*u0_dirichlet ...
         - dB_dv{vv,1}(iCenterNodes, iCenterNodes)*f_center ...
-        - dfdv{vv,1}(iCenterNodes)/2000;
+        - 0*dfdv{vv,1}(iCenterNodes);
     
     
     wy = -dA_dv{vv,2}(iCenterNodes, iCenterNodes)*u_center ...
         - dNM_dv{vv,2}(iCenterNodes, iNeumann)*en_neumann ...
         - dA_dv{vv,2}(iCenterNodes, iDirichlet)*u0_dirichlet ...
         - dB_dv{vv,2}(iCenterNodes, iCenterNodes)*f_center ...
-        - dfdv{vv,2}(iCenterNodes)/2000;
+        - 0*dfdv{vv,2}(iCenterNodes);
     
     dFdvx = v'*wx;
     dFdvy = v'*wy;
@@ -282,7 +280,10 @@ II = meshNodes.getInterpolationOperator(xx(:), yy(:));
 
 %%
 
-u_grid = reshape(II*u, size(xx));
+shit = dA_dv{vv,2}(iCenterNodes, iCenterNodes)*u_center;
+big_shit = 0*u;
+big_shit(iCenterNodes) = shit;
+u_grid = reshape(II*big_shit, size(xx));
 
 %%
 
