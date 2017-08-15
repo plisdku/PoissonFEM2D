@@ -7,6 +7,9 @@ classdef FEMProblem < handle
         iNodesNeumann
         iNodesCenter
         
+        u;
+        v;
+        
         F, u0_dirichlet, dF_dud, freeCharge, dFreeCharge_dv, dF_df, en_neumann, dF_den, dFdv_total;
         
         A, dA_dv;
@@ -83,6 +86,7 @@ classdef FEMProblem < handle
             u = zeros(numNodes,1);
             u(iCenter) = u_center;
             u(iDirichlet) = obj.u0_dirichlet;
+            obj.u = u;
             
             % Evaluate the functional
             [F, dFdv, dFdu] = obj.fem.pointEvaluationFunctional(@multiplyByOne, evalPt, u);
@@ -95,6 +99,7 @@ classdef FEMProblem < handle
             v_center = A_center' \ dFdu_center';
             v = 0*u;
             v(iCenter) = v_center;
+            obj.v = v;
             
             % Get some sensitivities
             

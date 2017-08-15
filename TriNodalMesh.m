@@ -472,51 +472,54 @@ classdef TriNodalMesh < MeshTopology
             
             % Nodes, section 2/3: Edge-centers
             
-            r_1d = obj.basis1d.getInteriorNodes();
-            for iEdge = 1:numEdges
-                iEdgeVertices = obj.getEdgeVertices(iEdge);
-                iv0 = iEdgeVertices(1);
-                iv1 = iEdgeVertices(2);
-                
-                iNodes = obj.getEdgeInteriorNodes(iEdge);
-                
-                % Get fractional distance from one end to the other
-                d = 0.5 + 0.5*r_1d;
-                
-                % ... so node = v0(1-d) + v1(d)
-                dxy_dv0 = 1-d;
-                dxy_dv1 = d;
-                
-                dxy_dv{iv0,1}(iNodes,1) = dxy_dv0;
-                dxy_dv{iv0,2}(iNodes,2) = dxy_dv0;
-                dxy_dv{iv1,1}(iNodes,1) = dxy_dv1;
-                dxy_dv{iv1,2}(iNodes,2) = dxy_dv1;
-            end
+            if obj.N > 2
+                r_1d = obj.basis1d.getInteriorNodes();
+                for iEdge = 1:numEdges
+                    iEdgeVertices = obj.getEdgeVertices(iEdge);
+                    iv0 = iEdgeVertices(1);
+                    iv1 = iEdgeVertices(2);
+
+                    iNodes = obj.getEdgeInteriorNodes(iEdge);
+
+                    % Get fractional distance from one end to the other
+                    d = 0.5 + 0.5*r_1d;
+
+                    % ... so node = v0(1-d) + v1(d)
+                    dxy_dv0 = 1-d;
+                    dxy_dv1 = d;
+
+                    dxy_dv{iv0,1}(iNodes,1) = dxy_dv0;
+                    dxy_dv{iv0,2}(iNodes,2) = dxy_dv0;
+                    dxy_dv{iv1,1}(iNodes,1) = dxy_dv1;
+                    dxy_dv{iv1,2}(iNodes,2) = dxy_dv1;
+                end
+            end % obj.N > 2
             
             % Nodes, section 3/3: Face-centers
             
-            rs = obj.basis.getInteriorNodes()';
-            for iFace = 1:numFaces
-                iFaceVertices = obj.getFaceVertices(iFace);
-                
-                xyTri = obj.vertices(iFaceVertices, :)';
-                
-                iNodes = obj.getFaceInteriorNodes(iFace);
-                
-                for iLocalVert = 1:3
-                    iGlobalVert = iFaceVertices(iLocalVert);
-                    for iXY = 1:2
-                        DxyTri = zeros(2,3);
-                        DxyTri(iXY, iLocalVert) = 1.0;
-                        
-                        [DT, Dx0] = support2d.rs2xy_affineParameterSensitivities(xyTri, DxyTri);
-                        
-                        Dxy = bsxfun(@plus, DT*rs, Dx0);
-                        dxy_dv{iGlobalVert,iXY}(iNodes,:) = Dxy';
+            if obj.N > 3
+                rs = obj.basis.getInteriorNodes()';
+                for iFace = 1:numFaces
+                    iFaceVertices = obj.getFaceVertices(iFace);
+
+                    xyTri = obj.vertices(iFaceVertices, :)';
+
+                    iNodes = obj.getFaceInteriorNodes(iFace);
+
+                    for iLocalVert = 1:3
+                        iGlobalVert = iFaceVertices(iLocalVert);
+                        for iXY = 1:2
+                            DxyTri = zeros(2,3);
+                            DxyTri(iXY, iLocalVert) = 1.0;
+
+                            [DT, Dx0] = support2d.rs2xy_affineParameterSensitivities(xyTri, DxyTri);
+
+                            Dxy = bsxfun(@plus, DT*rs, Dx0);
+                            dxy_dv{iGlobalVert,iXY}(iNodes,:) = Dxy';
+                        end
                     end
                 end
-                
-            end
+            end % obj.N > 3
             
         end
         
