@@ -9,6 +9,10 @@ classdef FEMProblem < handle
         
         F, u0_dirichlet, dF_dud, freeCharge, dFreeCharge_dv, dF_df, en_neumann, dF_den, dFdv_total;
         
+        A, dA_dv;
+        B, dB_dv;
+        NM, dNM_dv;
+        
     end
     
     
@@ -46,6 +50,14 @@ classdef FEMProblem < handle
             [A, dA_dv] = obj.fem.systemMatrix();
             [B, dB_dv] = obj.fem.rhsMatrix();
             [NM, dNM_dv] = obj.fem.neumannMatrix();
+            
+            obj.A = A;
+            obj.dA_dv = dA_dv;
+            obj.B = B;
+            obj.dB_dv = dB_dv;
+            obj.NM = NM;
+            obj.dNM_dv = dNM_dv;
+            
             
             
             % Partition the system matrices to separate out Dirichlet nodes
@@ -115,19 +127,24 @@ classdef FEMProblem < handle
 
             dFdv_total = zeros(numVerts,2);
 
+            % u_center = A_center \ (B_center*freeCharge_center - A_dirichlet*obj.u0_dirichlet - NM_neumann*obj.en_neumann);
+            % A*u = B*f - Ad*ud - NM*en
+            % 
+            % A*du = dB*f + B*df - dAd*ud - Ad*dud - dNM*en - NM*den - dA*u
+            % 
             for vv = 1:numVerts
 
                 wx = -dA_dv{vv,1}(iCenter, iCenter)*u_center ...
-                    - dNM_dv{vv,1}(iCenter, iNeumann)*obj.en_neumann ...
                     - dA_dv{vv,1}(iCenter, iDirichlet)*obj.u0_dirichlet ...
-                    - dB_dv{vv,1}(iCenter, iCenter)*freeCharge_center ...
-                    - obj.dFreeCharge_dv{vv,1}(iCenter);
+                    + dNM_dv{vv,1}(iCenter, iNeumann)*obj.en_neumann ...
+                    + dB_dv{vv,1}(iCenter, iCenter)*freeCharge_center ...
+                    + B_center*obj.dFreeCharge_dv{vv,1}(iCenter);
                 
                 wy = -dA_dv{vv,2}(iCenter, iCenter)*u_center ...
-                    - dNM_dv{vv,2}(iCenter, iNeumann)*obj.en_neumann ...
                     - dA_dv{vv,2}(iCenter, iDirichlet)*obj.u0_dirichlet ...
-                    - dB_dv{vv,2}(iCenter, iCenter)*freeCharge_center ...
-                    - obj.dFreeCharge_dv{vv,2}(iCenter);
+                    + dNM_dv{vv,2}(iCenter, iNeumann)*obj.en_neumann ...
+                    + dB_dv{vv,2}(iCenter, iCenter)*freeCharge_center...
+                    + B_center*obj.dFreeCharge_dv{vv,2}(iCenter);
                 
                 dFdvx = v_center'*wx;
                 dFdvy = v_center'*wy;
