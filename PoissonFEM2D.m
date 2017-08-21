@@ -6,7 +6,7 @@ classdef PoissonFEM2D < handle
         Ds;  % differentiation matrix on basis element
         Q;   % quadrature matrix on basis element
         Q1d; % quadrature matrix on basis edge
-        L;   % cell array of three lift matrices
+        %L;   % cell array of three edge selection matrices (why)
     end
     
     
@@ -24,19 +24,17 @@ classdef PoissonFEM2D < handle
             obj.Q = support2d.quadratureKernel(obj.meshNodes.N, rs, ss);
             
             obj.Q1d = support.quadratureKernel(obj.meshNodes.N, obj.meshNodes.basis1d.r);
-
-            % make the lift matrices
-            [iCorners, iEdgeCenters, ~] = support2d.classifyNodes(obj.meshNodes.N);
             
-            iEdge1 = [iCorners(1), iEdgeCenters{1}, iCorners(2)];
-            iEdge2 = [iCorners(2), iEdgeCenters{2}, iCorners(3)];
-            iEdge3 = [iCorners(3), iEdgeCenters{3}, iCorners(1)];
-            nEdge = length(iEdge1);
-            nNodes = size(obj.Q,1);
-            unos = ones(size(iEdge1));
-            obj.L{1} = sparse(1:nEdge, iEdge1, unos, nEdge, nNodes);
-            obj.L{2} = sparse(1:nEdge, iEdge2, unos, nEdge, nNodes);
-            obj.L{3} = sparse(1:nEdge, iEdge3, unos, nEdge, nNodes);
+            %[iCorners, iEdgeCenters, ~] = support2d.classifyNodes(obj.meshNodes.N);
+            %iEdge1 = [iCorners(1), iEdgeCenters{1}, iCorners(2)];
+            %iEdge2 = [iCorners(2), iEdgeCenters{2}, iCorners(3)];
+            %iEdge3 = [iCorners(3), iEdgeCenters{3}, iCorners(1)];
+            %nEdge = length(iEdge1);
+            %nNodes = size(obj.Q,1);
+            %unos = ones(size(iEdge1));
+            %obj.L{1} = sparse(1:nEdge, iEdge1, unos, nEdge, nNodes);
+            %obj.L{2} = sparse(1:nEdge, iEdge2, unos, nEdge, nNodes);
+            %obj.L{3} = sparse(1:nEdge, iEdge3, unos, nEdge, nNodes);
         end
         
         % ---- Helper matrices
