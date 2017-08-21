@@ -17,10 +17,10 @@ classdef BasisNodes1d
         function obj = BasisNodes1d(N)
             obj.N = N;
             
-            obj.V = support.vandermonde(N);
+            obj.r = support.nodes1d(N);
+            obj.V = support.vandermonde(N, obj.r);
             obj.invV = inv(obj.V);
             
-            obj.r = support.nodes1d(N);
             
             obj.iVertices = [1, N];
             obj.iEdges = 2:(N-1);

@@ -6,16 +6,16 @@ ly = [0, 0, 1, 1];
 in_lx = 0.5 + 0.05*[-1, -1, 1, 1];
 in_ly = 0.5 + 0.05*[-1, 1, 1, -1];
 
-density = 8;
+density = 40;
 [domainV,domainF] = meshPolygon(lx, ly, density, in_lx, in_ly);
 
-%figure(1); clf
-%VVMesh.plotFV(domainF, domainV, 'k-');
-%patch('Faces', domainF, 'Vertices', domainV, 'FaceColor', 'r', 'FaceAlpha', 0.1, 'EdgeAlpha', 0);
+figure(1); clf
+VVMesh.plotFV(domainF, domainV, 'k-');
+patch('Faces', domainF, 'Vertices', domainV, 'FaceColor', 'r', 'FaceAlpha', 0.1, 'EdgeAlpha', 0);
 
 %% Make an FEM object
 
-N = 8;
+N = 4;
 dirichletPredicate = @(v1,v2) norm(v1-0.5) < 0.25 || norm(v2-0.5) < 0.25;
 femp = FEMProblem(N, domainF, domainV, dirichletPredicate);
 
@@ -139,15 +139,17 @@ dF_dud(femp.iNodesDirichlet) = femp.dF_dud;
 
 dF_den = 0*femp.u;
 dF_den(femp.iNodesNeumann) = femp.dF_den;
-
-%u_grid = II*femp.u;
-u_grid = II*femp.dF_df;
+%%
+u_grid = II*femp.u;
+%u_grid = II*femp.dF_df;
 u_grid = reshape(u_grid, size(xx));
 
 %%
 
 figure(1); clf
 imagesc_centered(xs, ys, u_grid'); %, [0, 0.1]);
+
+%%
 colormap orangecrush(0.7)
 %colorbar
 %

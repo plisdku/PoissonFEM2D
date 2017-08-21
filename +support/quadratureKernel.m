@@ -10,7 +10,7 @@ end
 
 detJ = abs(jacobian);
 
-V = support.vandermonde(rr, N);
+V = support.vandermonde(N, rr);
 V_inv = inv(V);
 
 Q = V_inv' * V_inv * detJ;

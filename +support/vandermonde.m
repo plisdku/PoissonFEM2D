@@ -1,4 +1,4 @@
-function V = vandermonde(xx, numNodes)
+function V = vandermonde(numNodes, xx)
 % vandermonde   Create vandermonde matrix for evaluating normalized Legendre
 % polynomials
 %
@@ -6,7 +6,8 @@ function V = vandermonde(xx, numNodes)
 % vandermonde(xx, numNodes) uses numNodes polynomials
 
 if nargin == 1
-    numNodes = numel(xx);
+    %numNodes = numel(xx);
+    xx = support.nodes1d(numNodes);
 end
 
 import support.*

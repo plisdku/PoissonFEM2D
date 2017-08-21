@@ -24,6 +24,7 @@ classdef TriNodalMesh < MeshTopology
             obj.basis = BasisNodes(N);
             obj.basis1d = BasisNodes1d(N);
             
+            assert(size(vertices,2) == 2, 'Vertices must be Nx2');
             obj.vertices = vertices;
             
         end

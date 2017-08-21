@@ -1,11 +1,12 @@
-function DV = gradVandermonde(xx, numNodes)
+function DV = gradVandermonde(numNodes, xx)
 % gradVandermonde   Create gradient of Vandermonde matrix
 %
 % gradVandermonde(xx)
 % gradVandermonde(xx, numNodes)
 
 if nargin == 1
-    numNodes = numel(xx);
+    %numNodes = numel(xx);
+    xx = support.nodes1d(numNodes);
 end
 
 import support.*
