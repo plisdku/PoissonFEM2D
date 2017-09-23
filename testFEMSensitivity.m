@@ -6,7 +6,7 @@ ly = [0, 0, 1, 1];
 in_lx = 0.5 + 0.05*[-1, -1, 1, 1];
 in_ly = 0.5 + 0.05*[-1, 1, 1, -1];
 
-density = 40;
+density = 8;
 [domainV,domainF] = meshPolygon(lx, ly, density, in_lx, in_ly);
 
 figure(1); clf
@@ -46,6 +46,8 @@ femp2.solve(measPt);
 dF_meas = (femp2.F - femp.F)/delta;
 dF_calc = femp.dF_dud(1);
 
+fprintf('Measured %g, calculated %g\n', dF_meas, full(dF_calc));
+
 %% Perturb (Neumann)
 
 femp2 = FEMProblem(N, domainF, domainV, dirichletPredicate);
@@ -55,6 +57,8 @@ femp2.solve(measPt);
 
 dF_meas = (femp2.F - femp.F)/delta;
 dF_calc = femp.dF_den(1);
+
+fprintf('Measured %g, calculated %g\n', dF_meas, full(dF_calc));
 
 %% Perturb (free charge)
 
@@ -66,10 +70,12 @@ femp2.solve(measPt);
 dF_meas = (femp2.F - femp.F)/delta;
 dF_calc = femp.dF_df(10);
 
+fprintf('Measured %g, calculated %g\n', dF_meas, full(dF_calc));
+
 %% Perturb (vertices)
 
 iXY = 1;
-for iVert = 1:femp.fem.meshNodes.getNumVertices()
+for iVert = 1:femp.fem.meshNodes.hMesh.getNumVertices()
 
     femp2 = FEMProblem(N, domainF, domainV, dirichletPredicate);
     femp2.fem.meshNodes.vertices(iVert,iXY) = femp.fem.meshNodes.vertices(iVert,iXY) + delta;

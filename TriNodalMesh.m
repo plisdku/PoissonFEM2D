@@ -1,14 +1,11 @@
-classdef TriNodalMesh < MeshTopology
+classdef TriNodalMesh < handle
 % TriNodalMesh Geometry and topology of a triangulated FEM mesh with nodes
     
     properties
-        N;
-        %topology;   % MeshTopology
-        basis;      % BasisNodes
-        basis1d;
-        
         vertices;
-        nodes;
+        
+        hMesh@MeshTopology;
+        hNodes@NodalTopology;
     end
     
     
@@ -19,15 +16,11 @@ classdef TriNodalMesh < MeshTopology
         
         
         function obj = TriNodalMesh(N, faces, vertices)
-            obj@MeshTopology(faces, N);
-            obj.N = N;
-            obj.basis = BasisNodes(N);
-            obj.basis1d = BasisNodes1d(N);
+            obj.hMesh = MeshTopology(faces);
+            obj.hNodes = NodalTopology(obj.hMesh, N);
             
-            assert(size(vertices,2) == 2, 'Vertices must be Nx2');
+            assert(size(vertices,2) == 2, 'Vertices must be Nx2'); % test because 3d verts are common
             obj.vertices = vertices;
-            
-            obj.nodes = obj.getNodeCoordinates();
         end
         
         % ---- JACOBIANS
@@ -48,17 +41,6 @@ classdef TriNodalMesh < MeshTopology
         % that I already have.
         
         
-        function jac = getCurvilinearJacobian(obj, iFace)
-            % Calculate the Jacobian of the mapping from (r,s) to (x,y).
-            %
-            % The Jacobian is dxy/drs.  It needs to be calculated for each
-            % node actually.
-            
-            % 
-            
-        end
-        
-        
         function jac = getLinearJacobian(obj, iFace)
             % Calculate the Jacobian of the mapping from (r,s) to (x,y).
             % 
@@ -66,7 +48,7 @@ classdef TriNodalMesh < MeshTopology
             % xy = bsxfun(@plus, v0, T*rs);
             % so the Jacobian is just T.
             
-            threeVertices = obj.vertices(obj.getFaceVertices(iFace),:);
+            threeVertices = obj.vertices(obj.hMesh.getFaceVertices(iFace),:);
             jac = support2d.rs2xy_affineParameters(threeVertices');
         end
         
@@ -77,7 +59,7 @@ classdef TriNodalMesh < MeshTopology
             %
             % so d(xy)/dr = (v2-v1)/2.
             
-            twoVertices = obj.vertices(obj.getEdgeVertices(iEdge, orientation), :);
+            twoVertices = obj.vertices(obj.hMesh.getEdgeVertices(iEdge, orientation), :);
             jac1d = 0.5*(twoVertices(2,:) - twoVertices(1,:))';
         end
         
@@ -92,7 +74,7 @@ classdef TriNodalMesh < MeshTopology
             
             dJdv = zeros(2,2,3,2); % row, col, vertex, vertex xy
             
-            threeVertices = obj.vertices(obj.getFaceVertices(iFace),:);
+            threeVertices = obj.vertices(obj.hMesh.getFaceVertices(iFace),:);
             
             % I could build this without the affineParameter... abstraction
             % if I did it like getLinearJacobianSensitivity1d.  Think about
@@ -151,16 +133,16 @@ classdef TriNodalMesh < MeshTopology
         
         function [outDx, outDy, count] = getGradientOperators(obj)
             
-            numNodes = obj.getNumNodes();
+            numNodes = obj.hNodes.getNumNodes();
             outDx = sparse(numNodes, numNodes);
             outDy = sparse(numNodes, numNodes);
             
             count = zeros(numNodes, 1);
             
-            numFaces = obj.getNumFaces();
+            numFaces = obj.hMesh.getNumFaces();
             
-            rs = obj.basis.getNodes();
-            [Dr, Ds] = support2d.gradients(obj.N, rs(:,1), rs(:,2));
+            rs = obj.hNodes.basis.getNodes();
+            [Dr, Ds] = support2d.gradients(obj.hNodes.N, rs(:,1), rs(:,2));
             
             for ff = 1:numFaces
             %for ff = fff
@@ -173,7 +155,7 @@ classdef TriNodalMesh < MeshTopology
                 
                 % first silly approach: on edges between faces we will
                 % repeatedly overwrite the matrix elements.  Bogus!!
-                iGlobal = obj.getFaceNodes(ff);
+                iGlobal = obj.hNodes.getFaceNodes(ff);
                 outDx(iGlobal, iGlobal) = outDx(iGlobal, iGlobal) + Dx;
                 outDy(iGlobal, iGlobal) = outDy(iGlobal, iGlobal) + Dy;
                 
@@ -189,7 +171,7 @@ classdef TriNodalMesh < MeshTopology
         function [outI] = getInterpolationOperator(obj, xs, ys)
             
             numPts = length(xs);
-            numNodes = obj.getNumNodes();
+            numNodes = obj.hNodes.getNumNodes();
             outI = sparse(numPts, numNodes);
             count = zeros(numPts, 1);
             
@@ -197,9 +179,9 @@ classdef TriNodalMesh < MeshTopology
                 return
             end
             
-            tr = triangulation(obj.getFaceVertices(), obj.vertices);
+            tr = triangulation(obj.hMesh.getFaceVertices(), obj.vertices);
             iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
-            numFaces = obj.getNumFaces();
+            numFaces = obj.hMesh.getNumFaces();
             
             for ff = 1:numFaces
                 iPoint = find(iEnclosingFaces == ff);
@@ -210,12 +192,12 @@ classdef TriNodalMesh < MeshTopology
                 
                 xy = [xs(iPoint)'; ys(iPoint)'];
                 
-                xyTri = obj.vertices(obj.getFaceVertices(ff), :)';
+                xyTri = obj.vertices(obj.hMesh.getFaceVertices(ff), :)';
                 %rs = support2d.xy2rs(xyTri, xy);
-                M = obj.basis.interpolationMatrix_xy(xyTri, xy(1,:), xy(2,:));
+                M = obj.hNodes.basis.interpolationMatrix_xy(xyTri, xy(1,:), xy(2,:));
                 %M = obj.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
                 
-                iGlobal = obj.getFaceNodes(ff);
+                iGlobal = obj.hNodes.getFaceNodes(ff);
                 
                 outI(iPoint, iGlobal) = M;
                 % Original idea: sum and then keep a count to handle the
@@ -241,9 +223,9 @@ classdef TriNodalMesh < MeshTopology
             %
             
             numPts = length(xs);
-            numNodes = obj.getNumNodes();
-            numVertices = obj.getNumVertices();
-            numFaces = obj.getNumFaces();
+            numNodes = obj.hNodes.getNumNodes();
+            numVertices = obj.hMesh.getNumVertices();
+            numFaces = obj.hMesh.getNumFaces();
             
             if numPts == 0
                 return
@@ -259,7 +241,7 @@ classdef TriNodalMesh < MeshTopology
             %    count{nn} = zeros(numPts, 1);
             %end
             
-            tr = triangulation(obj.getFaceVertices(), obj.vertices);
+            tr = triangulation(obj.hMesh.getFaceVertices(), obj.vertices);
             iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
             
             for ff = 1:numFaces
@@ -267,11 +249,11 @@ classdef TriNodalMesh < MeshTopology
                 if isempty(iPoint)
                     continue
                 end
-                iGlobal = obj.getFaceNodes(ff);
-                iGlobalVertices = obj.getFaceVertices(ff);
+                iGlobal = obj.hNodes.getFaceNodes(ff);
+                iGlobalVertices = obj.hMesh.getFaceVertices(ff);
                 
                 xy = [xs(iPoint)'; ys(iPoint)'];
-                xyTri = obj.vertices(obj.getFaceVertices(ff),:)';
+                xyTri = obj.vertices(obj.hMesh.getFaceVertices(ff),:)';
                 
                 %M = obj.basis.interpolationMatrix_xy(xyTri, xy(1,:), xy(2,:));
                 
@@ -281,7 +263,7 @@ classdef TriNodalMesh < MeshTopology
                         DxyTri = zeros(size(xyTri));
                         DxyTri(iXY, iVert) = 1;
                         
-                        DM = obj.basis.interpolationMatrixSensitivity_nodal_xy(xyTri, DxyTri, xy(1,:), xy(2,:));
+                        DM = obj.hNodes.basis.interpolationMatrixSensitivity_nodal_xy(xyTri, DxyTri, xy(1,:), xy(2,:));
                         dIdv{iGlobalVert,iXY}(iPoint, iGlobal) = DM;
                         %dIdv{iVert,iXY}(iPoint, iGlobal) = dIdv{iVert,iXY}(iPoint, iGlobal) + DM;
                         %count{iVert,iXY}(iPoint) = count{iVert,iXY}(iPoint) + 1;
@@ -305,7 +287,7 @@ classdef TriNodalMesh < MeshTopology
         function plotMatrix(obj, A, varargin)
             % Draw every FEM node affected by this matrix.
             
-            assert(size(A,1) == obj.getNumNodes());
+            assert(size(A,1) == obj.hNodes.getNumNodes());
             
             [ii,~,~] = find(A);
             
@@ -327,7 +309,7 @@ classdef TriNodalMesh < MeshTopology
         
         function plotEdgeIndices(obj)
             
-            edges = obj.getEdgeVertices();
+            edges = obj.hMesh.getEdgeVertices();
             
             for ii = 1:size(edges,1)
                 
@@ -343,8 +325,8 @@ classdef TriNodalMesh < MeshTopology
         
         function plotFaceIndices(obj)
             
-            for ff = 1:obj.getNumFaces()
-                vCenter = mean(obj.vertices(obj.getFaceVertices(ff),:), 1);
+            for ff = 1:obj.hMesh.getNumFaces()
+                vCenter = mean(obj.vertices(obj.hMesh.getFaceVertices(ff),:), 1);
                 text(vCenter(1), vCenter(2), num2str(ff));
             end
         end
@@ -365,18 +347,18 @@ classdef TriNodalMesh < MeshTopology
             % getEdgeInteriorNodeCoordinates(iEdge)
             % getEdgeInteriorNodeCoordinates(iEdge, orientation)
             
-            if obj.N < 3
+            if obj.hNodes.N < 3
                 xyz = zeros(0,2);
                 return
             end
             
-            verts = obj.vertices(obj.getEdgeVertices(iEdge),:);
+            verts = obj.vertices(obj.hMesh.getEdgeVertices(iEdge),:);
             %v2 = obj.vertices(obj.getEdgeVertices(iEdge),:);
             
             %d = linspace(0, 1, obj.N)';
             %d = d(2:end-1);
             
-            d = 0.5 + 0.5*transpose(obj.basis1d.getInteriorNodes());
+            d = 0.5 + 0.5*transpose(obj.hNodes.basis1d.getInteriorNodes());
             
             x = verts(1,1) + (verts(2,1)-verts(1,1))*d;
             y = verts(1,2) + (verts(2,2)-verts(1,2))*d;
@@ -396,7 +378,7 @@ classdef TriNodalMesh < MeshTopology
             % getEdgeNodeCoordinates(iEdge)
             % getEdgeNodeCoordinates(iEdge, orientation)
             
-            verts = obj.vertices(obj.getEdgeVertices(iEdge),:);
+            verts = obj.vertices(obj.hMesh.getEdgeVertices(iEdge),:);
             
             d = 0.5 + 0.5*transpose(obj.basis1d.getNodes());
             
@@ -423,8 +405,8 @@ classdef TriNodalMesh < MeshTopology
                 xy = zeros(0,2);
                 return
             end
-            threeVertices = obj.vertices(obj.getFaceVertices(iFace),:);
-            xy = support2d.rs2xy(threeVertices', obj.basis.getInteriorNodes()')';
+            threeVertices = obj.vertices(obj.hMesh.getFaceVertices(iFace),:);
+            xy = support2d.rs2xy(threeVertices', obj.hNodes.basis.getInteriorNodes()')';
         end
         
         
@@ -433,8 +415,8 @@ classdef TriNodalMesh < MeshTopology
             %
             % getFaceNodeCoordinates(iFace)
             
-            threeVertices = obj.vertices(obj.getFaceVertices(iFace),:);
-            xy = support2d.rs2xy(threeVertices', obj.basis.getNodes()')';
+            threeVertices = obj.vertices(obj.hMesh.getFaceVertices(iFace),:);
+            xy = support2d.rs2xy(threeVertices', obj.hNodes.basis.getNodes()')';
         end
         
         
@@ -450,20 +432,20 @@ classdef TriNodalMesh < MeshTopology
             % with vertex nodes ordered by vertex number, edge nodes
             % ordered by edge number and face nodes ordered by face number.
             
-            numNodes = obj.getNumNodes();
+            numNodes = obj.hNodes.getNumNodes();
             xy = zeros(numNodes,2);
 
             % Nodes, section 1/3: Vertices
-            xy(1:obj.getNumVertices(),:) = obj.vertices;
+            xy(1:obj.hMesh.getNumVertices(),:) = obj.vertices;
             
             % Nodes, section 2/3: Edge-centers
-            for iEdge = 1:obj.getNumEdges()
-                xy(obj.getEdgeInteriorNodes(iEdge),:) = obj.getEdgeInteriorNodeCoordinates(iEdge);
+            for iEdge = 1:obj.hMesh.getNumEdges()
+                xy(obj.hNodes.getEdgeInteriorNodes(iEdge),:) = obj.getEdgeInteriorNodeCoordinates(iEdge);
             end
 
             % Nodes, section 3/3: Face-centers
-            for iFace = 1:obj.getNumFaces()
-                xy(obj.getFaceNodes(iFace),:) = obj.getFaceNodeCoordinates(iFace);
+            for iFace = 1:obj.hMesh.getNumFaces()
+                xy(obj.hNodes.getFaceNodes(iFace),:) = obj.getFaceNodeCoordinates(iFace);
             end
         end
         
@@ -474,17 +456,17 @@ classdef TriNodalMesh < MeshTopology
         
         function xy = getInteriorNodeCoordinates(obj)
             xy = obj.getNodeCoordinates();
-            xy = xy(obj.getInteriorNodes(),:);
+            xy = xy(obj.hNodes.getInteriorNodes(),:);
         end
         
         % ---- Node coordinate sensitivities
         
         function dxy_dv = getNodeCoordinateSensitivities(obj)
             
-            numNodes = obj.getNumNodes();
-            numVertices = obj.getNumVertices();
-            numEdges = obj.getNumEdges();
-            numFaces = obj.getNumFaces();
+            numNodes = obj.hNodes.getNumNodes();
+            numVertices = obj.hMesh.getNumVertices();
+            numEdges = obj.hMesh.getNumEdges();
+            numFaces = obj.hMesh.getNumFaces();
             
             dxy_dv = cell(numVertices,2);
             for nn = 1:numel(dxy_dv)
@@ -500,14 +482,14 @@ classdef TriNodalMesh < MeshTopology
             
             % Nodes, section 2/3: Edge-centers
             
-            if obj.N > 2
-                r_1d = obj.basis1d.getInteriorNodes();
+            if obj.hNodes.N > 2
+                r_1d = obj.hNodes.basis1d.getInteriorNodes();
                 for iEdge = 1:numEdges
-                    iEdgeVertices = obj.getEdgeVertices(iEdge);
+                    iEdgeVertices = obj.hMesh.getEdgeVertices(iEdge);
                     iv0 = iEdgeVertices(1);
                     iv1 = iEdgeVertices(2);
 
-                    iNodes = obj.getEdgeInteriorNodes(iEdge);
+                    iNodes = obj.hNodes.getEdgeInteriorNodes(iEdge);
 
                     % Get fractional distance from one end to the other
                     d = 0.5 + 0.5*r_1d;
@@ -525,14 +507,14 @@ classdef TriNodalMesh < MeshTopology
             
             % Nodes, section 3/3: Face-centers
             
-            if obj.N > 3
-                rs = obj.basis.getInteriorNodes()';
+            if obj.hNodes.N > 3
+                rs = obj.hNodes.basis.getInteriorNodes()';
                 for iFace = 1:numFaces
-                    iFaceVertices = obj.getFaceVertices(iFace);
+                    iFaceVertices = obj.hMesh.getFaceVertices(iFace);
 
                     xyTri = obj.vertices(iFaceVertices, :)';
 
-                    iNodes = obj.getFaceInteriorNodes(iFace);
+                    iNodes = obj.hNodes.getFaceInteriorNodes(iFace);
 
                     for iLocalVert = 1:3
                         iGlobalVert = iFaceVertices(iLocalVert);

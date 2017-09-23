@@ -4,14 +4,7 @@ classdef MeshTopology < handle
 %
 % The mesh geometry is not handled here.
     
-    properties (Access = private)
-        N;  % nodes per edge of element
-        
-        basis;  % BasisNodes object
-        
-        interiorNodesPerEdge;  % number of interior nodes per edge (vertices excluded)
-        interiorNodesPerFace;  % number of interior nodes per face (edges and corners excluded)
-        
+    properties % (Access = private)
         % Mesh topology and geometry.
         faceVertices;
         faceEdges;
@@ -19,45 +12,19 @@ classdef MeshTopology < handle
         edgeVertices;  % not oriented.
         
         numVertices; % inferred from the mesh
-        
-        % Nodes are numbered consecutively in three groups: vertex nodes,
-        % edge nodes and face nodes.
-        %   iVertexNode0 is the index beginning the vertex nodes
-        %   iEdgeNode0 is the index beginning the edge nodes
-        %   iFaceNode0 is the index beginning the face nodes
-        iVertexNode0;
-        iEdgeNode0;
-        iFaceNode0;
     end
 
     methods
         
         % ---- CONSTRUCTOR
         
-        function obj = MeshTopology(faceVertices, N)
-            obj.N = N;
-            
-            obj.basis = BasisNodes(N);
-            
-            obj.interiorNodesPerEdge = max(0, N-2);
-            obj.interiorNodesPerFace = max(0, (N-3)*(N-2)/2);
-            
-            
+        function obj = MeshTopology(faceVertices)
             obj.faceVertices = faceVertices;
             [obj.faceEdges, obj.faceEdgeOrientations, obj.edgeVertices] = VVMesh.getEdges(obj.faceVertices);
             obj.numVertices = numel(unique(faceVertices(:)));
-            
-            
-            obj.iVertexNode0 = 0;
-            obj.iEdgeNode0 = obj.getNumVertices();
-            obj.iFaceNode0 = obj.iEdgeNode0 + obj.interiorNodesPerEdge*obj.getNumEdges();
         end
         
         % ---- NUMBERS OF THINGS
-        
-        function n = getNodalOrder(obj)
-            n = obj.N;
-        end
         
         function n = getNumVertices(obj)
             n = obj.numVertices;
@@ -69,12 +36,6 @@ classdef MeshTopology < handle
 
         function n = getNumFaces(obj)
             n = size(obj.faceVertices, 1);
-        end
-
-        function n = getNumNodes(obj)
-            n = obj.getNumVertices() + ...
-                obj.interiorNodesPerEdge*obj.getNumEdges() + ...
-                obj.interiorNodesPerFace*obj.getNumFaces();
         end
         
         % ---- BASIC TOPOLOGY
@@ -126,9 +87,7 @@ classdef MeshTopology < handle
             end
         end
         
-        
-        
-        function iVertices = getFaceEdgeVertices(obj, iFace, iLocalEdge)
+        function iVertices = getFaceEdgeVertices(obj, iFace)
             % Return ordered vertex indices for an edge of a face
             %
             % getFaceEdgeVertices(iFace, iEdge)
@@ -184,121 +143,6 @@ classdef MeshTopology < handle
             A = sparse(iEdges(:), obj.edgeVertices(:), ones(2*nEdges,1), nEdges, nVertices);
         end
         
-        % ---- NODE ACCESSORS
-        
-        
-        function iNodes = getFaceNodes(obj, iFace)
-            % getFaceNodes(iFace)   Get node indices for all nodes in a face.
-            
-            iVertexNodes = obj.getVertexNodes(obj.faceVertices(iFace,:));
-            iEdgeNodes1 = obj.getFaceEdgeInteriorNodes(iFace, 1);
-            iEdgeNodes2 = obj.getFaceEdgeInteriorNodes(iFace, 2);
-            iEdgeNodes3 = obj.getFaceEdgeInteriorNodes(iFace, 3);
-            iFaceNodes = obj.getFaceInteriorNodes(iFace);
-            
-            % Now we somehow need to slam them together in the right order.
-            
-            iNodes = zeros(obj.basis.numNodes, 1);
-            iNodes(obj.basis.iVertices) = iVertexNodes;
-            iNodes(obj.basis.iEdges(1,:)) = iEdgeNodes1;
-            iNodes(obj.basis.iEdges(2,:)) = iEdgeNodes2;
-            iNodes(obj.basis.iEdges(3,:)) = iEdgeNodes3;
-            iNodes(obj.basis.iCenter) = iFaceNodes;
-        end
-        
-        function iNodes = getFaceInteriorNodes(obj, iFace)
-            assert(numel(iFace) == 1, 'Only one face at a time');
-            iNodes = obj.iFaceNode0 + (iFace-1)*obj.interiorNodesPerFace + ...
-                (1:obj.interiorNodesPerFace);
-        end
-        
-        function iNodes = getFaceEdgeNodes(obj, iFace, iEdgeLocal)
-            iEdgeGlobal = obj.faceEdges(iFace, iEdgeLocal);
-            orientation = obj.faceEdgeOrientations(iFace, iEdgeLocal);
-            iInteriorNodes = obj.getEdgeInteriorNodes(iEdgeGlobal, orientation);
-            
-            edgeVertsLocal = [iEdgeLocal, 1 + mod(iEdgeLocal,3)];
-            iVertexNodes = obj.getVertexNodes(obj.faces(iFace, edgeVertsLocal));
-            
-            iNodes = [iVertexNodes(1), iInteriorNodes, iVertexNodes(2)];
-        end
-        
-        function iNodes = getFaceEdgeInteriorNodes(obj, iFace, iEdgeLocal)
-            iEdgeGlobal = obj.faceEdges(iFace, iEdgeLocal);
-            orientation = obj.faceEdgeOrientations(iFace, iEdgeLocal);
-            iNodes = obj.getEdgeInteriorNodes(iEdgeGlobal, orientation);
-        end
-        
-        function iNodes = getFaceVertexNodes(obj, iFace, iVerticesLocal)
-            iVertices = obj.faces(iFace, iVerticesLocal);
-            iNodes = obj.getVertexNodes(iVertices);
-        end
-        
-        function iNodes = getEdgeNodes(obj, iEdge, varargin)
-            % getEdgeNodes(iEdge)
-            % getEdgeNodes(iEdge, orientation)
-            
-            
-            % MULTIPLE EDGE CASE
-            if numel(iEdge) > 1
-                numEdges = length(iEdge);
-                
-                allNodes = zeros(1, numEdges*obj.N); % overestimate
-                iNextNode = 1;
-                
-                if ~isempty(varargin)
-                    orientations = varargin{1};
-                    assert(numel(varargin{1}) == numel(iEdge), 'Must supply one orientation per edge');
-                else
-                    orientations = ones(numEdges,1);
-                end
-                
-                for ii = 1:numEdges
-                    allNodes(iNextNode:iNextNode+obj.N-1) = obj.getEdgeNodes(iEdge(ii),orientations(ii));
-                    iNextNode = iNextNode + obj.N;
-                end
-                
-                iNodes = unique(allNodes);
-                
-                return
-            end
-            
-            
-            % SINGLE EDGE CASE
-            %assert(numel(iEdge) == 1, 'Only one edge at a time');
-            
-            iInteriorNodes = obj.iEdgeNode0 + (iEdge-1)*obj.interiorNodesPerEdge + ...
-                (1:obj.interiorNodesPerEdge);
-            iVertexNodes = obj.getVertexNodes(obj.edgeVertices(iEdge,:));
-            
-            iNodes = [iVertexNodes(1), iInteriorNodes, iVertexNodes(2)];
-            
-            if ~isempty(varargin)
-                if varargin{1} < 0
-                    iNodes = iNodes(end:-1:1);
-                end
-            end
-        end
-        
-        function iNodes = getEdgeInteriorNodes(obj, iEdge, varargin)
-            % getEdgeInteriorNodes(iEdge)
-            % getEdgeInteriorNodes(iEdge, orientation)
-            assert(numel(iEdge) == 1, 'Only one edge at a time');
-            iNodes = obj.iEdgeNode0 + (iEdge-1)*obj.interiorNodesPerEdge + ...
-                (1:obj.interiorNodesPerEdge);
-            
-            if ~isempty(varargin)
-               if varargin{1} < 0
-                   iNodes = iNodes(end:-1:1);
-               end
-            end
-        end
-        
-        function iNodes = getVertexNodes(obj, iVertices)
-            iNodes = obj.iVertexNode0 + iVertices;
-        end
-        
-        
         % ---- MESH TOPOLOGY
         
         function [edgeIndices, orientations] = getBoundaryEdges(obj)
@@ -317,32 +161,6 @@ classdef MeshTopology < handle
             orientations = 0*edgeIndices;
             orientations(ii) = ori;
         end
-        
-        % Get an arbitrarily-ordered list of the nodes on the outer boundary
-        function iNodes = getBoundaryNodes(obj)
-            
-            iEdgeIndices = obj.getBoundaryEdges();
-            iEdgeVertexIndices = obj.edgeVertices(iEdgeIndices,:);
-            
-            iNodes = zeros(numel(iEdgeIndices), obj.interiorNodesPerEdge);
-            for ii = 1:length(iEdgeIndices)
-                iNodes(ii,:) = obj.getEdgeInteriorNodes(iEdgeIndices(ii));
-            end
-            iNodes = unique(iNodes(:));
-
-            % throw in the edge vertices
-            iEdgeCornerNodes = unique(obj.getVertexNodes(iEdgeVertexIndices(:)));
-
-            iNodes = [iNodes; iEdgeCornerNodes];
-            
-        end
-        
-        function iCenterNodes = getInteriorNodes(obj)
-            
-            iCenterNodes = setdiff(1:obj.getNumNodes(), obj.getBoundaryNodes());
-            
-        end
-        
         
     end % methods
 

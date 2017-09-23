@@ -25,7 +25,7 @@ classdef FEMProblem < handle
             meshNodes = TriNodalMesh(N, faces, vertices);
             obj.fem = PoissonFEM2D(meshNodes);
             
-            numNodes = obj.fem.meshNodes.getNumNodes();
+            numNodes = obj.fem.meshNodes.hNodes.getNumNodes();
             [obj.iNodesDirichlet, obj.iNodesNeumann] = obj.classifyEdges(dirichletPredicate);
             obj.iNodesCenter = setdiff(1:numNodes, obj.iNodesDirichlet);
         end
@@ -48,7 +48,7 @@ classdef FEMProblem < handle
         
         function solve(obj, evalPt)
 
-            numNodes = obj.fem.meshNodes.getNumNodes();
+            numNodes = obj.fem.meshNodes.hNodes.getNumNodes();
             
             [A, dA_dv] = obj.fem.systemMatrix();
             [B, dB_dv] = obj.fem.rhsMatrix();
@@ -128,7 +128,7 @@ classdef FEMProblem < handle
             obj.dF_den = dF_den;
             
             % Perturb the mesh
-            numVerts = obj.fem.meshNodes.getNumVertices();
+            numVerts = obj.fem.meshNodes.hMesh.getNumVertices();
 
             dFdv_total = zeros(numVerts,2);
 
@@ -167,21 +167,21 @@ classdef FEMProblem < handle
         % dirichletPredicate([v1x,v1y], [v2x,v2y])
         function [iNodesDirichlet, iNodesNeumann, iNodesBoundary] = classifyEdges(obj, dirichletPredicate)
             
-            iBoundaryEdges = obj.fem.meshNodes.getBoundaryEdges();
+            iBoundaryEdges = obj.fem.meshNodes.hMesh.getBoundaryEdges();
             
             flagDirichlet = false(length(iBoundaryEdges),1);
             for ii = 1:length(iBoundaryEdges)
                 iEdge = iBoundaryEdges(ii);
                 verts = obj.fem.meshNodes.getVertexNodeCoordinates(...
-                    obj.fem.meshNodes.getEdgeVertices(iEdge));
+                    obj.fem.meshNodes.hMesh.getEdgeVertices(iEdge));
                 
                 flagDirichlet(ii) = dirichletPredicate(verts(1,:), verts(2,:));
             end
             
             iDirichletEdges = iBoundaryEdges(flagDirichlet);
             
-            iNodesBoundary = obj.fem.meshNodes.getBoundaryNodes();
-            iNodesDirichlet = obj.fem.meshNodes.getEdgeNodes(iDirichletEdges);
+            iNodesBoundary = obj.fem.meshNodes.hNodes.getBoundaryNodes();
+            iNodesDirichlet = obj.fem.meshNodes.hNodes.getEdgeNodes(iDirichletEdges);
             iNodesNeumann = setdiff(iNodesBoundary, iNodesDirichlet);
         end
         

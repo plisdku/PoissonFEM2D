@@ -11,7 +11,7 @@ faces = [1,2,3];
 
 meshNodes = TriNodalMesh(N, faces, vertices);
 fem = PoissonFEM2D(meshNodes);
-numFaceNodes = meshNodes.basis.numNodes;
+numFaceNodes = meshNodes.hNodes.basis.numNodes;
 
 %% Test elementIntegralFunctional
 
@@ -68,7 +68,7 @@ fprintf('Element integral and sensitivity tests PASSED\n');
 
 % Integrate 1 and get the triangle area.
 
-u = ones(meshNodes.getNumNodes(), 1);
+u = ones(meshNodes.hNodes.getNumNodes(), 1);
 [F, ~, dFdu] = fem.surfaceIntegralFunctional(@multiplyByOne, [1], u);
 checkClose(F, 0.5);
 
