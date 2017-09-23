@@ -1,9 +1,10 @@
-classdef TriNodalMesh < MeshTopology
+classdef CurvilinearTriNodalMesh < MeshTopology
 % TriNodalMesh Geometry and topology of a triangulated FEM mesh with nodes
     
     properties
-        N;
-        %topology;   % MeshTopology
+        N;   % Solution nodes per edge
+        Nd;  % Displacement nodes per edge (geometry nodes)
+        
         basis;      % BasisNodes
         basis1d;
         
@@ -18,7 +19,7 @@ classdef TriNodalMesh < MeshTopology
         % ---- CONSTRUCTOR
         
         
-        function obj = TriNodalMesh(N, faces, vertices)
+        function obj = CurvilinearTriNodalMesh(N, faces, vertices)
             obj@MeshTopology(faces, N);
             obj.N = N;
             obj.basis = BasisNodes(N);
@@ -58,7 +59,7 @@ classdef TriNodalMesh < MeshTopology
             
         end
         
-        
+        % specific to linear meshes
         function jac = getLinearJacobian(obj, iFace)
             % Calculate the Jacobian of the mapping from (r,s) to (x,y).
             % 
@@ -70,6 +71,7 @@ classdef TriNodalMesh < MeshTopology
             jac = support2d.rs2xy_affineParameters(threeVertices');
         end
         
+        % specific to linear meshes
         function jac1d = getLinearJacobian1d(obj, iEdge, orientation)
             % This is the Jacobian of the mapping from r to (x,y).
             %
@@ -81,7 +83,7 @@ classdef TriNodalMesh < MeshTopology
             jac1d = 0.5*(twoVertices(2,:) - twoVertices(1,:))';
         end
         
-        
+        % specific to linear meshes
         function dJdv = getLinearJacobianSensitivity(obj, iFace)
             % dJdv = getLinearJacobianSensitivity(iFace)
             %
@@ -107,7 +109,7 @@ classdef TriNodalMesh < MeshTopology
             end
         end
         
-        
+        % specific to linear meshes
         function dJdv1d = getLinearJacobianSensitivity1d(obj, iEdge, orientation)
             % dJdv1d = getLinearJacobianSensitivity1d(iEdge, orientation)
             %
@@ -148,7 +150,7 @@ classdef TriNodalMesh < MeshTopology
         % ---- OPERATORS
         
         
-        
+        % both need this... can't do this without a Jacobian though
         function [outDx, outDy, count] = getGradientOperators(obj)
             
             numNodes = obj.getNumNodes();
@@ -186,6 +188,7 @@ classdef TriNodalMesh < MeshTopology
             outDy = normalizer * outDy;
         end
         
+        % both need this.  It sure gets fancy btw.
         function [outI] = getInterpolationOperator(obj, xs, ys)
             
             numPts = length(xs);
@@ -235,7 +238,7 @@ classdef TriNodalMesh < MeshTopology
             
         end
         
-        
+        % both might as well have this...?
         function dIdv = getInterpolationOperatorSensitivity(obj, xs, ys)
             % dIdv = getInterpolationOperatorSensitivity(xs, ys)
             %
