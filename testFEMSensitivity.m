@@ -1,5 +1,9 @@
 %% Test a whole adjoint thing
 
+assertClose = @(a,b) assert(norm(a(:)-b(:))/(norm(a(:)) + norm(b(:))) < 1e-5 || norm(a(:) + b(:)) < 1e-50);
+
+%% Set up the mesh
+
 lx = [0, 1, 1, 0];
 ly = [0, 0, 1, 1];
 
@@ -47,6 +51,7 @@ dF_meas = (femp2.F - femp.F)/delta;
 dF_calc = femp.dF_dud(1);
 
 fprintf('Measured %g, calculated %g\n', dF_meas, full(dF_calc));
+assertClose(dF_meas, dF_calc);
 
 %% Perturb (Neumann)
 
@@ -59,6 +64,7 @@ dF_meas = (femp2.F - femp.F)/delta;
 dF_calc = femp.dF_den(1);
 
 fprintf('Measured %g, calculated %g\n', dF_meas, full(dF_calc));
+assertClose(dF_meas, dF_calc);
 
 %% Perturb (free charge)
 
@@ -71,11 +77,15 @@ dF_meas = (femp2.F - femp.F)/delta;
 dF_calc = femp.dF_df(10);
 
 fprintf('Measured %g, calculated %g\n', dF_meas, full(dF_calc));
+assertClose(dF_meas, dF_calc);
 
 %% Perturb (vertices)
 
+delta = 1e-6;
+
 iXY = 1;
 for iVert = 1:femp.fem.meshNodes.hMesh.getNumVertices()
+    disp(iVert)
 
     femp2 = FEMProblem(N, domainF, domainV, dirichletPredicate);
     femp2.fem.meshNodes.vertices(iVert,iXY) = femp.fem.meshNodes.vertices(iVert,iXY) + delta;
@@ -84,6 +94,7 @@ for iVert = 1:femp.fem.meshNodes.hMesh.getNumVertices()
 
     dF_meas = (femp2.F - femp.F)/delta;
     dF_calc = femp.dFdv_total(iVert,iXY);
+    assertClose(dF_meas, dF_calc);
     
     nf = @(A) norm(full(A));
     fprintf('%g vs %g\n', nf(dF_meas), nf(dF_calc));
@@ -104,15 +115,19 @@ for iVert = 1:femp.fem.meshNodes.hMesh.getNumVertices()
     
     dA_meas = (femp2.A - femp.A)/delta;
     dA_calc = femp.dA_dv{iVert,iXY};
+    assertClose(dA_meas, dA_calc);
     
     dB_meas = (femp2.B - femp.B)/delta;
     dB_calc = femp.dB_dv{iVert,iXY};
+    assertClose(dB_meas, dB_calc);
     
     dNM_meas = (femp2.NM - femp.NM)/delta;
     dNM_calc = femp.dNM_dv{iVert,iXY};
+    assertClose(dNM_meas, dNM_calc);
     
     dFreeCharge_meas = (femp2.freeCharge - femp.freeCharge)/delta;
     dFreeCharge_calc = femp.dFreeCharge_dv{iVert, iXY};
+    assertClose(dFreeCharge_meas, dFreeCharge_calc);
     
 end
 
