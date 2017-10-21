@@ -8,7 +8,7 @@ vertices = vertices(:,1:2);
 
 meshNodes = TriNodalMesh(N,faces,vertices);
 
-numNodes = meshNodes.getNumNodes();
+numNodes = meshNodes.hNodes.getNumNodes();
 
 %% 
 
@@ -27,7 +27,7 @@ delta = 1e-6;
 
 % perturb this vertex
 iVertInFace = 3;
-tmp = meshNodes.getFaceVertices(ff);
+tmp = meshNodes.hMesh.getFaceVertices(ff);
 iVert = tmp(iVertInFace);
 iXY = 2;
 
@@ -124,7 +124,7 @@ fprintf('Element matrices\n');
 
 ff = 3;
 iVertInFace = 3; % local vertex to perturb
-tmp = meshNodes.getFaceVertices(ff);
+tmp = meshNodes.hMesh.getFaceVertices(ff);
 vv = tmp(iVertInFace);
 xy = 2; % direction to perturb
 delta = 1e-6;
@@ -174,7 +174,7 @@ fprintf('dBdv error: %g\n', norm(dBdv_calc - dBdv_meas));
 
 fprintf('System matrices\n')
 
-numVerts = meshNodes.getNumVertices();
+numVerts = meshNodes.hMesh.getNumVertices();
 
 iVert = 1;
 iXY = 1;
@@ -214,8 +214,8 @@ fprintf('dCdv error %g / %g\n', norm(full(dCdv_calc - dCdv_meas)), norm(full(dCd
 %% Dirichlet boundary conditions
 
 % Separate edges from centers
-iEdgeNodes = meshNodes.getBoundaryNodes();
-iCenterNodes = meshNodes.getInteriorNodes();
+iEdgeNodes = meshNodes.hNodes.getBoundaryNodes();
+iCenterNodes = meshNodes.hNodes.getInteriorNodes();
 
 % The forward matrices
 M1_center = A(iCenterNodes, iCenterNodes);
