@@ -61,8 +61,8 @@ end
 %%
 %iEdgeNodes = meshNodes.getBoundaryNodeCoordinates();
 %iCenterNodes = meshNodes.getInteriorNodeCoordinates();
-iEdgeNodes = meshNodes.getBoundaryNodes();
-iCenterNodes = meshNodes.getInteriorNodes();
+iEdgeNodes = meshNodes.hNodes.getBoundaryNodes();
+iCenterNodes = meshNodes.hNodes.getInteriorNodes();
 
 figure(1); clf
 VVMesh.plotFV(domainF, domainV, 'b-');
@@ -77,7 +77,7 @@ plot(xy_nodes(iCenterNodes,1), xy_nodes(iCenterNodes,2), 'go');
 %% Set up matrices
 
 fem = PoissonFEM2D(meshNodes);
-numNodes = meshNodes.getNumNodes();
+numNodes = meshNodes.hNodes.getNumNodes();
 
 [A, dA_dv] = fem.systemMatrix();
 [B, dB_dv] = fem.rhsMatrix();
@@ -94,14 +94,14 @@ numNodes = meshNodes.getNumNodes();
 %
 % Key tasks: choosing edges, then finding nodes for those edges.
 
-boundaryEdges = meshNodes.getBoundaryEdges();
+boundaryEdges = meshNodes.hMesh.getBoundaryEdges();
 
 predicate = @(v0,v1) norm(v0-0.5) < 0.25;
 
 chooseMe = false(length(boundaryEdges), 1);
 for ii = 1:length(boundaryEdges)
     iEdge = boundaryEdges(ii);
-    verts = meshNodes.getVertexNodeCoordinates(meshNodes.getEdgeVertices(iEdge));
+    verts = meshNodes.getVertexNodeCoordinates(meshNodes.hMesh.getEdgeVertices(iEdge));
     
     chooseMe(ii) = predicate(verts(1,:), verts(2,:));
 end
@@ -109,13 +109,13 @@ end
 innerEdges = boundaryEdges(chooseMe);
 outerEdges = setdiff(boundaryEdges, innerEdges);
 
-innerNodes = meshNodes.getEdgeNodes(innerEdges);
-outerNodes = meshNodes.getEdgeNodes(outerEdges);
+innerNodes = meshNodes.hNodes.getEdgeNodes(innerEdges);
+outerNodes = meshNodes.hNodes.getEdgeNodes(outerEdges);
 
 %iNeumann = outerNodes;
 %iDirichlet = [innerNodes, outerNodes];
 iDirichlet = innerNodes;
-iNeumann = setdiff(meshNodes.getBoundaryNodes(), iDirichlet);
+iNeumann = setdiff(meshNodes.hNodes.getBoundaryNodes(), iDirichlet);
 
 %% Set up free charge
 
