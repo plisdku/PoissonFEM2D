@@ -5,7 +5,7 @@ classdef MeshTopology < handle
 % The mesh geometry is not handled here.
     
     properties % (Access = private)
-        % Mesh topology and geometry.
+        % Mesh topology.
         faceVertices;
         faceEdges;
         faceEdgeOrientations; % +1 or -1
