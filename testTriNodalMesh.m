@@ -45,17 +45,18 @@ fprintf('Single-point Jacobian test PASSED\n');
 
 delta = 1e-6;
 
+for orientation = [1,-1]
 for iEdge = 1:3
 
     r0 = 0.1;
-    xy0 = tnMesh.getEdgeCoordinates(iEdge, r0);
-    xy1 = tnMesh.getEdgeCoordinates(iEdge, r0+delta);
+    xy0 = tnMesh.getEdgeCoordinates(iEdge, r0, orientation);
+    xy1 = tnMesh.getEdgeCoordinates(iEdge, r0+delta, orientation);
 
     dxy_dr_meas = (xy1 - xy0)/delta;
-    dxy_dr = tnMesh.getEdgeJacobian(iEdge, r0);
+    dxy_dr = tnMesh.getEdgeJacobian(iEdge, r0, orientation);
 
     assert(norm(dxy_dr_meas - dxy_dr) < 1e-6);
-    
+end  
 end
 
 fprintf('Single-point 1D Jacobian test PASSED\n');
