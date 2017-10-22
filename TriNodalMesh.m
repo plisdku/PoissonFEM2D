@@ -2,7 +2,7 @@ classdef TriNodalMesh < handle
 % TriNodalMesh Geometry and topology of a triangulated FEM mesh with nodes
     
     properties
-        vertices;
+        xyNodes; % the vertex positions come first followed by other nodes
         
         hMesh@MeshTopology;
         hFieldNodes@NodalTopology;
@@ -18,14 +18,156 @@ classdef TriNodalMesh < handle
         % ---- CONSTRUCTOR
         
         
-        function obj = TriNodalMesh(N_field, N_geom, N_quad, faces, vertices)
+        function obj = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad)
             obj.hMesh = MeshTopology(faces);
             obj.hFieldNodes = NodalTopology(obj.hMesh, N_field);
             obj.hGeomNodes = NodalTopology(obj.hMesh, N_geom);
             obj.hQuadNodes = NodalTopology(obj.hMesh, N_quad);
             
-            assert(size(vertices,2) == 2, 'Vertices must be Nx2'); % test because 3d verts are common
-            obj.vertices = obj.getNodeCoordinates();
+            assert(size(xyNodes,2) == 2, 'Vertices must be Nx2'); % test because 3d verts are common
+            obj.xyNodes = xyNodes;
+        end
+        
+        % ---- NODAL COORDINATES
+        % a.k.a. coordinate transformation
+        
+        function xyz = getVertexNodeCoordinates(obj, iVertex)
+            % Get [x,y] coordinates of the node on a given vertex
+            %
+            % getVertexNodeCoordinates(iVertex)
+            
+            xyz = obj.xyNodes(iVertex,:);
+        end
+
+        function xy = getEdgeCoordinates(obj, iEdge, rs, varargin)
+            % Get ordered [x,y] coordinates at positions on a given edge.
+            % getEdgeNodeCoordinates(obj, iEdge, rs)
+            % getEdgeNodeCoordinates(obj, iEdge, rs, orientation)
+            
+            if nargin < 4
+                orientation = 1;
+            else
+                orientation = varargin{1};
+            end
+            
+            M = obj.hGeomNodes.basis1d.interpolationMatrix_r(rs);
+            xy = M*obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge, orientation),:);
+            
+        end
+            
+        function xyz = getEdgeInteriorNodeCoordinates(obj, iEdge, varargin)
+            % Get ordered [x,y] coordinates of interior nodes on a given edge
+            %
+            % getEdgeInteriorNodeCoordinates(iEdge)
+            % getEdgeInteriorNodeCoordinates(iEdge, orientation)
+            
+            if obj.hFieldNodes.N < 3
+                xyz = zeros(0,2);
+                return
+            end
+            
+            rField = obj.hFieldNodes.basis1d.getInteriorNodes();
+            xyz = obj.getEdgeCoordinates(iEdge, rField, varargin{:});
+            
+%             M = obj.hGeomNodes.basis1d.interpolationMatrix_r(rField);
+%             
+%             % Get coordinates of geometry nodes along the edge
+%             xyGeomEdge = obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge),:);
+%             xyz = M*xyGeomEdge;
+%             
+%             if ~isempty(varargin)
+%                 orientation = varargin{1};
+%                 if orientation < 0
+%                     xyz = xyz(end:-1:1,:);
+%                 end
+%             end
+        end
+        
+        function xy = getEdgeNodeCoordinates(obj, iEdge, varargin)
+            % Get ordered [x,y] coordinates of nodes on a given edge
+            %
+            % getEdgeNodeCoordinates(iEdge)
+            % getEdgeNodeCoordinates(iEdge, orientation)
+            
+            verts = obj.vertices(obj.hMesh.getEdgeVertices(iEdge),:);
+            
+            d = 0.5 + 0.5*transpose(obj.basis1d.getNodes());
+            
+            x = verts(1,1) + (verts(2,1)-verts(1,1))*d;
+            y = verts(1,2) + (verts(2,2)-verts(1,2))*d;
+            
+            xy = [x, y];
+            
+            if ~isempty(varargin)
+                orientation = varargin{1};
+                if orientation < 0
+                    xy = xy(end:-1:1,:);
+                end
+            end
+        end
+        
+        
+        function xy = getFaceInteriorNodeCoordinates(obj, iFace)
+            % Get ordered [x,y] coordinates of interior nodes in a given face
+            %
+            % getFaceInteriorNodeCoordinates(iFace)
+            
+            if obj.N < 4
+                xy = zeros(0,2);
+                return
+            end
+            threeVertices = obj.vertices(obj.hMesh.getFaceVertices(iFace),:);
+            xy = support2d.rs2xy(threeVertices', obj.hNodes.basis.getInteriorNodes()')';
+        end
+        
+        
+        function xy = getFaceNodeCoordinates(obj, iFace)
+            % Get ordered [x,y] coordinates of all nodes in a given face
+            %
+            % getFaceNodeCoordinates(iFace)
+            
+            threeVertices = obj.vertices(obj.hMesh.getFaceVertices(iFace),:);
+            xy = support2d.rs2xy(threeVertices', obj.hNodes.basis.getNodes()')';
+        end
+        
+        
+        function xy = getNodeCoordinates(obj)
+            % Get ordered [x,y] coordinates of all nodes in the mesh
+            %
+            % getNodeCoordinates()
+            %
+            % The global node ordering is defined in MeshTopology:
+            % nodes = [vertex nodes;
+            %          edge interior nodes;
+            %          face interior nodes]
+            % with vertex nodes ordered by vertex number, edge nodes
+            % ordered by edge number and face nodes ordered by face number.
+            
+            numNodes = obj.hNodes.getNumNodes();
+            xy = zeros(numNodes,2);
+
+            % Nodes, section 1/3: Vertices
+            xy(1:obj.hMesh.getNumVertices(),:) = obj.vertices;
+            
+            % Nodes, section 2/3: Edge-centers
+            for iEdge = 1:obj.hMesh.getNumEdges()
+                xy(obj.hNodes.getEdgeInteriorNodes(iEdge),:) = obj.getEdgeInteriorNodeCoordinates(iEdge);
+            end
+
+            % Nodes, section 3/3: Face-centers
+            for iFace = 1:obj.hMesh.getNumFaces()
+                xy(obj.hNodes.getFaceNodes(iFace),:) = obj.getFaceNodeCoordinates(iFace);
+            end
+        end
+        
+        function xy = getBoundaryNodeCoordinates(obj)
+            xy = obj.getNodeCoordinates();
+            xy = xy(obj.hNodes.getBoundaryNodes(),:);
+        end
+        
+        function xy = getInteriorNodeCoordinates(obj)
+            xy = obj.getNodeCoordinates();
+            xy = xy(obj.hNodes.getInteriorNodes(),:);
         end
         
         % ---- JACOBIANS

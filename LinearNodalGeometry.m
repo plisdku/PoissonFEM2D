@@ -12,9 +12,9 @@ classdef LinearNodalGeometry < handle
         
         % ---- CONSTRUCTOR
 
-        function obj = LinearNodalGeometry(inMesh, inNodes, vertices)
-            obj.hMesh = inMesh;
-            obj.hNodes = inNodes;
+        function obj = LinearNodalGeometry(faceVertices, vertices, N)
+            obj.hMesh = MeshTopology(faceVertices);
+            obj.hNodes = NodalTopology(obj.hMesh, N);
             obj.vertices = vertices;
         end
         
