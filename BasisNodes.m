@@ -30,6 +30,17 @@ classdef BasisNodes
             obj.numNodes = N*(N+1)/2;
         end
         
+        % ---- DIFFERENTIATION
+        
+        function [Dr, Ds] = gradientMatrix_rs(obj, rr, ss)
+            
+            [~, dVdr, dVds] = support2d.vandermonde(obj.N, rr, ss);
+            
+            Dr = dVdr * obj.invV;
+            Ds = dVds * obj.invV;
+            
+        end
+        
         % ---- INTERPOLATION
         
         function M = interpolationMatrix_rs(obj, rr, ss)

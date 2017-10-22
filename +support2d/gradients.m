@@ -1,4 +1,7 @@
 function [Dr, Ds] = gradients(N, rr, ss)
+%[Dr, Ds] = gradients(N, rr, ss)
+
+warning('DEPRECATED.  Use BasisNodes.');
 
 import support2d.*
 

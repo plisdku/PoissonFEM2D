@@ -5,7 +5,10 @@ classdef TriNodalMesh < handle
         vertices;
         
         hMesh@MeshTopology;
-        hNodes@NodalTopology;
+        hFieldNodes@NodalTopology;
+        hGeomNodes@NodalTopology;
+        hQuadNodes@NodalTopology;
+        
     end
     
     
@@ -15,9 +18,11 @@ classdef TriNodalMesh < handle
         % ---- CONSTRUCTOR
         
         
-        function obj = TriNodalMesh(N, faces, vertices)
+        function obj = TriNodalMesh(N_field, N_geom, N_quad, faces, vertices)
             obj.hMesh = MeshTopology(faces);
-            obj.hNodes = NodalTopology(obj.hMesh, N);
+            obj.hFieldNodes = NodalTopology(obj.hMesh, N_field);
+            obj.hGeomNodes = NodalTopology(obj.hMesh, N_geom);
+            obj.hQuadNodes = NodalTopology(obj.hMesh, N_quad);
             
             assert(size(vertices,2) == 2, 'Vertices must be Nx2'); % test because 3d verts are common
             obj.vertices = vertices;
@@ -25,21 +30,41 @@ classdef TriNodalMesh < handle
         
         % ---- JACOBIANS
         
-        % todo: getCurvilinearJacobian()
-        %           this needs all the node positions
-        % todo: getCurvilinearJacobian1d()
-        % todo: getCurvilinearJacobianSensitivity()
-        %           is this with respect to nodes now, not vertices?
-        % todo: getCurvilinearJacobianSensitivity1d()
-        %
-        % I guess curvilinear shit must be with respect to nodes and not
-        % with respect to vertices.  Ok, fine.
-        %
-        % Maybe I should ALWAYS have a displacement mesh under there and
-        % ALWAYS calculate sensitivity to nodes.  If I use a linear
-        % displacement mesh then I recover the sensitivity calculations
-        % that I already have.
+        function [dxy_dr, dxy_ds] = getJacobian(obj, iFace, rr, ss)
+            % Calculate the Jacobian of the mapping from (r,s) to (x,y).
+            %
+            % For a single point (r,s), the Jacobian is
+            %   [Dr*x, Ds*x; Dr*y, Ds*y].
+            % where (x,y) are the geometry node coordinates.
+            
+            % Multiply geometry nodal (x,y).
+            xy = obj.vertices(obj.hGeomNodes.getFaceVertexNodes(iFace),:);
+            
+            % Get gradient matrices for geom nodes
+            [Dr, Ds] = obj.hGeomNodes.basis.gradientMatrix_rs(rr,ss);
+            
+            dxy_dr = Dr*xy;
+            dxy_ds = Ds*xy;
+        end
         
+        function [dxy_dr, dxy_ds] = getFieldJacobian(obj, iFace)
+            
+            % Evaluate AT field nodal (r,s).
+            rr = obj.hFieldNodes.basis.r;
+            ss = obj.hFieldNodes.basis.s;
+            
+            [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rr, ss);
+        end
+        
+        function [dxy_dr, dxy_ds] = getQuadratureJacobian(obj, iFace)
+            
+            % Evaluate AT field nodal (r,s).
+            rr = obj.hQuadNodes.basis.r;
+            ss = obj.hQuadNodes.basis.s;
+            
+            [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rr, ss);
+            
+        end
         
         function jac = getLinearJacobian(obj, iFace)
             % Calculate the Jacobian of the mapping from (r,s) to (x,y).
@@ -145,8 +170,8 @@ classdef TriNodalMesh < handle
             [Dr, Ds] = support2d.gradients(obj.hNodes.N, rs(:,1), rs(:,2));
             
             for ff = 1:numFaces
-            %for ff = fff
                 jac = obj.getLinearJacobian(ff);
+                
                 invJac = inv(jac);
                 
                 Dx = Dr*invJac(1,1) + Ds*invJac(2,1);

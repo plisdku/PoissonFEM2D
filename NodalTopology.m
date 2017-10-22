@@ -83,7 +83,7 @@ classdef NodalTopology < handle
             iInteriorNodes = obj.getEdgeInteriorNodes(iEdgeGlobal, orientation);
             
             edgeVertsLocal = [iEdgeLocal, 1 + mod(iEdgeLocal,3)];
-            iVertexNodes = obj.getVertexNodes(obj.hMesh.faces(iFace, edgeVertsLocal));
+            iVertexNodes = obj.getVertexNodes(obj.hMesh.faceVertices(iFace, edgeVertsLocal));
             
             iNodes = [iVertexNodes(1), iInteriorNodes, iVertexNodes(2)];
         end
@@ -95,7 +95,10 @@ classdef NodalTopology < handle
         end
         
         function iNodes = getFaceVertexNodes(obj, iFace, iVerticesLocal)
-            iVertices = obj.hMesh.faces(iFace, iVerticesLocal);
+            if nargin < 3
+                iVerticesLocal = [1;2;3];
+            end
+            iVertices = obj.hMesh.faceVertices(iFace, iVerticesLocal);
             iNodes = obj.getVertexNodes(iVertices);
         end
         

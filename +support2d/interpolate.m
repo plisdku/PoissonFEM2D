@@ -1,4 +1,5 @@
 function f_eval = interpolate(f, xy_eval, xy_tri, V)
+% f_eval = interpolate(f, xy_eval, xy_tri, V)
 
 assert(size(xy_tri,1) == 2, 'xy_tri should be three column vectors of length 2');
 assert(size(xy_tri,2) == 3, 'xy_tri should be three column vectors of length 2');
