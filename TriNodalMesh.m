@@ -438,6 +438,20 @@ classdef TriNodalMesh < handle
         % ---- VISUALIZATION
         %
         
+        function plotMesh(obj, varargin)
+            
+            numEdges = obj.hMesh.getNumEdges();
+            rr = linspace(-1, 1, 15);
+            
+            for ee = 1:numEdges
+                xy = obj.getEdgeCoordinates(ee, rr);
+                
+                line(xy(:,1), xy(:,2), varargin{:});
+            end
+            
+        end
+        
+        
         function plotMatrix(obj, A, varargin)
             % Draw every FEM node affected by this matrix.
             
