@@ -175,6 +175,26 @@ classdef TriNodalMesh < handle
             dxy_ds = Ds*xy;
         end
         
+        function dxy_dr = getEdgeJacobian(obj, iEdge, rr, varargin)
+            % Calculate the Jacobian of the mapping from r to (x,y).
+            %
+            % dxy_dr = getEdgeJacobian(obj, iEdge, rr)
+            % dxy_dr = getEdgeJacobian(obj, iEdge, rr, orientation)
+            
+            if nargin < 4
+                orientation = 1;
+            else
+                orientation = varargin{1};
+            end
+            
+            xy = obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge, orientation), :);
+            
+            % Get gradient matrix for geom nodes
+            Dr = obj.hGeomNodes.basis1d.gradientMatrix_rs(rr);
+            
+            dxy_dr = Dr*xy;
+        end
+        
         function [dxy_dr, dxy_ds] = getFieldJacobian(obj, iFace)
             
             % Evaluate AT field nodal (r,s).

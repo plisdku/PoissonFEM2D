@@ -29,6 +29,15 @@ classdef BasisNodes1d
         end
         
         
+        % ---- DIFFERENTIATION
+        
+        function Dr = gradientMatrix_rs(obj, rr)
+            
+            dVdr = support.gradVandermonde(obj.N, rr);
+            
+            Dr = dVdr * obj.invV;
+        end
+        
         % ---- INTERPOLATION
         
         function M = interpolationMatrix_r(obj, rr)

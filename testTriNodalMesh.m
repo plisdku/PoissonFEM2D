@@ -41,6 +41,25 @@ assert(norm(dxy_ds - dxy_ds_meas) < 1e-6);
 
 fprintf('Single-point Jacobian test PASSED\n');
 
+%% Test 1D Jacobian
+
+delta = 1e-6;
+
+for iEdge = 1:3
+
+    r0 = 0.1;
+    xy0 = tnMesh.getEdgeCoordinates(iEdge, r0);
+    xy1 = tnMesh.getEdgeCoordinates(iEdge, r0+delta);
+
+    dxy_dr_meas = (xy1 - xy0)/delta;
+    dxy_dr = tnMesh.getEdgeJacobian(iEdge, r0);
+
+    assert(norm(dxy_dr_meas - dxy_dr) < 1e-6);
+    
+end
+
+fprintf('Single-point 1D Jacobian test PASSED\n');
+
 %% Interpolation operator sensitivity
 
 [vertices,faces] = VVMesh.wagonWheel(5);
