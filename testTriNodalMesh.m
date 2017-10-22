@@ -1,3 +1,46 @@
+%% Test Jacobians
+
+N_field = 3;
+N_geom = 3;
+[xyNodes, faces] = nodalWagonWheel(5, N_geom);
+
+%% Test Jacobian on unit simplex
+% Try changing N and the vertices, or moving a node.
+
+N = 3;
+vertices = [0,0; 1,0; 0,1];
+faces = [1,2,3];
+[xyNodes, faces] = nodalMesh(faces, vertices, N);
+%xyNodes(6,2) = xyNodes(6,2) + 0.1;
+
+tnMesh = TriNodalMesh(faces, xyNodes, N, N, N);
+
+%figure(1); clf; tnMesh.plotMesh();
+
+% To test the Jacobian... pick a point I guess?
+% Evaluate the coordinate transformation in one triangle
+% at an initial point (r0,s0) and then at perturbed points (r0+delta,s0)
+% and (r0,s0+delta).  Calculate the Jacobian from these, and compare to
+% the analytical value.
+
+delta = 1e-6;
+r0 = -0.3;
+s0 = -0.2;
+
+xy0 = tnMesh.getFaceCoordinates(1, r0, s0);
+xy1_r = tnMesh.getFaceCoordinates(1, r0+delta, s0);
+xy1_s = tnMesh.getFaceCoordinates(1, r0, s0+delta);
+
+dxy_dr_meas = (xy1_r - xy0)/delta;
+dxy_ds_meas = (xy1_s - xy0)/delta;
+
+[dxy_dr, dxy_ds] = tnMesh.getJacobian(1, r0, s0);
+
+assert(norm(dxy_dr - dxy_dr_meas) < 1e-6);
+assert(norm(dxy_ds - dxy_ds_meas) < 1e-6);
+
+fprintf('Single-point Jacobian test PASSED\n');
+
 %% Interpolation operator sensitivity
 
 [vertices,faces] = VVMesh.wagonWheel(5);

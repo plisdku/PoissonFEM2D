@@ -107,7 +107,6 @@ classdef TriNodalMesh < handle
         end
         
         
-        
         function xy = getFaceNodeCoordinates(obj, iFace)
             % Get ordered [x,y] coordinates of all nodes in a given face
             %
@@ -149,12 +148,12 @@ classdef TriNodalMesh < handle
         
         function xy = getBoundaryNodeCoordinates(obj)
             xy = obj.getNodeCoordinates();
-            xy = xy(obj.hNodes.getBoundaryNodes(),:);
+            xy = xy(obj.hFieldNodes.getBoundaryNodes(),:);
         end
         
         function xy = getInteriorNodeCoordinates(obj)
             xy = obj.getNodeCoordinates();
-            xy = xy(obj.hNodes.getInteriorNodes(),:);
+            xy = xy(obj.hFieldNodes.getInteriorNodes(),:);
         end
         
         % ---- JACOBIANS
@@ -167,7 +166,7 @@ classdef TriNodalMesh < handle
             % where (x,y) are the geometry node coordinates.
             
             % Multiply geometry nodal (x,y).
-            xy = obj.vertices(obj.hGeomNodes.getFaceNodes(iFace),:);
+            xy = obj.xyNodes(obj.hGeomNodes.getFaceNodes(iFace),:);
             
             % Get gradient matrices for geom nodes
             [Dr, Ds] = obj.hGeomNodes.basis.gradientMatrix_rs(rr,ss);
@@ -192,93 +191,8 @@ classdef TriNodalMesh < handle
             ss = obj.hQuadNodes.basis.s;
             
             [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rr, ss);
-            
         end
         
-        function jac = getLinearJacobian(obj, iFace)
-            % Calculate the Jacobian of the mapping from (r,s) to (x,y).
-            % 
-            % [T, v0] = support2d.rs2xy_affineParameters(xyTri);
-            % xy = bsxfun(@plus, v0, T*rs);
-            % so the Jacobian is just T.
-            
-            threeVertices = obj.vertices(obj.hMesh.getFaceVertices(iFace),:);
-            jac = support2d.rs2xy_affineParameters(threeVertices');
-        end
-        
-        function jac1d = getLinearJacobian1d(obj, iEdge, orientation)
-            % This is the Jacobian of the mapping from r to (x,y).
-            %
-            % xy = (v1+v2)/2 + (v2-v1)/2 * r;
-            %
-            % so d(xy)/dr = (v2-v1)/2.
-            
-            twoVertices = obj.vertices(obj.hMesh.getEdgeVertices(iEdge, orientation), :);
-            jac1d = 0.5*(twoVertices(2,:) - twoVertices(1,:))';
-        end
-        
-        
-        function dJdv = getLinearJacobianSensitivity(obj, iFace)
-            % dJdv = getLinearJacobianSensitivity(iFace)
-            %
-            % dJdv is a 4D array indexed by (row, col, vertex, xy).
-            %
-            % Affine transformations are simple and actually the face
-            % argument is unnecessary.
-            
-            dJdv = zeros(2,2,3,2); % row, col, vertex, vertex xy
-            
-            threeVertices = obj.vertices(obj.hMesh.getFaceVertices(iFace),:);
-            
-            % I could build this without the affineParameter... abstraction
-            % if I did it like getLinearJacobianSensitivity1d.  Think about
-            % it.  (Long term, what about non-affine transformations?)
-            for iVert = 1:3
-                for iXY = 1:2
-                    dThreeV = 0*threeVertices;
-                    dThreeV(iVert,iXY) = 1.0;
-                    
-                    dJdv(:,:,iVert,iXY) = support2d.rs2xy_affineParameterSensitivities(threeVertices', dThreeV');
-                end
-            end
-        end
-        
-        
-        function dJdv1d = getLinearJacobianSensitivity1d(obj, iEdge, orientation)
-            % dJdv1d = getLinearJacobianSensitivity1d(iEdge, orientation)
-            %
-            % dJdv is a 3D array indexed by (row, vertex, xy).
-            %
-            % Affine transformations are simple and actually the face and
-            % edge arguments are unnecessary.
-            
-            % Transformation maps (r) -> (x, y)
-            % Jacobian is thus [dx/dr; dy/dr]
-            % Jacobian dimensions are [2,1].  We'll represent it as a
-            % column vector.
-            % 
-            dJdv1d = zeros(2,2,2); % row, vertex, vertex xy
-            
-            %twoVertices = obj.vertices(obj.getFaceEdgeVertices(iFace, iLocalEdge),:);
-            
-            %jac1d = 0.5*(v2 - v1)    (a column vector)
-            %
-            % d/dv1x = 0.5*( [-1; 0] )
-            % d/dv1y = 0.5*( [0; -1] )
-            % d/dv2x = 0.5*( [1; 0] )
-            % d/dv2y = 0.5*( [0; 1] )
-            
-            dJdv1d(:,1,1) = 0.5*[-1; 0];
-            dJdv1d(:,1,2) = 0.5*[0; -1];
-            dJdv1d(:,2,1) = 0.5*[1; 0];
-            dJdv1d(:,2,2) = 0.5*[0; 1];
-            
-            % uh... i don't think we need to flip the sign because of
-            % the orientation...
-            %if orientation < 0
-            %    dJdv1d = -dJdv1d;
-            %end
-        end
         
         
         % ---- OPERATORS
