@@ -54,6 +54,15 @@ classdef TriNodalMesh < handle
             xy = M*obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge, orientation),:);
             
         end
+        
+        function xy = getFaceCoordinates(obj, iFace, rr, ss)
+            % Get ordered [x,y] coordinates at positions on a given face.
+            % getFaceCoordinates(obj, iFace, rr, ss)
+            
+            M = obj.hGeomNodes.basis.interpolationMatrix_rs(rr, ss);
+            xy = M*obj.xyNodes(obj.hGeomNodes.getFaceNodes(iFace),:);
+            
+        end
             
         function xyz = getEdgeInteriorNodeCoordinates(obj, iEdge, varargin)
             % Get ordered [x,y] coordinates of interior nodes on a given edge
@@ -68,19 +77,6 @@ classdef TriNodalMesh < handle
             
             rField = obj.hFieldNodes.basis1d.getInteriorNodes();
             xyz = obj.getEdgeCoordinates(iEdge, rField, varargin{:});
-            
-%             M = obj.hGeomNodes.basis1d.interpolationMatrix_r(rField);
-%             
-%             % Get coordinates of geometry nodes along the edge
-%             xyGeomEdge = obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge),:);
-%             xyz = M*xyGeomEdge;
-%             
-%             if ~isempty(varargin)
-%                 orientation = varargin{1};
-%                 if orientation < 0
-%                     xyz = xyz(end:-1:1,:);
-%                 end
-%             end
         end
         
         function xy = getEdgeNodeCoordinates(obj, iEdge, varargin)
@@ -89,22 +85,10 @@ classdef TriNodalMesh < handle
             % getEdgeNodeCoordinates(iEdge)
             % getEdgeNodeCoordinates(iEdge, orientation)
             
-            verts = obj.vertices(obj.hMesh.getEdgeVertices(iEdge),:);
-            
-            d = 0.5 + 0.5*transpose(obj.basis1d.getNodes());
-            
-            x = verts(1,1) + (verts(2,1)-verts(1,1))*d;
-            y = verts(1,2) + (verts(2,2)-verts(1,2))*d;
-            
-            xy = [x, y];
-            
-            if ~isempty(varargin)
-                orientation = varargin{1};
-                if orientation < 0
-                    xy = xy(end:-1:1,:);
-                end
-            end
+            rField = obj.hFieldNodes.basis1d.getNodes();
+            xy = obj.getEdgeCoordinates(iEdge, rField, varargin{:});
         end
+        
         
         
         function xy = getFaceInteriorNodeCoordinates(obj, iFace)
@@ -112,13 +96,16 @@ classdef TriNodalMesh < handle
             %
             % getFaceInteriorNodeCoordinates(iFace)
             
-            if obj.N < 4
+            if obj.hFieldNodes.N < 4
                 xy = zeros(0,2);
                 return
             end
-            threeVertices = obj.vertices(obj.hMesh.getFaceVertices(iFace),:);
-            xy = support2d.rs2xy(threeVertices', obj.hNodes.basis.getInteriorNodes()')';
+            
+            rs = obj.hFieldNodes.basis.getInteriorNodes();
+            xy = obj.getFaceCoordinates(iFace, rs(:,1), rs(:,2));
+            
         end
+        
         
         
         function xy = getFaceNodeCoordinates(obj, iFace)
@@ -126,8 +113,8 @@ classdef TriNodalMesh < handle
             %
             % getFaceNodeCoordinates(iFace)
             
-            threeVertices = obj.vertices(obj.hMesh.getFaceVertices(iFace),:);
-            xy = support2d.rs2xy(threeVertices', obj.hNodes.basis.getNodes()')';
+            rs = obj.hFieldNodes.basis.getNodes();
+            xy = obj.getFaceCoordinates(iFace, rs(:,1), rs(:,2));
         end
         
         
@@ -143,20 +130,20 @@ classdef TriNodalMesh < handle
             % with vertex nodes ordered by vertex number, edge nodes
             % ordered by edge number and face nodes ordered by face number.
             
-            numNodes = obj.hNodes.getNumNodes();
+            numNodes = obj.hFieldNodes.getNumNodes();
             xy = zeros(numNodes,2);
 
             % Nodes, section 1/3: Vertices
-            xy(1:obj.hMesh.getNumVertices(),:) = obj.vertices;
+            xy(1:obj.hMesh.getNumVertices(),:) = obj.xyNodes(1:obj.hMesh.getNumVertices(),:);
             
             % Nodes, section 2/3: Edge-centers
             for iEdge = 1:obj.hMesh.getNumEdges()
-                xy(obj.hNodes.getEdgeInteriorNodes(iEdge),:) = obj.getEdgeInteriorNodeCoordinates(iEdge);
+                xy(obj.hFieldNodes.getEdgeInteriorNodes(iEdge),:) = obj.getEdgeInteriorNodeCoordinates(iEdge);
             end
 
             % Nodes, section 3/3: Face-centers
             for iFace = 1:obj.hMesh.getNumFaces()
-                xy(obj.hNodes.getFaceNodes(iFace),:) = obj.getFaceNodeCoordinates(iFace);
+                xy(obj.hFieldNodes.getFaceNodes(iFace),:) = obj.getFaceNodeCoordinates(iFace);
             end
         end
         
