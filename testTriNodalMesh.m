@@ -1,5 +1,7 @@
 %% Test Jacobians
 
+relErr = @(a,b) norm(a-b)/norm(a);
+
 N_field = 3;
 N_geom = 3;
 [xyNodes, faces] = nodalWagonWheel(5, N_geom);
@@ -60,6 +62,120 @@ end
 end
 
 fprintf('Single-point 1D Jacobian test PASSED\n');
+
+%% Test differentiation
+
+N_field = 14;
+N_geom = 3;
+
+vertices = [0,0; 1,0; 0,1];
+faces = [1,2,3];
+[xyNodes, faces] = nodalMesh(faces, vertices, N_geom);
+xyNodes(6,2) = xyNodes(6,2) + 0.1;
+xyNodes(5,1) = xyNodes(5,1) - 0.1;
+
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_field);
+[Dx, Dy] = tnMesh.getGradientOperators();
+xy = tnMesh.getNodeCoordinates(); % Field nodes
+
+figure(1); clf; tnMesh.plotMesh(); hold on; plot(xy(:,1), xy(:,2), 'bo');
+
+% Test 1: linear polynomial
+%f = @(xy) xy(:,1) - xy(:,2);
+%df_dx = @(xy) ones(size(xy(:,1)));
+%df_dy = @(xy) -ones(size(xy(:,1)));
+
+% Test 2: bilinear
+%f = @(xy) xy(:,1).*xy(:,2);
+%df_dx = @(xy) xy(:,2);
+%df_dy = @(xy) xy(:,1);
+
+% Test 3: quadratic
+%f = @(xy) xy(:,1).^2 - xy(:,2).^2;
+%df_dx = @(xy) 2*xy(:,1);
+%df_dy = @(xy) -2*xy(:,2);
+
+% Test 4: exponential
+a = 0.5;
+f = @(xy) exp(a*xy(:,1) - a*xy(:,2));
+df_dx = @(xy) a*exp(a*xy(:,1) - a*xy(:,2));
+df_dy = @(xy) -a*exp(a*xy(:,1) - a*xy(:,2));
+
+zz = f(xy);
+
+df_dx_meas = Dx*zz;
+df_dx_calc = df_dx(xy);
+
+df_dy_meas = Dy*zz;
+df_dy_calc = df_dy(xy);
+
+fprintf('Relative error of df/dx = %0.4e\n', relErr(df_dx_meas, df_dx_calc));
+fprintf('Relative error of df/dy = %0.4e\n', relErr(df_dy_meas, df_dy_calc));
+
+%assert(norm(df_dx_meas - df_dx_calc) < 1e-6);
+%assert(norm(df_dy_meas - df_dy_calc) < 1e-6);
+
+%% Interpolation operator
+
+
+N_field = 4;
+N_geom = 3;
+
+vertices = [0,0; 1,0; 0,1];
+faces = [1,2,3];
+[xyNodes, faces] = nodalMesh(faces, vertices, N_geom);
+xyNodes(6,2) = xyNodes(6,2) + 0.1;
+xyNodes(5,1) = xyNodes(5,1) - 0.1;
+
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_field);
+
+% Test 3: quadratic
+f = @(xy) xy(:,1).^2 - xy(:,2).^2;
+
+tnMesh.plotMesh()
+
+%xs = linspace(0.2, 0.4);
+%ys = linspace(0.2, 0.4);
+xs = linspace(-0.2, 1.2);
+ys = linspace(-0.2, 1.2);
+[xx,yy] = ndgrid(xs,ys);
+xyDense = [xx(:)'; yy(:)'];
+
+xyFields = tnMesh.getNodeCoordinates();
+
+M = tnMesh.getInterpolationOperator(xx(:), yy(:));
+
+zzNodes = f(xyFields);
+zz = f(xyDense');
+zzInterp = M*zzNodes;
+
+%%
+
+zzErr = zzInterp - zz;
+zzErr(zzInterp == 0) = NaN;
+
+%%
+
+figure(1); clf
+imagesc(xs, ys, reshape(zz, size(xx))', [-1.5, 1.5]);
+axis xy image vis3d
+hold on
+tnMesh.plotMesh('Color', 'w')
+plot(xyFields(:,1), xyFields(:,2), 'wo')
+title('Function to interpolate')
+colorbar
+
+%%
+
+figure(2); clf
+imagesc(xs, ys, reshape(zzInterp, size(xx))', [-1.5, 1.5]);
+axis xy image vis3d
+hold on
+tnMesh.plotMesh('Color', 'w')
+plot(xyFields(:,1), xyFields(:,2), 'wo')
+title('Interpolated')
+colorbar
+
 
 %% Interpolation operator sensitivity
 

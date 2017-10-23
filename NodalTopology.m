@@ -193,6 +193,56 @@ classdef NodalTopology < handle
             
         end
         
+        % ---- NODAL TRIANGULATED MESH
+        % Make a denser mesh by triangulating nodes.
+        
+        function globalFaces = getNodalMesh(obj)
+            
+            numFaces = obj.hMesh.getNumFaces();
+            
+            % Create a subtriangulation of a single triangle.
+            % We'll reuse this over the whole mesh.
+            
+            numTrisPerFace = (obj.N-1)^2;
+            localFaces = zeros(numTrisPerFace,3);
+            
+            % Make a helper grid of node indices.
+            % We'll just use a portion of it.
+            nodeGrid = bsxfun(@plus, 1:obj.N, cumsum([0, obj.N:-1:2])');
+            
+            ff = 1;
+            for jj = 1:(obj.N-1)
+                iMax = obj.N-jj;
+                for ii = 1:iMax
+                    idx1 = nodeGrid(jj,ii);
+                    idx2 = nodeGrid(jj,ii+1);
+                    idx3 = nodeGrid(jj+1,ii);
+                    idx4 = nodeGrid(jj+1,ii+1);
+                    
+                    localFaces(ff,:) = [idx1, idx2, idx3];
+                    ff = ff+1;
+                    
+                    if ii < iMax
+                        localFaces(ff,:) = [idx3, idx2, idx4];
+                        ff = ff+1;
+                    end
+                end
+            end
+            
+            globalFaces = zeros(numTrisPerFace*numFaces, 3);
+            gg = 1;
+            
+            for ff = 1:numFaces
+                
+                iFaceNodes = obj.getFaceNodes(ff);
+                
+                subtriangleNodes = iFaceNodes(localFaces);
+                globalFaces(gg:gg+numTrisPerFace-1,:) = subtriangleNodes;
+                gg = gg + numTrisPerFace;
+                
+            end
+            
+        end
         
     end
     

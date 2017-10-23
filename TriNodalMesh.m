@@ -61,7 +61,6 @@ classdef TriNodalMesh < handle
             
             M = obj.hGeomNodes.basis.interpolationMatrix_rs(rr, ss);
             xy = M*obj.xyNodes(obj.hGeomNodes.getFaceNodes(iFace),:);
-            
         end
             
         function xyz = getEdgeInteriorNodeCoordinates(obj, iEdge, varargin)
@@ -175,6 +174,23 @@ classdef TriNodalMesh < handle
             dxy_ds = Ds*xy;
         end
         
+        function invJacs = getInverseJacobian(obj, iFace, rr, ss)
+            % Get the inverse Jacobian in a face at each desired point.
+            % invJacs = obj.getInverseJacobian(obj, iFace, rr, ss)
+            %
+            % The Jacobians are indexed invJacs(i,j,iNode).
+            
+            [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rr, ss);
+            
+            numPositions = length(rr);
+            invJacs = zeros(2, 2, numPositions);
+            
+            for nn = 1:numPositions
+                invJacs(:,:,nn) = inv([dxy_dr(nn,:)', dxy_ds(nn,:)']);
+            end
+        end
+        
+        
         function dxy_dr = getEdgeJacobian(obj, iEdge, rr, varargin)
             % Calculate the Jacobian of the mapping from r to (x,y).
             %
@@ -213,7 +229,43 @@ classdef TriNodalMesh < handle
             [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rr, ss);
         end
         
+        % ---- INVERSE COORDINATE TRANSFORM
         
+        function rs = inverseCoordinateTransform(obj, iFace, xx, yy)
+            
+            % Run Newton's method for a while.
+            numIters = 5;
+            
+            xyGoal = [xx, yy]';
+            
+            rs = 0*xyGoal;
+            
+            %figure(1); clf
+            %obj.plotMesh();
+            %hold on
+            %plot(xyGoal(1,:), xyGoal(2,:), 'rx');
+            
+            for ii = 1:numIters
+                
+                xy = obj.getFaceCoordinates(iFace, rs(1,:), rs(2,:))';
+                
+                %plot(xy(1,:), xy(2,:), 'go');
+                
+                xyResidual = xy - xyGoal;
+                
+                invJac = obj.getInverseJacobian(iFace, rs(1,:), rs(2,:));
+                
+                for dd = 1:size(invJac,3)
+                    rs(:,dd) = rs(:,dd) - invJac(:,:,dd)*xyResidual(:,dd);
+                end
+                
+                %pause
+            end
+            %xyResidual = xyGoal - xy;
+            
+            %disp(norm(xyResidual));
+            
+        end
         
         % ---- OPERATORS
         
@@ -221,29 +273,30 @@ classdef TriNodalMesh < handle
         
         function [outDx, outDy, count] = getGradientOperators(obj)
             
-            numNodes = obj.hNodes.getNumNodes();
-            outDx = sparse(numNodes, numNodes);
-            outDy = sparse(numNodes, numNodes);
+            numFieldNodes = obj.hFieldNodes.getNumNodes();
+            outDx = sparse(numFieldNodes, numFieldNodes);
+            outDy = sparse(numFieldNodes, numFieldNodes);
             
-            count = zeros(numNodes, 1);
+            count = zeros(numFieldNodes, 1); % used for averaging on edges.
             
             numFaces = obj.hMesh.getNumFaces();
             
-            rs = obj.hNodes.basis.getNodes();
-            [Dr, Ds] = support2d.gradients(obj.hNodes.N, rs(:,1), rs(:,2));
+            rs = obj.hFieldNodes.basis.getNodes();
+            [Dr, Ds] = obj.hFieldNodes.basis.gradientMatrix_rs(rs(:,1), rs(:,2));
+            %[Dr, Ds] = support2d.gradients(obj.hNodes.N, rs(:,1), rs(:,2));
             
             for ff = 1:numFaces
-                jac = obj.getLinearJacobian(ff);
+                %jac = obj.getLinearJacobian(ff);
                 
-                invJac = inv(jac);
+                %[dxy_dr, dxy_ds] = obj.getJacobian(ff, rr, ss);
+                invJacs = obj.getInverseJacobian(ff, rs(:,1), rs(:,2));
                 
-                Dx = Dr*invJac(1,1) + Ds*invJac(2,1);
-                Dy = Dr*invJac(1,2) + Ds*invJac(2,2);
-                
+                Dx = diag(squish(invJacs(1,1,:)))*Dr + diag(squish(invJacs(2,1,:)))*Ds;
+                Dy = diag(squish(invJacs(1,2,:)))*Dr + diag(squish(invJacs(2,2,:)))*Ds;
                 
                 % first silly approach: on edges between faces we will
                 % repeatedly overwrite the matrix elements.  Bogus!!
-                iGlobal = obj.hNodes.getFaceNodes(ff);
+                iGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 outDx(iGlobal, iGlobal) = outDx(iGlobal, iGlobal) + Dx;
                 outDy(iGlobal, iGlobal) = outDy(iGlobal, iGlobal) + Dy;
                 
@@ -251,15 +304,18 @@ classdef TriNodalMesh < handle
             end
             
             % this handles averaging on boundaries
-            normalizer = spdiags(1./count, 0, numNodes, numNodes);
+            normalizer = spdiags(1./count, 0, numFieldNodes, numFieldNodes);
             outDx = normalizer * outDx;
             outDy = normalizer * outDy;
         end
         
+        
+        % To implement this function I will need to invert the coordinate
+        % transformation.
         function [outI] = getInterpolationOperator(obj, xs, ys)
             
             numPts = length(xs);
-            numNodes = obj.hNodes.getNumNodes();
+            numNodes = obj.hFieldNodes.getNumNodes();
             outI = sparse(numPts, numNodes);
             count = zeros(numPts, 1);
             
@@ -267,8 +323,12 @@ classdef TriNodalMesh < handle
                 return
             end
             
-            tr = triangulation(obj.hMesh.getFaceVertices(), obj.vertices);
-            iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
+            tr = triangulation(obj.hGeomNodes.getNodalMesh(), obj.xyNodes);
+            numSubTris = (obj.hGeomNodes.N-1)^2;
+            iEnclosingFaces = ceil(tr.pointLocation(xs(:), ys(:)) / numSubTris);
+            
+            %tr = triangulation(obj.hMesh.getFaceVertices(), obj.xyNodes);
+            %iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
             numFaces = obj.hMesh.getNumFaces();
             
             for ff = 1:numFaces
@@ -280,12 +340,13 @@ classdef TriNodalMesh < handle
                 
                 xy = [xs(iPoint)'; ys(iPoint)'];
                 
-                xyTri = obj.vertices(obj.hMesh.getFaceVertices(ff), :)';
-                %rs = support2d.xy2rs(xyTri, xy);
-                M = obj.hNodes.basis.interpolationMatrix_xy(xyTri, xy(1,:), xy(2,:));
-                %M = obj.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
+                rs = obj.inverseCoordinateTransform(ff, xs(iPoint), ys(iPoint));
+                M = obj.hFieldNodes.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
                 
-                iGlobal = obj.hNodes.getFaceNodes(ff);
+                %xyTri = obj.vertices(obj.hMesh.getFaceVertices(ff), :)';
+                %M = obj.hNodes.basis.interpolationMatrix_xy(xyTri, xy(1,:), xy(2,:));
+                
+                iGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 
                 outI(iPoint, iGlobal) = M;
                 % Original idea: sum and then keep a count to handle the
@@ -328,6 +389,7 @@ classdef TriNodalMesh < handle
             %for nn = 1:numel(count)
             %    count{nn} = zeros(numPts, 1);
             %end
+            
             
             tr = triangulation(obj.hMesh.getFaceVertices(), obj.vertices);
             iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
@@ -398,6 +460,7 @@ classdef TriNodalMesh < handle
             iii = unique(ii);
             plot(xy(iii,1), xy(iii,2), varargin{:});
         end
+        
         
         function plotNodeIndices(obj)
             
