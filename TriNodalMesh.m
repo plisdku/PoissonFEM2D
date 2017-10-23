@@ -238,7 +238,7 @@ classdef TriNodalMesh < handle
             
             xyGoal = [xx, yy]';
             
-            rs = 0*xyGoal;
+            rs = 0*xyGoal - 0.5;
             
             %figure(1); clf
             %obj.plotMesh();

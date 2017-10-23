@@ -119,25 +119,40 @@ fprintf('Relative error of df/dy = %0.4e\n', relErr(df_dy_meas, df_dy_calc));
 
 
 N_field = 4;
-N_geom = 3;
+N_geom = 5;
 
 vertices = [0,0; 1,0; 0,1];
 faces = [1,2,3];
-[xyNodes, faces] = nodalMesh(faces, vertices, N_geom);
-xyNodes(6,2) = xyNodes(6,2) + 0.1;
-xyNodes(5,1) = xyNodes(5,1) - 0.1;
+
+%[xyNodes, faces] = nodalMesh(faces, vertices, N_geom);
+[xyNodes, faces] = nodalWagonWheel(5, N_geom);
+xyNodes = xyNodes + 0.03*randn(size(xyNodes));
+
+%xyNodes(6,2) = xyNodes(6,2) + 0.1;
+%xyNodes(5,1) = xyNodes(5,1) - 0.1;
+%xyNodes(11,1) = xyNodes(11,1) - 0.3;
 
 tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_field);
 
-% Test 3: quadratic
-f = @(xy) xy(:,1).^2 - xy(:,2).^2;
+figure(3); clf
+tnMesh.plotMesh();
+
+%%
+
+% Test functions
+%f = @(xy) xy(:,1).^2 - xy(:,2).^2;
+f = @(xy) sin(2*xy(:,1)) + cos(3*xy(:,2));
 
 tnMesh.plotMesh()
 
 %xs = linspace(0.2, 0.4);
 %ys = linspace(0.2, 0.4);
-xs = linspace(-0.2, 1.2);
-ys = linspace(-0.2, 1.2);
+%xs = linspace(-0.2, 1.2);
+%ys = linspace(-0.2, 1.2);
+
+xs = linspace(-1.2, 1.2, 400);
+ys = linspace(-1.2, 1.2, 400);
+
 [xx,yy] = ndgrid(xs,ys);
 xyDense = [xx(:)'; yy(:)'];
 
@@ -169,6 +184,7 @@ colorbar
 
 figure(2); clf
 imagesc(xs, ys, reshape(zzInterp, size(xx))', [-1.5, 1.5]);
+%colormap cool
 axis xy image vis3d
 hold on
 tnMesh.plotMesh('Color', 'w')
