@@ -118,8 +118,9 @@ fprintf('Relative error of df/dy = %0.4e\n', relErr(df_dy_meas, df_dy_calc));
 %% Interpolation operator
 
 
-N_field = 4;
-N_geom = 5;
+N_field = 2;
+N_geom = 2;
+N_quad = 3;
 
 vertices = [0,0; 1,0; 0,1];
 faces = [1,2,3];
@@ -132,7 +133,7 @@ xyNodes = xyNodes + 0.03*randn(size(xyNodes));
 %xyNodes(5,1) = xyNodes(5,1) - 0.1;
 %xyNodes(11,1) = xyNodes(11,1) - 0.3;
 
-tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_field);
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
 
 figure(3); clf
 tnMesh.plotMesh();
@@ -156,8 +157,9 @@ ys = linspace(-1.2, 1.2, 400);
 [xx,yy] = ndgrid(xs,ys);
 xyDense = [xx(:)'; yy(:)'];
 
+tnMesh.hFieldNodes = NodalTopology(tnMesh.hMesh, 10);
 xyFields = tnMesh.getNodeCoordinates();
-
+%%
 M = tnMesh.getInterpolationOperator(xx(:), yy(:));
 
 zzNodes = f(xyFields);
@@ -191,6 +193,119 @@ tnMesh.plotMesh('Color', 'w')
 plot(xyFields(:,1), xyFields(:,2), 'wo')
 title('Interpolated')
 colorbar
+
+
+%% Quadrature
+
+vertices = [0,0; 1,0; 0,1; 1,1];
+faces = [1,2,3; 3,2,4];
+
+N_field = 10;
+N_geom = 4;
+N_quad = 3;
+
+[xyNodes,~] = nodalMesh(faces, vertices, N_geom);
+%xyNodes(:,2) = xyNodes(:,2) + xyNodes(:,2).^2;
+%xyNodes(:,2) = xyNodes(:,2).^2; % + xyNodes(:,1).^2;
+
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
+
+%% Integrate 1 and get the area of the square
+% 0.5 on unit simplex
+
+f = ones(size(xyNodes,1),1);
+%Q = tnMesh.getQuadratureMatrix(1);
+Q = tnMesh.getQuadratureOperator();
+integral_meas = sum(Q*f);
+
+fprintf('Got %2.8f, expected 1.0\n', integral_meas);
+
+%% Integrate x and get 1/2
+% 1/6 on unit simplex
+
+xyFields = tnMesh.getNodeCoordinates();
+f = xyFields(:,1);
+%xy = tnMesh.getFaceNodeCoordinates(1);
+%f = xy(:,1);
+%Q = tnMesh.getQuadratureMatrix(1);
+Q = tnMesh.getQuadratureOperator();
+
+integral_meas = sum(Q*f);
+
+fprintf('Got %2.8f, expected %2.8f\n', integral_meas, 0.5);
+
+%% Quadrature in 1D
+
+vertices = [0,0; 1,0; 0,1];
+faces = 1:3;
+N_field = 2;
+N_geom = 2;
+N_quad = 2;
+[xyNodes,~] = nodalMesh(faces, vertices, N_geom);
+
+% Do NOT perturb the nodess yet...
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
+
+%% Integrate 1 and get the length of the edge
+
+edgeIntegrals = [1, 1, sqrt(2)];
+
+for iEdge = 1:3
+    xyFields = tnMesh.getEdgeNodeCoordinates(iEdge);
+    f = ones(size(xyFields(:,1)));
+    Q = tnMesh.getQuadratureMatrix1d(iEdge);
+    integral_meas = sum(Q*f);
+
+    fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegrals(iEdge));
+end
+
+%% Integrate x and get various things
+
+edgeIntegrals = [0.5, 0.0, 0.5*sqrt(2)];
+
+for iEdge = 1:3
+    xyFields = tnMesh.getEdgeNodeCoordinates(iEdge);
+    f = xyFields(:,1);
+    Q = tnMesh.getQuadratureMatrix1d(iEdge);
+    integral_meas = sum(Q*f);
+
+    fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegrals(iEdge));
+end
+
+%% Stretch in the x direction, integrate 1
+
+[xyNodes,~] = nodalMesh(faces,vertices,N_geom);
+QxyNodes(:,1) = xyNodes(:,1).^2;
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
+
+for iEdge = 1:2  % the hypotenuse doesn't work so do the straight edges
+    xyFields = tnMesh.getEdgeNodeCoordinates(iEdge, -1);
+    f = ones(size(xyFields(:,1)));
+    Q = tnMesh.getQuadratureMatrix1d(iEdge);
+    integral_meas = sum(Q*f);
+    
+    fprintf('Got %2.6f, expected %2.6f\n', integral_meas, 1);
+end
+
+%% Stretch in the x direction, integrate 1 - x
+% Also flip the edge orientation and redo it.
+
+[xyNodes,~] = nodalMesh(faces,vertices,N_geom);
+xyNodes(:,1) = xyNodes(:,1).^2;
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
+
+edgeIntegrals = [0.5, 1.0];
+
+for iEdge = 1:2  % the hypotenuse doesn't work so do the straight edges
+    for orientation = [1, -1]
+        xyFields = tnMesh.getEdgeNodeCoordinates(iEdge, orientation);
+        f = 1 - xyFields(:,1);
+        Q = tnMesh.getQuadratureMatrix1d(iEdge, orientation);
+        integral_meas = sum(Q*f);
+
+        fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegrals(iEdge));
+    end
+end
 
 
 %% Interpolation operator sensitivity

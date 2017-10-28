@@ -234,7 +234,7 @@ classdef TriNodalMesh < handle
         function rs = inverseCoordinateTransform(obj, iFace, xx, yy)
             
             % Run Newton's method for a while.
-            numIters = 5;
+            numIters = 10;
             
             xyGoal = [xx, yy]';
             
@@ -255,9 +255,23 @@ classdef TriNodalMesh < handle
                 
                 invJac = obj.getInverseJacobian(iFace, rs(1,:), rs(2,:));
                 
+                rsOld = rs;
                 for dd = 1:size(invJac,3)
                     rs(:,dd) = rs(:,dd) - invJac(:,:,dd)*xyResidual(:,dd);
+                    
+                    while rs(1,dd) < -1.0
+                        rs(:,dd) = 0.5*( rs(:,dd) + rsOld(:,dd) );
+                    end
+                    
+                    while rs(2,dd) < -1.0
+                        rs(:,dd) = 0.5*( rs(:,dd) + rsOld(:,dd) );
+                    end
+                    
+                    while rs(2,dd) > -rs(1,dd)
+                        rs(:,dd) = 0.5*( rs(:,dd) + rsOld(:,dd) );
+                    end
                 end
+                
                 
                 %pause
             end
@@ -267,9 +281,77 @@ classdef TriNodalMesh < handle
             
         end
         
-        % ---- OPERATORS
+        % ---- QUADRATURE
+        
+        function Q = getQuadratureMatrix(obj, iFace)
+            % I need Ifq, Vq, and det(J)q.
+            % For the Jacobian and interpolation matrix I need the nodes in (r,s).
+            
+            rsQuad = obj.hQuadNodes.basis.getNodes();
+            
+            % Interpolation matrix from field nodes to quadrature nodes
+            Ifq = obj.hFieldNodes.basis.interpolationMatrix_rs(rsQuad(:,1), rsQuad(:,2));
+            
+            % Integration kernel on quadrature nodes
+            invVq = obj.hQuadNodes.basis.invV;
+            Qq = invVq' * invVq;
+            
+            % Jacobian on quadrature nodes
+            [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rsQuad(:,1), rsQuad(:,2));
+            detJq = dxy_dr(:,1).*dxy_ds(:,2) - dxy_dr(:,2).*dxy_ds(:,1);
+            assert(all(detJq > 0));
+            
+            Q = Ifq' * Qq * diag(detJq) * Ifq;
+        end
         
         
+        function Q = getQuadratureMatrix1d(obj, iEdge, varargin)
+            if nargin < 3
+                orientation = 1;
+            else
+                orientation = varargin{1};
+            end
+            
+            rQuad = obj.hQuadNodes.basis1d.getNodes();
+            if orientation < 0
+                rQuad = rQuad(end:-1:1);
+            end
+            
+            Ifq = obj.hFieldNodes.basis1d.interpolationMatrix_r(rQuad);
+            
+            invVq = obj.hQuadNodes.basis1d.invV;
+            Qq = invVq' * invVq;
+            
+            dxy_dr = obj.getEdgeJacobian(iEdge, rQuad, orientation);
+            
+            % The determinant should be sqrt(dxy_dr' * dxy_dr).  Right?
+            % But I have to sort of do it by hand here.
+            detJq = sqrt(dxy_dr(:,1).^2 + dxy_dr(:,2).^2);
+            
+            Q = Ifq' * Qq * diag(detJq) * Ifq;
+            
+        end
+        
+        
+        % ---- FULL-MESH OPERATORS
+        
+        function outQ = getQuadratureOperator(obj)
+            
+            numFieldNodes = obj.hFieldNodes.getNumNodes();
+            outQ = sparse(numFieldNodes, numFieldNodes);
+            numFaces = obj.hMesh.getNumFaces();
+            
+            for ff = 1:numFaces
+                %jac = obj.getLinearJacobian(ff);
+                
+                Q = obj.getQuadratureMatrix(ff);
+                
+                % first silly approach: on edges between faces we will
+                % repeatedly overwrite the matrix elements.  Bogus!!
+                iGlobal = obj.hFieldNodes.getFaceNodes(ff);
+                outQ(iGlobal, iGlobal) = outQ(iGlobal, iGlobal) + Q;
+            end
+        end
         
         function [outDx, outDy, count] = getGradientOperators(obj)
             
@@ -437,7 +519,14 @@ classdef TriNodalMesh < handle
         function plotMesh(obj, varargin)
             
             numEdges = obj.hMesh.getNumEdges();
-            rr = linspace(-1, 1, 15);
+            
+            if obj.hGeomNodes.N == 2
+                numPointsPerEdge = 2;
+            else
+                numPointsPerEdge = 4*obj.hGeomNodes.N;
+            end
+            
+            rr = linspace(-1, 1, numPointsPerEdge);
             
             for ee = 1:numEdges
                 xy = obj.getEdgeCoordinates(ee, rr);
