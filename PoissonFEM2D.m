@@ -1,7 +1,7 @@
 classdef PoissonFEM2D < handle
     
     properties
-        meshNodes@TriNodalMesh
+        tnMesh@TriNodalMesh
         Dr;  % differentiation matrix on basis element
         Ds;  % differentiation matrix on basis element
         Q;   % quadrature matrix on basis element
@@ -13,28 +13,18 @@ classdef PoissonFEM2D < handle
     methods
         
         % ---- CONSTRUCTOR
-        function obj = PoissonFEM2D(meshNodes)
+        function obj = PoissonFEM2D(tnMesh)
             
-            obj.meshNodes = meshNodes;
+            obj.tnMesh = tnMesh;
             
-            rs = obj.meshNodes.hNodes.basis.r;
-            ss = obj.meshNodes.hNodes.basis.s;
+            %rs = obj.tnMesh.hNodes.basis.r;
+            %ss = obj.tnMesh.hNodes.basis.s;
             
-            [obj.Dr, obj.Ds] = support2d.gradients(obj.meshNodes.hNodes.N, rs, ss);
-            obj.Q = support2d.quadratureKernel(obj.meshNodes.hNodes.N, rs, ss);
+            %[obj.Dr, obj.Ds] = support2d.gradients(obj.tnMesh.hNodes.N, rs, ss);
+            %obj.Q = support2d.quadratureKernel(obj.tnMesh.hNodes.N, rs, ss);
             
-            obj.Q1d = support.quadratureKernel(obj.meshNodes.hNodes.N, obj.meshNodes.hNodes.basis1d.r);
+            %obj.Q1d = support.quadratureKernel(obj.tnMesh.hNodes.N, obj.tnMesh.hNodes.basis1d.r);
             
-            %[iCorners, iEdgeCenters, ~] = support2d.classifyNodes(obj.meshNodes.N);
-            %iEdge1 = [iCorners(1), iEdgeCenters{1}, iCorners(2)];
-            %iEdge2 = [iCorners(2), iEdgeCenters{2}, iCorners(3)];
-            %iEdge3 = [iCorners(3), iEdgeCenters{3}, iCorners(1)];
-            %nEdge = length(iEdge1);
-            %nNodes = size(obj.Q,1);
-            %unos = ones(size(iEdge1));
-            %obj.L{1} = sparse(1:nEdge, iEdge1, unos, nEdge, nNodes);
-            %obj.L{2} = sparse(1:nEdge, iEdge2, unos, nEdge, nNodes);
-            %obj.L{3} = sparse(1:nEdge, iEdge3, unos, nEdge, nNodes);
         end
         
         % ---- Helper matrices
@@ -97,6 +87,16 @@ classdef PoissonFEM2D < handle
         
         % ---- Elemental matrices
         
+        function A = getElementPotentialMatrix(obj, iFace)
+            
+            [Dx,Dy] = obj.tnMesh.getFaceGradientMatrices(iFace);
+            QQ = obj.tnMesh.getQuadratureMatrix(iFace);
+            
+            % Matrix that multiplies the potential
+            A = -(Dx'*QQ*Dx + Dy'*QQ*Dy);
+            
+        end
+        
         function [A, dAdJ] = elementPotentialMatrix(obj, jacobian)
             % [A, dA_dJij] = elementPotentialMatrix(obj, jacobian)
             %
@@ -119,13 +119,16 @@ classdef PoissonFEM2D < handle
             dAdJ = zeros([size(A), 2,2]);
             for ii = 1:2
                 for jj = 1:2
-                    
                     dAdJ(:,:,ii,jj) = -(dDxdJ(:,:,ii,jj)'*QQ*Dx + Dx'*dQdJ(:,:,ii,jj)*Dx + Dx'*QQ*dDxdJ(:,:,ii,jj)) ...
                         - (dDydJ(:,:,ii,jj)'*QQ*Dy + Dy'*dQdJ(:,:,ii,jj)*Dy + Dy'*QQ*dDydJ(:,:,ii,jj));
                 end
             end
             
         end % elementPotentialMatrix()
+        
+        function B = getElementChargeMatrix(obj, iFace)
+            B = obj.tnMesh.getQuadratureMatrix(iFace);
+        end
         
         function [B, dBdJ] = elementChargeMatrix(obj, jacobian)
             % [B, dBdJ_ij] = elementChargeMatrix(obj, jacobian)
@@ -137,6 +140,10 @@ classdef PoissonFEM2D < handle
             
         end % elementChargeMatrix()
         
+        
+        function C = getElementNeumannMatrix(obj, iEdge, orientation)
+            C = obj.tnMesh.getQuadratureMatrix1d(iEdge, orientation);
+        end
         
         function [C, dCdJ] = elementNeumannMatrix(obj, jacobian1d, nodeFactors)
             % [C, dCdJ] = elementNeumannMatrix(jacobian1d)
@@ -170,6 +177,28 @@ classdef PoissonFEM2D < handle
         
         % ---- System Matrices
         
+        function NM = getNeumannMatrix(obj)
+            numNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            NM = sparse(numNodes, numNodes);
+            
+            [boundaryEdges, orientations] = obj.tnMesh.hMesh.getBoundaryEdges();
+            
+            numEdges = length(boundaryEdges);
+            for ii = 1:numEdges
+                ee = boundaryEdges(ii);
+                oo = orientations(ii);
+                
+                iGlobal = obj.tnMesh.hFieldNodes.getEdgeNodes(ee, oo);
+                
+                edgeNeumannMatrix = obj.getElementNeumannMatrix(ee,oo);
+                
+                NM(iGlobal,iGlobal) = NM(iGlobal,iGlobal) + edgeNeumannMatrix;
+                
+            end
+            
+        end % getNeumannMatrix
+        
+        
         function [NM, DNM_dv] = neumannMatrix(obj, nodeFactors)
             
             % The Neumann matrix is sum( [get edge nodes] * Q * detJ ).
@@ -177,8 +206,8 @@ classdef PoissonFEM2D < handle
             % we can bake it down to the size of only the Neumann boundary
             % nodes.
             
-            numNodes = obj.meshNodes.hNodes.getNumNodes();
-            numVertices = obj.meshNodes.hMesh.getNumVertices();
+            numNodes = obj.tnMesh.hNodes.getNumNodes();
+            numVertices = obj.tnMesh.hMesh.getNumVertices();
             
             NM = sparse(numNodes, numNodes);
             DNM_dv = cell(numVertices, 2);
@@ -186,7 +215,7 @@ classdef PoissonFEM2D < handle
                 DNM_dv{nn} = sparse(numNodes, numNodes);
             end
             
-            [boundaryEdges, orientations] = obj.meshNodes.hMesh.getBoundaryEdges();
+            [boundaryEdges, orientations] = obj.tnMesh.hMesh.getBoundaryEdges();
             
             numEdges = length(boundaryEdges);
             
@@ -194,12 +223,12 @@ classdef PoissonFEM2D < handle
                 ee = boundaryEdges(ii);
                 oo = orientations(ii);
                 
-                dJdv = obj.meshNodes.getLinearJacobianSensitivity1d(ee, oo);
+                dJdv = obj.tnMesh.getLinearJacobianSensitivity1d(ee, oo);
                 
-                iVertices = obj.meshNodes.hMesh.getEdgeVertices(ee,oo);
-                iGlobal = obj.meshNodes.hNodes.getEdgeNodes(ee, oo);
+                iVertices = obj.tnMesh.hMesh.getEdgeVertices(ee,oo);
+                iGlobal = obj.tnMesh.hNodes.getEdgeNodes(ee, oo);
                 
-                jac1d = obj.meshNodes.getLinearJacobian1d(ee, oo);
+                jac1d = obj.tnMesh.getLinearJacobian1d(ee, oo);
                 
                 if nargin < 2
                     [neuMat, dNdJ] = obj.elementNeumannMatrix(jac1d);
@@ -223,10 +252,25 @@ classdef PoissonFEM2D < handle
             
         end
         
+        function M = getRhsMatrix(obj)
+            numNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            M = sparse(numNodes, numNodes);
+            
+            numFaces = obj.tnMesh.hMesh.getNumFaces();
+            
+            for ff = 1:numFaces
+                faceMatrix = obj.getElementChargeMatrix(ff);
+                
+                iGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
+                
+                M(iGlobal, iGlobal) = M(iGlobal,iGlobal) + faceMatrix;
+            end
+        end
+        
         function [rhsMatrix, DrhsMatrix_dv] = rhsMatrix(obj)
             
-            numNodes = obj.meshNodes.hNodes.getNumNodes();
-            numVertices = obj.meshNodes.hMesh.getNumVertices();
+            numNodes = obj.tnMesh.hNodes.getNumNodes();
+            numVertices = obj.tnMesh.hMesh.getNumVertices();
             rhsMatrix = sparse(numNodes, numNodes);
             
             DrhsMatrix_dv = cell(numVertices,2);
@@ -237,17 +281,17 @@ classdef PoissonFEM2D < handle
             
             
             % Fill in the matrix!
-            numFaces = obj.meshNodes.hMesh.getNumFaces();
+            numFaces = obj.tnMesh.hMesh.getNumFaces();
 
             for ff = 1:numFaces
-                jacobian = obj.meshNodes.getLinearJacobian(ff);
-                dJdv = obj.meshNodes.getLinearJacobianSensitivity(ff);
+                jacobian = obj.tnMesh.getLinearJacobian(ff);
+                dJdv = obj.tnMesh.getLinearJacobianSensitivity(ff);
                 
                 [M2, dM2dJ] = obj.elementChargeMatrix(jacobian);
                 dM2dv = multiplyTensors.txt(dM2dJ, 4, dJdv, 4, 3:4, 1:2);
                 
-                iVertices = obj.meshNodes.hMesh.getFaceVertices(ff);
-                iGlobal = obj.meshNodes.hNodes.getFaceNodes(ff);
+                iVertices = obj.tnMesh.hMesh.getFaceVertices(ff);
+                iGlobal = obj.tnMesh.hNodes.getFaceNodes(ff);
 
                 rhsMatrix(iGlobal, iGlobal) = rhsMatrix(iGlobal, iGlobal) + M2;
                 
@@ -262,13 +306,32 @@ classdef PoissonFEM2D < handle
             end
         end
         
+        
+        function M = getSystemMatrix(obj)
+            
+            numNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            
+            M = sparse(numNodes, numNodes);
+            
+            numFaces = obj.tnMesh.hMesh.getNumFaces();
+            
+            for ff = 1:numFaces
+                
+                facePotentialM = obj.getElementPotentialMatrix(ff);
+                
+                iGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
+                M(iGlobal,iGlobal) = M(iGlobal, iGlobal) + facePotentialM;
+                
+            end
+        end % getNewSystemMatrix
+        
         function [systemMatrix, DsystemMatrix_dv] = systemMatrix(obj)
             % [A, B, dAdJ, dBdJ] = systemMatrix(obj)
             %
             % The jacobian override is for sensitivity testing.
             
-            numNodes = obj.meshNodes.hNodes.getNumNodes();
-            numVertices = obj.meshNodes.hMesh.getNumVertices();
+            numNodes = obj.tnMesh.hNodes.getNumNodes();
+            numVertices = obj.tnMesh.hMesh.getNumVertices();
             
             systemMatrix = sparse(numNodes, numNodes);
 
@@ -283,18 +346,18 @@ classdef PoissonFEM2D < handle
             end
             
             % Fill in the matrices!
-            numFaces = obj.meshNodes.hMesh.getNumFaces();
+            numFaces = obj.tnMesh.hMesh.getNumFaces();
 
             for ff = 1:numFaces
                 
-                jacobian = obj.meshNodes.getLinearJacobian(ff);
-                dJdv = obj.meshNodes.getLinearJacobianSensitivity(ff);
+                jacobian = obj.tnMesh.getLinearJacobian(ff);
+                dJdv = obj.tnMesh.getLinearJacobianSensitivity(ff);
                 
                 [M1, dM1dJ] = obj.elementPotentialMatrix(jacobian);
                 dM1dv = multiplyTensors.txt(dM1dJ, 4, dJdv, 4, 3:4, 1:2);
                 
-                iVertices = obj.meshNodes.hMesh.getFaceVertices(ff);
-                iGlobal = obj.meshNodes.hNodes.getFaceNodes(ff);
+                iVertices = obj.tnMesh.hMesh.getFaceVertices(ff);
+                iGlobal = obj.tnMesh.hNodes.getFaceNodes(ff);
                 
                 systemMatrix(iGlobal,iGlobal) = systemMatrix(iGlobal, iGlobal) + M1;
                 
@@ -315,17 +378,29 @@ classdef PoissonFEM2D < handle
         
         % ---- Function evaluation
         
-        function [f, dfdv] = evaluateOnNodes(obj, func)
+        function f = evaluateOnNodes(obj,func)
             % [f, dfdv] = evaluateOnNodes(func)
             %
-            % Evaluate the given function on the mesh nodes.
+            % Evaluate the given function on the field nodes.
+            % Calculate the sensitivity of the evaluated values to changing
+            % the mesh vertices.  (Eventually that.)
+            
+            xy = obj.tnMesh.getNodeCoordinates();
+            f = func(xy(:,1), xy(:,2));
+            
+        end % evaluateOnNodes
+        
+        function [f, dfdv] = oldEvaluateOnNodes(obj, func)
+            % [f, dfdv] = evaluateOnNodes(func)
+            %
+            % Evaluate the given function on the field nodes.
             % Calculate the sensitivity of the evaluated values to changing
             % the mesh vertices.
             
             % I guess it will work like... uhhhhhh...
             
-            xy = obj.meshNodes.getNodeCoordinates();
-            dxy_dv = obj.meshNodes.getNodeCoordinateSensitivities();
+            xy = obj.tnMesh.getNodeCoordinates();
+            dxy_dv = obj.tnMesh.getNodeCoordinateSensitivities();
             
             % Calculate f and its gradient components
             f = func(xy(:,1), xy(:,2));
@@ -336,9 +411,9 @@ classdef PoissonFEM2D < handle
             
             % Somehow we need to get dfdv now...
             
-            dfdv = cell(obj.meshNodes.hMesh.getNumVertices(), 2);
+            dfdv = cell(obj.tnMesh.hMesh.getNumVertices(), 2);
             for nn = 1:numel(dfdv)
-                dfdv{nn} = sparse(obj.meshNodes.hNodes.getNumNodes(), 1);
+                dfdv{nn} = sparse(obj.tnMesh.hNodes.getNumNodes(), 1);
             end
             
             % Chain rule to get dfdv
@@ -383,7 +458,7 @@ classdef PoissonFEM2D < handle
             
             % TODO: implement dFdv
                 
-            numNodes = obj.meshNodes.hNodes.getNumNodes();
+            numNodes = obj.tnMesh.hNodes.getNumNodes();
             dFdu = sparse(1, numNodes);
             dFdv = [];
             
@@ -393,10 +468,10 @@ classdef PoissonFEM2D < handle
             for ii = 1:numIntegrandFaces
                 ff = elementIndices(ii);
                 
-                iGlobal = obj.meshNodes.hNodes.getFaceNodes(ff);
+                iGlobal = obj.tnMesh.hNodes.getFaceNodes(ff);
                 [func, dfunc_du] = integrandFunction(u(iGlobal));
-                jacobian = obj.meshNodes.getLinearJacobian(ff);
-                dJdv = obj.meshNodes.getLinearJacobianSensitivity(ff);
+                jacobian = obj.tnMesh.getLinearJacobian(ff);
+                dJdv = obj.tnMesh.getLinearJacobianSensitivity(ff);
                 
                 [I, dIdJ, dIdu] = obj.elementIntegralFunctional(func, dfunc_du, jacobian);
                 dIdv = multiplyTensors.txt(dIdJ, 2, dJdv, 4, 1:2, 1:2);
@@ -417,7 +492,7 @@ classdef PoissonFEM2D < handle
             
             assert(length(xy) == 2, 'Functional must be evaluated at a single point');
             
-            interpMatrix = obj.meshNodes.getInterpolationOperator(xy(1), xy(2));
+            interpMatrix = obj.tnMesh.getInterpolationOperator(xy(1), xy(2));
             
             uEval = interpMatrix*u;
             
@@ -428,7 +503,7 @@ classdef PoissonFEM2D < handle
             
             % now the sensitivity.
             
-            dIdv = obj.meshNodes.getInterpolationOperatorSensitivity(xy(1), xy(2));
+            dIdv = obj.tnMesh.getInterpolationOperatorSensitivity(xy(1), xy(2));
             dFdv = zeros(size(dIdv));
             
             for nn = 1:numel(dFdv)

@@ -143,6 +143,14 @@ classdef MeshTopology < handle
             A = sparse(iEdges(:), obj.edgeVertices(:), ones(2*nEdges,1), nEdges, nVertices);
         end
         
+        function A = getFaceFaceAdjacency(obj)
+            
+            B = obj.getFaceEdgeAdjacency();
+            A = B*B';
+            A = A - diag(diag(A));
+            
+        end
+        
         % ---- MESH TOPOLOGY
         
         function [edgeIndices, orientations] = getBoundaryEdges(obj)

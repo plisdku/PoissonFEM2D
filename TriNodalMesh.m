@@ -8,6 +8,7 @@ classdef TriNodalMesh < handle
         hFieldNodes@NodalTopology;
         hGeomNodes@NodalTopology;
         hQuadNodes@NodalTopology;
+        hMeshNodes@NodalTopology; % this is the N=2 version
         
     end
     
@@ -19,10 +20,14 @@ classdef TriNodalMesh < handle
         
         
         function obj = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad)
+            
+            assert(N_quad >= N_field);
+            
             obj.hMesh = MeshTopology(faces);
             obj.hFieldNodes = NodalTopology(obj.hMesh, N_field);
             obj.hGeomNodes = NodalTopology(obj.hMesh, N_geom);
             obj.hQuadNodes = NodalTopology(obj.hMesh, N_quad);
+            obj.hMeshNodes = NodalTopology(obj.hMesh, 2);
             
             assert(size(xyNodes,2) == 2, 'Vertices must be Nx2'); % test because 3d verts are common
             obj.xyNodes = xyNodes;
@@ -62,7 +67,16 @@ classdef TriNodalMesh < handle
             M = obj.hGeomNodes.basis.interpolationMatrix_rs(rr, ss);
             xy = M*obj.xyNodes(obj.hGeomNodes.getFaceNodes(iFace),:);
         end
+        
+        function xy = getLinearFaceCoordinates(obj, iFace, rr, ss)
+            % Get ordered [x,y] coordinates at positions on a given face.
+            % Treats all elements as triangles.
+            % getLinearFaceCoordinates(obj, iFace, rr, ss)
             
+            M = obj.hMeshNodes.basis.interpolationMatrix_rs(rr, ss);
+            xy = M*obj.xyNodes(obj.hMeshNodes.getFaceNodes(iFace),:);
+        end
+        
         function xyz = getEdgeInteriorNodeCoordinates(obj, iEdge, varargin)
             % Get ordered [x,y] coordinates of interior nodes on a given edge
             %
@@ -157,6 +171,18 @@ classdef TriNodalMesh < handle
         
         % ---- JACOBIANS
         
+        function [dxy_dr, dxy_ds] = getLinearJacobian(obj, iFace, rr, ss)
+            
+            % Multiply geometry nodal (x,y).
+            xy = obj.xyNodes(obj.hMeshNodes.getFaceNodes(iFace),:);
+            
+            % Get gradient matrices for geom nodes
+            [Dr, Ds] = obj.hMeshNodes.basis.gradientMatrix_rs(rr,ss);
+            
+            dxy_dr = Dr*xy;
+            dxy_ds = Ds*xy;
+        end
+        
         function [dxy_dr, dxy_ds] = getJacobian(obj, iFace, rr, ss)
             % Calculate the Jacobian of the mapping from (r,s) to (x,y).
             %
@@ -172,6 +198,23 @@ classdef TriNodalMesh < handle
             
             dxy_dr = Dr*xy;
             dxy_ds = Ds*xy;
+        end
+        
+        
+        function invJacs = getInverseLinearJacobian(obj, iFace, rr, ss)
+            % Get the inverse Jacobian in a face at each desired point.
+            % invJacs = obj.getInverseJacobian(obj, iFace, rr, ss)
+            %
+            % The Jacobians are indexed invJacs(i,j,iNode).
+            
+            [dxy_dr, dxy_ds] = obj.getLinearJacobian(iFace, rr, ss);
+            
+            numPositions = length(rr);
+            invJacs = zeros(2, 2, numPositions);
+            
+            for nn = 1:numPositions
+                invJacs(:,:,nn) = inv([dxy_dr(nn,:)', dxy_ds(nn,:)']);
+            end
         end
         
         function invJacs = getInverseJacobian(obj, iFace, rr, ss)
@@ -231,53 +274,118 @@ classdef TriNodalMesh < handle
         
         % ---- INVERSE COORDINATE TRANSFORM
         
-        function rs = inverseCoordinateTransform(obj, iFace, xx, yy)
+        function rs = linearInverseCoordinateTransform(obj, iFace, xx, yy)
+            % rs = linearInverseCoordinateTransform(obj, iFace, xx, yy)
+            % Compute inverse coordinate transform as if the element were a
+            % straight-sided triangle.  Initial guess for the real
+            % coordinate transform.
             
-            % Run Newton's method for a while.
+            xyVerts = obj.getVertexNodeCoordinates(obj.hMesh.getFaceVertices(iFace));
+            xyOrigin = 0.5*(xyVerts(2,:) + xyVerts(3,:));
+            xyEdge1 = 0.5*(xyVerts(2,:) - xyVerts(1,:));
+            xyEdge2 = 0.5*(xyVerts(3,:) - xyVerts(1,:));
+            
+            xyGoal = [reshape(xx, 1, []); reshape(yy, 1, [])];
+            
+            M = [xyEdge1', xyEdge2'];
+            b = bsxfun(@plus, xyGoal, -xyOrigin');
+
+            rsGuess = M \ b;
+            rs = rsGuess;
+        end
+        
+        function [rs, bad, outOfBounds, bigSteps] = inverseCoordinateTransform(obj, iFace, xx, yy)
+            % 
+            xyGoal = [reshape(xx,1,[]); reshape(yy,1,[])];
+            
+            rs = obj.linearInverseCoordinateTransform(iFace, xx, yy);
+            
             numIters = 10;
+            %linearitySchedule = linspace(1.0, 0.0, numIters);
+            linearitySchedule = ones(1, numIters);
             
-            xyGoal = [xx, yy]';
-            
-            rs = 0*xyGoal - 0.5;
-            
-            %figure(1); clf
-            %obj.plotMesh();
+            %figure(3); clf
+            %obj.plotMesh('linewidth', 3);
             %hold on
-            %plot(xyGoal(1,:), xyGoal(2,:), 'rx');
+            %plot(xyGoal(1,:), xyGoal(2,:), 'k.');
+            
+            % Newton's method.
+            % We will try to successively deform the triangle more and more
+            % towards its final shape and pull the coordinate solutions
+            % with it.
             
             for ii = 1:numIters
+                ll = linearitySchedule(ii);
                 
-                xy = obj.getFaceCoordinates(iFace, rs(1,:), rs(2,:))';
+                xyNonlinear = obj.getFaceCoordinates(iFace, rs(1,:), rs(2,:))';
+                xyLinear = obj.getLinearFaceCoordinates(iFace, rs(1,:), rs(2,:))';
                 
-                %plot(xy(1,:), xy(2,:), 'go');
+                xy = ll*xyLinear + (1-ll)*xyNonlinear;
+%                 
+%                 figure(4); clf
+%                 plot(rs(1,:), rs(2,:), 'bo');
+%                 hold on
+%                 plot([-1,-1], [1,-1], 'b-');
+%                 plot([1,-1], [-1,1], 'b-');
+%                 plot([-1,1], [-1,-1], 'b-');
+%                 
+%                 figure(3);
+%                 %p1 = plot(xyLinear(1,:), xyLinear(2,:), 'b.');
+%                 %p2 = plot(xyNonlinear(1,:), xyNonlinear(2,:), 'r.');
+%                 p3 = plot(xy(1,:), xy(2,:), 'go');
+%                 xlim([min(xx(:)), max(xx(:))]);
+%                 ylim([min(yy(:)), max(yy(:))]);
                 
                 xyResidual = xy - xyGoal;
                 
-                invJac = obj.getInverseJacobian(iFace, rs(1,:), rs(2,:));
+                [dxy_dr_nl, dxy_ds_nl] = obj.getJacobian(iFace, rs(1,:), rs(2,:));
+                [dxy_dr_l, dxy_ds_l] = obj.getLinearJacobian(iFace, rs(1,:), rs(2,:));
                 
+                dxy_dr = ll*dxy_dr_l + (1-ll)*dxy_dr_nl;
+                dxy_ds = ll*dxy_ds_l + (1-ll)*dxy_ds_nl;
+                
+                maxStep = 0.1;
                 rsOld = rs;
-                for dd = 1:size(invJac,3)
-                    rs(:,dd) = rs(:,dd) - invJac(:,:,dd)*xyResidual(:,dd);
+                for dd = 1:numel(xx)
                     
-                    while rs(1,dd) < -1.0
-                        rs(:,dd) = 0.5*( rs(:,dd) + rsOld(:,dd) );
-                    end
-                    
-                    while rs(2,dd) < -1.0
-                        rs(:,dd) = 0.5*( rs(:,dd) + rsOld(:,dd) );
-                    end
-                    
-                    while rs(2,dd) > -rs(1,dd)
-                        rs(:,dd) = 0.5*( rs(:,dd) + rsOld(:,dd) );
-                    end
+                    jac = [dxy_dr(dd,:)', dxy_ds(dd,:)'];
+                
+                    rsStep = max(min(-jac \ xyResidual(:,dd), maxStep), -maxStep);
+                    rs(:,dd) = rs(:,dd) + rsStep;
                 end
                 
-                
-                %pause
+                %pause(0.01)
+                %delete(p1);
+                %delete(p2);
+                %delete(p3);
             end
-            %xyResidual = xyGoal - xy;
             
-            %disp(norm(xyResidual));
+            xy = obj.getFaceCoordinates(iFace, rs(1,:), rs(2,:))';
+            %plot(xy(1,:), xy(2,:), 'go');
+            
+            % Now test which ones are in/out and which ones converged.
+            delta = 1e-4;
+            
+            lastStep = rs - rsOld;
+            bigSteps = abs(lastStep(1,:)) > delta | abs(lastStep(2,:)) > delta;
+            outOfBounds = rs(1,:) < -1.0-delta | rs(2,:) < -1.0-delta | rs(2,:)+rs(1,:) > delta;
+            bad = outOfBounds | bigSteps;
+        end
+        
+        
+        % ---- DIFFERENTIATION
+        
+        function [outDx, outDy] = getFaceGradientMatrices(obj, iFace)
+            
+            rBasis = obj.hFieldNodes.basis.r;
+            sBasis = obj.hFieldNodes.basis.s;
+            
+            [Dr, Ds] = obj.hFieldNodes.basis.gradientMatrix_rs(rBasis, sBasis);
+            
+            invJacs = obj.getInverseJacobian(iFace, rBasis, sBasis);
+            
+            outDx = diag(squish(invJacs(1,1,:)))*Dr + diag(squish(invJacs(2,1,:)))*Ds;
+            outDy = diag(squish(invJacs(1,2,:)))*Dr + diag(squish(invJacs(2,2,:)))*Ds;
             
         end
         
@@ -363,18 +471,8 @@ classdef TriNodalMesh < handle
             
             numFaces = obj.hMesh.getNumFaces();
             
-            rs = obj.hFieldNodes.basis.getNodes();
-            [Dr, Ds] = obj.hFieldNodes.basis.gradientMatrix_rs(rs(:,1), rs(:,2));
-            %[Dr, Ds] = support2d.gradients(obj.hNodes.N, rs(:,1), rs(:,2));
-            
             for ff = 1:numFaces
-                %jac = obj.getLinearJacobian(ff);
-                
-                %[dxy_dr, dxy_ds] = obj.getJacobian(ff, rr, ss);
-                invJacs = obj.getInverseJacobian(ff, rs(:,1), rs(:,2));
-                
-                Dx = diag(squish(invJacs(1,1,:)))*Dr + diag(squish(invJacs(2,1,:)))*Ds;
-                Dy = diag(squish(invJacs(1,2,:)))*Dr + diag(squish(invJacs(2,2,:)))*Ds;
+                [Dx,Dy] = obj.getFaceGradientMatrices(ff);
                 
                 % first silly approach: on edges between faces we will
                 % repeatedly overwrite the matrix elements.  Bogus!!
@@ -391,10 +489,78 @@ classdef TriNodalMesh < handle
             outDy = normalizer * outDy;
         end
         
+        function yesNo = pointInElement(obj, iFace, xs, ys)
+            [rs, outOfBounds] = obj.inverseCoordinateTransform(iFace, xs, ys);
+            
+            yesNo = ~outOfBounds;
+        end
+        
+        function iFace = getEnclosingFaces(obj, xs, ys)
+            
+            % We'll take a coarse first pass and then correct it.
+            
+            tr = triangulation(obj.hGeomNodes.getNodalMesh(), obj.xyNodes);
+            numSubTris = (obj.hGeomNodes.N-1)^2;
+            iFace0 = ceil(tr.pointLocation(xs(:), ys(:)) / numSubTris); % first guess.
+            
+            if obj.hGeomNodes.N == 2
+                % No mistakes to be made if the sides are straight.
+                iFace = iFace0;
+                return;
+            else
+                iFace = nan(size(iFace0));
+            end
+            
+            % We have curved sides.  Need to double-check all points.
+            
+            ffa = obj.hMesh.getFaceFaceAdjacency();
+            
+            numFaces = obj.hMesh.getNumFaces();
+            
+            for ff = 1:numFaces
+                
+                iNeighborFaces = find(ffa(ff,:));
+                iNeighborFaces = [];
+                
+                iPoint = find(iFace0 == ff);
+                
+                if isempty(iPoint)
+                    continue
+                end
+                %fprintf('Face %i\n', ff);
+                xy = [xs(iPoint)'; ys(iPoint)'];
+                [rs, bad] = obj.inverseCoordinateTransform(ff, xs(iPoint), ys(iPoint));
+                iFace(iPoint(~bad)) = ff;
+                
+                iOutOfBounds = find(bad);
+                
+                for nf = iNeighborFaces
+                    [rs2, newBad] = obj.inverseCoordinateTransform(nf, xs(iPoint(isBad)), ys(iPoint(isBad)));
+                    
+                    bad(~newBad) = 0;
+                    %fprintf('Fixed %i good from %i bad\n', nnz(isGood), length(isBad));
+                    
+                    iFace(iPoint(iOutOfBounds(~newBad))) = nf;
+                end
+                
+                % rs(x or y, point index) should be inside the unit
+                % triangle.  For all the bad points, we will try to
+                % locate them in other triangles.
+                %
+                % A test of the residual should suffice though.
+                
+            end
+            
+            %iFace = iFace0;
+            
+        end % getEnclosingFaces
         
         % To implement this function I will need to invert the coordinate
         % transformation.
         function [outI] = getInterpolationOperator(obj, xs, ys)
+            
+            assert(isvector(xs));
+            assert(isvector(ys));
             
             numPts = length(xs);
             numNodes = obj.hFieldNodes.getNumNodes();
@@ -405,9 +571,7 @@ classdef TriNodalMesh < handle
                 return
             end
             
-            tr = triangulation(obj.hGeomNodes.getNodalMesh(), obj.xyNodes);
-            numSubTris = (obj.hGeomNodes.N-1)^2;
-            iEnclosingFaces = ceil(tr.pointLocation(xs(:), ys(:)) / numSubTris);
+            iEnclosingFaces = obj.getEnclosingFaces(xs,ys);
             
             %tr = triangulation(obj.hMesh.getFaceVertices(), obj.xyNodes);
             %iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
@@ -423,6 +587,7 @@ classdef TriNodalMesh < handle
                 xy = [xs(iPoint)'; ys(iPoint)'];
                 
                 rs = obj.inverseCoordinateTransform(ff, xs(iPoint), ys(iPoint));
+                
                 M = obj.hFieldNodes.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
                 
                 %xyTri = obj.vertices(obj.hMesh.getFaceVertices(ff), :)';
@@ -512,6 +677,33 @@ classdef TriNodalMesh < handle
             
         end
         
+        % ---- POINT-IN-ELEMENT
+        
+        
+        function xy = getFaceBoundary(obj, iFace)
+            
+            if obj.hGeomNodes.N == 2
+                numPointsPerEdge = 2;
+            else
+                numPointsPerEdge = 3*obj.hGeomNodes.N;
+            end
+            
+            [iFaceEdges, ori] = obj.hMesh.getFaceEdges(iFace);
+            rr = linspace(-1, 1, numPointsPerEdge);
+            rr = rr(1:end-1);
+            
+            xy = [];
+            
+            for ee = 1:3
+                
+                xyEdge = obj.getEdgeCoordinates(iFaceEdges(ee), rr, ori(ee));
+                xy = [xy; xyEdge];
+                
+            end
+            
+        end
+        
+        
         
         % ---- VISUALIZATION
         %
@@ -523,7 +715,7 @@ classdef TriNodalMesh < handle
             if obj.hGeomNodes.N == 2
                 numPointsPerEdge = 2;
             else
-                numPointsPerEdge = 4*obj.hGeomNodes.N;
+                numPointsPerEdge = 10*obj.hGeomNodes.N;
             end
             
             rr = linspace(-1, 1, numPointsPerEdge);

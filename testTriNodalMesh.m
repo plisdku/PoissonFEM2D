@@ -58,7 +58,7 @@ for iEdge = 1:3
     dxy_dr = tnMesh.getEdgeJacobian(iEdge, r0, orientation);
 
     assert(norm(dxy_dr_meas - dxy_dr) < 1e-6);
-end  
+end
 end
 
 fprintf('Single-point 1D Jacobian test PASSED\n');
@@ -200,7 +200,7 @@ colorbar
 vertices = [0,0; 1,0; 0,1; 1,1];
 faces = [1,2,3; 3,2,4];
 
-N_field = 10;
+N_field = 3;
 N_geom = 4;
 N_quad = 3;
 
@@ -213,7 +213,8 @@ tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
 %% Integrate 1 and get the area of the square
 % 0.5 on unit simplex
 
-f = ones(size(xyNodes,1),1);
+xyFields = tnMesh.getNodeCoordinates();
+f = ones(size(xyFields,1),1);
 %Q = tnMesh.getQuadratureMatrix(1);
 Q = tnMesh.getQuadratureOperator();
 integral_meas = sum(Q*f);
@@ -306,6 +307,18 @@ for iEdge = 1:2  % the hypotenuse doesn't work so do the straight edges
         fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegrals(iEdge));
     end
 end
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 %% Interpolation operator sensitivity
