@@ -607,9 +607,89 @@ classdef TriNodalMesh < handle
             
         end % getEnclosingFaces
         
+        function [enclosingFace, rOut, sOut] = rasterize(obj, corner0, corner1, Nxy)
+            %corner0 = [-1.0, -1.0];
+            %corner1 = [1.0, 1.0];
+            %Nxy = [400, 400];
+            dxy = (corner1 - corner0)./(Nxy - 1);
+            
+            enclosingFace = zeros(Nxy);
+            rOut = zeros(Nxy);
+            sOut = zeros(Nxy);
+            
+            numFaces = obj.hMesh.getNumFaces();
+            
+            for ff = 1:numFaces
+                xy = obj.getFaceBoundary(ff);
+                extents = max(xy) - min(xy);
+                
+                % Attempt rasterization within a box that contains the element.
+                xy0 = min(xy) - 0.1*extents;
+                xy1 = max(xy) + 0.1*extents;
+                
+                ij0 = floor( (xy0 - corner0)./dxy ) + 1;
+                ij1 = ceil( (xy1 - corner0)./dxy ) + 1;
+                
+                ij0 = max(min(ij0, Nxy), [1,1]);
+                ij1 = max(min(ij1, Nxy), [1,1]);
+                
+                [iii,jjj] = ndgrid(ij0(1):ij1(1), ij0(2):ij1(2));
+                
+                if isempty(iii) || isempty(jjj)
+                    continue;
+                end
+                
+                xxx = corner0(1) + (iii-1)*dxy(1);
+                yyy = corner0(2) + (jjj-1)*dxy(2);
+                
+                % Try to invert the coordinate transformation in these points
+                [rs, bad] = obj.inverseCoordinateTransform(ff, xxx, yyy);
+                
+                good = ~bad;
+                %fprintf('%i good\n', nnz(good));
+                
+                writeIdx = sub2ind(Nxy, iii(good), jjj(good));
+                enclosingFace(writeIdx) = ff;
+                rOut(writeIdx) = rs(1,good);
+                sOut(writeIdx) = rs(2,good);
+                
+                %figure(1); clf
+                %plot(xxx(good), yyy(good), 'go');
+                %pause
+            end
+        end
+        
+        function outI = getRasterInterpolationOperator(obj, corner0, corner1, Nxy)
+            
+            numPts = prod(Nxy);
+            numNodes = obj.hFieldNodes.getNumNodes();
+            numFaces = obj.hMesh.getNumFaces();
+            
+            outI = sparse(numPts, numNodes);
+            
+            [iEnclosingFaces, rr, ss] = obj.rasterize(corner0, corner1, Nxy);
+            
+            for ff = 1:numFaces
+                iPoint = find(iEnclosingFaces == ff);
+                
+                if isempty(iPoint)
+                    continue
+                end
+                
+                M = obj.hFieldNodes.basis.interpolationMatrix_rs(rr(iPoint), ss(iPoint));
+                iGlobal = obj.hFieldNodes.getFaceNodes(ff);
+                
+                outI(iPoint, iGlobal) = M;
+                
+            end
+            
+        end
+        
         % To implement this function I will need to invert the coordinate
         % transformation.
         function [outI] = getInterpolationOperator(obj, xs, ys)
+            
+            warning('This function uses inaccurate point-in-element tests')
             
             assert(isvector(xs));
             assert(isvector(ys));
