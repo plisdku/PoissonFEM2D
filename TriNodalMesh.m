@@ -298,16 +298,54 @@ classdef TriNodalMesh < handle
             % 
             xyGoal = [reshape(xx,1,[]); reshape(yy,1,[])];
             
-            rs = obj.linearInverseCoordinateTransform(iFace, xx, yy);
             
-            numIters = 10;
-            %linearitySchedule = linspace(1.0, 0.0, numIters);
-            linearitySchedule = ones(1, numIters);
+            doPlots = 0;
             
-            %figure(3); clf
-            %obj.plotMesh('linewidth', 3);
-            %hold on
-            %plot(xyGoal(1,:), xyGoal(2,:), 'k.');
+            % A note about step sizes.
+            % When the algorithm is nearing convergence, I see no reason
+            % to not take a full Newton step.  When it's still far from
+            % convergence, a smaller step would be more prudent.  I think 
+            % Levenberg-Marquardt is trying to do this balancing act on
+            % the fly.  Since I know roughly how far I am from the solution
+            % I can probably just guess the right max step size and fix
+            % it.  So I should set maxStep to something good but let
+            % stepScalar = 1.0 all the time.
+            
+            doLinearize = 0;
+            if doLinearize
+                rs = obj.linearInverseCoordinateTransform(iFace, xx, yy);
+                %rs = 0.5*(rs + 0.5) - 0.5;
+                numIters = 100;
+                linearitySchedule = linspace(1.0, 0.0, numIters).^2;
+                stepScalar = 1.0;
+                maxStep = 0.1;
+            else
+                rs = obj.linearInverseCoordinateTransform(iFace, xx, yy);
+                rs = 0.5*(rs + 0.5) - 0.5;
+                numIters = 20;
+                linearitySchedule = zeros(1, numIters);
+                stepScalar = 1.0;
+                maxStep = 0.08;
+            end
+            
+            
+            if doPlots
+                figure(3); clf
+                subplot(1,2,1);
+                plot([-1,-1], [1,-1], 'b-');
+                hold on
+                plot([1,-1], [-1,1], 'b-');
+                plot([-1,1], [-1,-1], 'b-');
+                xlim([-1.5, 1.5]);
+                ylim([-1.5, 1.5]);
+                
+                subplot(1,2,2);
+                obj.plotMesh('linewidth', 3);
+                hold on
+                xlim([min(xx(:)), max(xx(:))]);
+                ylim([min(yy(:)), max(yy(:))]);
+                %plot(xyGoal(1,:), xyGoal(2,:), 'k.');
+            end
             
             % Newton's method.
             % We will try to successively deform the triangle more and more
@@ -321,20 +359,40 @@ classdef TriNodalMesh < handle
                 xyLinear = obj.getLinearFaceCoordinates(iFace, rs(1,:), rs(2,:))';
                 
                 xy = ll*xyLinear + (1-ll)*xyNonlinear;
-%                 
-%                 figure(4); clf
-%                 plot(rs(1,:), rs(2,:), 'bo');
-%                 hold on
-%                 plot([-1,-1], [1,-1], 'b-');
-%                 plot([1,-1], [-1,1], 'b-');
-%                 plot([-1,1], [-1,-1], 'b-');
-%                 
-%                 figure(3);
-%                 %p1 = plot(xyLinear(1,:), xyLinear(2,:), 'b.');
-%                 %p2 = plot(xyNonlinear(1,:), xyNonlinear(2,:), 'r.');
-%                 p3 = plot(xy(1,:), xy(2,:), 'go');
-%                 xlim([min(xx(:)), max(xx(:))]);
-%                 ylim([min(yy(:)), max(yy(:))]);
+
+                if doPlots
+                    pause(0.0001);
+                    if exist('p1', 'var')
+                        delete(p1);
+                        delete(p2);
+                        delete(p3);
+                        %delete(p4);
+                    end
+                end
+                
+                if doPlots
+                    
+                    [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rs(1,:), rs(2,:));
+                    detJ = dxy_dr(:,1).*dxy_ds(:,2) - dxy_dr(:,2).*dxy_ds(:,1);
+                    
+                    iInverted = detJ <= 0;
+                    iNotInverted = ~iInverted;
+                    
+                    iInsideOk = iNotInverted' & rs(1,:) > -1 & rs(2,:) > -1 & rs(1,:) + rs(2,:) < 0;
+                    
+                    figure(3);
+                    subplot(1,2,1)
+                    p1 = plot(rs(1,iNotInverted), rs(2,iNotInverted), 'b.', 'markersize', 7);
+                    p2 = plot(rs(1,iInverted), rs(2,iInverted), 'r.', 'markersize', 7);
+                    
+                    subplot(1,2,2);
+                    %p1 = plot(xyLinear(1,:), xyLinear(2,:), 'b.');
+                    %p2 = plot(xyNonlinear(1,:), xyNonlinear(2,:), 'r.');
+                    
+                    p3 = plot(xyNonlinear(1,iInsideOk), xyNonlinear(2,iInsideOk), 'b.', 'markersize', 7);
+                    %p3 = plot(xy(1,iNotInverted), xy(2,iNotInverted), 'b.', 'markersize', 7);
+                    %p4 = plot(xy(1,iInverted), xy(2,iInverted), 'ro');
+                end
                 
                 xyResidual = xy - xyGoal;
                 
@@ -344,20 +402,14 @@ classdef TriNodalMesh < handle
                 dxy_dr = ll*dxy_dr_l + (1-ll)*dxy_dr_nl;
                 dxy_ds = ll*dxy_ds_l + (1-ll)*dxy_ds_nl;
                 
-                maxStep = 0.1;
                 rsOld = rs;
                 for dd = 1:numel(xx)
                     
                     jac = [dxy_dr(dd,:)', dxy_ds(dd,:)'];
                 
-                    rsStep = max(min(-jac \ xyResidual(:,dd), maxStep), -maxStep);
+                    rsStep = stepScalar*max(min(-jac \ xyResidual(:,dd), maxStep), -maxStep);
                     rs(:,dd) = rs(:,dd) + rsStep;
                 end
-                
-                %pause(0.01)
-                %delete(p1);
-                %delete(p2);
-                %delete(p3);
             end
             
             xy = obj.getFaceCoordinates(iFace, rs(1,:), rs(2,:))';
