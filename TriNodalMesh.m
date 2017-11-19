@@ -730,7 +730,7 @@ classdef TriNodalMesh < handle
         % transformation.
         function [outI] = getInterpolationOperator(obj, xs, ys)
             
-            warning('This function uses inaccurate point-in-element tests')
+            %warning('This function uses inaccurate point-in-element tests')
             
             assert(isvector(xs));
             assert(isvector(ys));
@@ -744,7 +744,7 @@ classdef TriNodalMesh < handle
                 return
             end
             
-            iEnclosingFaces = obj.getEnclosingFaces(xs,ys);
+            [iEnclosingFaces, rr, ss] = obj.getEnclosingFaces(xs,ys);
             
             %tr = triangulation(obj.hMesh.getFaceVertices(), obj.xyNodes);
             %iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
@@ -757,17 +757,8 @@ classdef TriNodalMesh < handle
                     continue
                 end
                 
-                xy = [xs(iPoint)'; ys(iPoint)'];
-                
-                rs = obj.inverseCoordinateTransform(ff, xs(iPoint), ys(iPoint));
-                
-                M = obj.hFieldNodes.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
-                
-                %xyTri = obj.vertices(obj.hMesh.getFaceVertices(ff), :)';
-                %M = obj.hNodes.basis.interpolationMatrix_xy(xyTri, xy(1,:), xy(2,:));
-                
+                M = obj.hFieldNodes.basis.interpolationMatrix_rs(rr(iPoint), ss(iPoint));
                 iGlobal = obj.hFieldNodes.getFaceNodes(ff);
-                
                 outI(iPoint, iGlobal) = M;
                 % Original idea: sum and then keep a count to handle the
                 % averaging on boundaries.  I want to be simpler.
