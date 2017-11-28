@@ -71,6 +71,27 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
 end
 
 
+%% Edge Jacobian sensitivity
+
+iGlobal = tnMesh.hGeomNodes.getEdgeNodes(1); % Global indices of face nodes
+
+J = tnMesh.getEdgeJacobianMatrix(1, rr);
+DJ = tnMesh.getEdgeJacobianSensitivity(rr);
+
+% Iterate over geometry nodes, perturb, test
+for mm = 1:tnMesh.hGeomNodes.N
+    for dirIdx = 1:2
+        J2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getEdgeJacobianMatrix(1, rr);
+        DJ_meas = (J2-J)/delta;
+        DJ_calc = DJ(:,:,dirIdx,mm);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DJ_calc, DJ_meas);
+        if ~same
+            fprintf('DJ error %0.4e out of %0.4e ***\n', normDiff, normExact)
+        end
+    end
+end
+
 
 
 

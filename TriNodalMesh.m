@@ -343,6 +343,27 @@ classdef TriNodalMesh < handle
             
             dxy_dr = Dr*xy;
         end
+
+        function J = getEdgeJacobianMatrix(obj, iEdge, rr, varargin)
+            % Calculate the Jacobian of the mapping from r to (x,y).
+            %
+            % dxy_dr = getEdgeJacobian(obj, iEdge, rr)
+            % dxy_dr = getEdgeJacobian(obj, iEdge, rr, orientation)
+            
+            if nargin < 4
+                orientation = 1;
+            else
+                orientation = varargin{1};
+            end
+            
+            xy = obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge, orientation), :);
+            
+            % Get gradient matrix for geom nodes
+            Dr = obj.hGeomNodes.basis1d.gradientMatrix_rs(rr);
+            
+            dxy_dr = Dr*xy;
+            J = transpose(dxy_dr);
+        end
         
         function DJ = getEdgeJacobianSensitivity(obj, rr, varargin)
             
@@ -365,7 +386,22 @@ classdef TriNodalMesh < handle
             DJ(1,:,1,:) = Dr;
             DJ(2,:,2,:) = Dr;
         end
-        
+
+%             [Dr, Ds] = obj.hGeomNodes.basis.gradientMatrix_rs(rr,ss);
+%             
+%             % J(i,j,n) is the Jacobian at output position n.
+%             % DJ(i,j,n,k,m) is sensitivity of J(i,j,n) to node m along k
+%             
+%             numOut = size(Dr,1);
+%             numGeomNodes = size(Dr,2);
+%             
+%             DJ = zeros(2,2,numOut,2,numGeomNodes);
+%             DJ(1,1,:,1,:) = Dr;
+%             DJ(2,1,:,2,:) = Dr;
+%             DJ(1,2,:,1,:) = Ds;
+%             DJ(2,2,:,2,:) = Ds;
+                
+
         function detJ = getEdgeJacobianDeterminant(obj, rr, varargin)
             
             dxy_dr = obj.getEdgeJacobian(iEdge, rr, varargin{:});
