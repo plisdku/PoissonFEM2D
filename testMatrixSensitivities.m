@@ -1,3 +1,82 @@
+%% Make a test mesh.
+
+vertices = [0,0; 1,0; 0,1];
+faces = [1,2,3];
+
+% Node orders
+N_field = 4;
+N_geom = 3;
+N_quad = N_field;
+
+lng = LinearNodalGeometry(faces, vertices, N_geom);
+xyNodes = lng.getNodeCoordinates();
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
+
+%% Jacobian sensitivity
+
+delta = 1e-8;
+
+% Two test points
+rr = [-0.25, 0.25];
+ss = [-0.25, -0.25];
+
+iGlobal = tnMesh.hGeomNodes.getFaceNodes(1); % Global indices of face nodes
+
+J = tnMesh.getJacobianMatrix(1, rr, ss);
+DJ = tnMesh.getJacobianSensitivity(rr, ss);
+
+% Iterate over geometry nodes, perturb, test
+for mm = 1:tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        J2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getJacobianMatrix(1, rr, ss);
+        DJ_meas = (J2-J)/delta;
+        DJ_calc = DJ(:,:,:,dirIdx,mm);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DJ_calc, DJ_meas);
+        if ~same
+            fprintf('DJ error %0.4e out of %0.4e ***\n', normDiff, normExact)
+        end
+    end
+end
+
+%% Inverse Jacobian sensitivity
+
+J = tnMesh.getJacobianMatrix(1, rr, ss);
+K = tnMesh.getInverseJacobian(1, rr, ss);
+
+for nn = 1:size(J,3)
+    invJ = inv(J(:,:,nn));
+    
+    [same, relErr] = compareNorms(invJ, K(:,:,nn));
+    if ~same
+        fprintf('K rel err %0.4e ***\n', relErr);
+    end
+end
+
+DK = tnMesh.getInverseJacobianSensitivity(1, rr, ss);
+
+% Iterate over geometry nodes, perturb, test
+for mm = 1:tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        K2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getInverseJacobian(1, rr, ss);
+        J2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getJacobianMatrix(1, rr, ss);
+        DK_meas = (K2-K)/delta;
+        DK_calc = DK(:,:,:,dirIdx,mm);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DK_calc, DK_meas);
+        if ~same
+            fprintf('DK error %0.4e out of %0.4e ***\n', normDiff, normExact)
+        end
+    end
+end
+
+
+
+
+
+
+
+
 %% Let's try to assemble a system matrix for a whole grid!!
 
 N = 4;

@@ -33,6 +33,16 @@ classdef TriNodalMesh < handle
             obj.xyNodes = xyNodes;
         end
         
+        % For testing purposes
+        function tnMesh = perturbed(obj, nodeIdx, directionIdx, delta)
+            
+            xyNodes = obj.xyNodes;
+            xyNodes(nodeIdx, directionIdx) = xyNodes(nodeIdx, directionIdx) + delta;
+            tnMesh = TriNodalMesh(obj.hMesh.faceVertices, xyNodes, ...
+                obj.hFieldNodes.N, obj.hGeomNodes.N, obj.hQuadNodes.N);
+            
+        end
+        
         % ---- NODAL COORDINATES
         % a.k.a. coordinate transformation
         
@@ -101,8 +111,6 @@ classdef TriNodalMesh < handle
             rField = obj.hFieldNodes.basis1d.getNodes();
             xy = obj.getEdgeCoordinates(iEdge, rField, varargin{:});
         end
-        
-        
         
         function xy = getFaceInteriorNodeCoordinates(obj, iFace)
             % Get ordered [x,y] coordinates of interior nodes in a given face
@@ -200,6 +208,68 @@ classdef TriNodalMesh < handle
             dxy_ds = Ds*xy;
         end
         
+        function J = getJacobianMatrix(obj, iFace, rr, ss)
+            [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rr, ss);
+            
+            J = zeros(2, 2, size(dxy_dr,1));
+            
+            J(1,1,:) = dxy_dr(:,1);
+            J(2,1,:) = dxy_dr(:,2);
+            J(1,2,:) = dxy_ds(:,1);
+            J(2,2,:) = dxy_ds(:,2);
+        end
+        
+        function DJ = getJacobianSensitivity(obj, rr, ss)
+            % Calculate the sensitivity of the Jacobian of the mapping
+            % from (r,s) to (x,y) with respect to perturbations of
+            % geometry nodes.
+            %
+            % Indexing: DJ(i,j,n,k,m)
+            %   i = Jacobian row index
+            %   j = Jacobian column index
+            %   n = output point index (local)
+            %   k = direction of geometry vertex perturbation
+            %   m = geometry node index (local)
+            
+            [Dr, Ds] = obj.hGeomNodes.basis.gradientMatrix_rs(rr,ss);
+            
+            % J(i,j,n) is the Jacobian at output position n.
+            % DJ(i,j,n,k,m) is sensitivity of J(i,j,n) to node m along k
+            
+            numOut = size(Dr,1);
+            numGeomNodes = size(Dr,2);
+            
+            DJ = zeros(2,2,numOut,2,numGeomNodes);
+            DJ(1,1,:,1,:) = Dr;
+            DJ(2,1,:,2,:) = Dr;
+            DJ(1,2,:,1,:) = Ds;
+            DJ(2,2,:,2,:) = Ds;
+        end
+        
+        function detJ = getJacobianDeterminant(obj, iFace, rr, ss)
+            [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rr, ss);
+            
+            detJ = dxy_dr(:,1).*dxy_ds(:,2) - dxy_dr(:,2).*dxy_ds(:,1); % DETERMINANT!
+        end
+        
+        function DdetJ = getJacobianDeterminantSensitivity(obj, iFace, rr, ss)
+            detJ = obj.getJacobianDeterminant(iFace, rr, ss);
+            K = obj.getInverseJacobian(iFace, rr, ss);
+            DJ = obj.getJacobianSensitivity(rr, ss);
+            
+            numOut = length(rr);
+            numNodes = size(K,3);
+            DdetJ = zeros(numOut, 2, numNodes);
+            
+            for n = 1:numOut
+                for k = 1:2
+                    for m = 1:numNodes
+                        DdetJ(n,k,m) = detJ(n) * sum(sum(transpose(K(:,:,n)) .* DJ(:,:,n,k,m)));
+                    end
+                end
+            end
+            
+        end
         
         function invJacs = getInverseLinearJacobian(obj, iFace, rr, ss)
             % Get the inverse Jacobian in a face at each desired point.
@@ -233,6 +303,26 @@ classdef TriNodalMesh < handle
             end
         end
         
+        function DK = getInverseJacobianSensitivity(obj, iFace, rr, ss)
+            
+            K = obj.getInverseJacobian(iFace, rr, ss);
+            DJ = obj.getJacobianSensitivity(rr, ss);
+            
+            numOut = length(rr);
+            numGeomNodes = size(DJ, 5);
+            
+            DK = zeros(size(DJ));
+            
+            for n = 1:numOut
+                for k = 1:2
+                    for m = 1:numGeomNodes
+                        DK(:,:,n,k,m) = -K(:,:,n)*DJ(:,:,n,k,m)*K(:,:,n);
+                    end
+                end
+            end
+            
+        end
+        
         
         function dxy_dr = getEdgeJacobian(obj, iEdge, rr, varargin)
             % Calculate the Jacobian of the mapping from r to (x,y).
@@ -252,6 +342,60 @@ classdef TriNodalMesh < handle
             Dr = obj.hGeomNodes.basis1d.gradientMatrix_rs(rr);
             
             dxy_dr = Dr*xy;
+        end
+        
+        function DJ = getEdgeJacobianSensitivity(obj, rr, varargin)
+            
+            if nargin < 3
+                orientation = 1;
+            else
+                orientation = varargin{1};
+            end
+            
+            if orientation > 0
+                Dr = obj.hGeomNodes.basis1d.gradientMatrix_rs(rr);
+            else
+                Dr = Dr(end:-1:1, end:-1:1);
+            end
+            
+            numOut = size(Dr,1);
+            numGeomNodes = size(Dr,2);
+            
+            DJ = zeros(2,numOut,2,numGeomNodes);
+            DJ(1,:,1,:) = Dr;
+            DJ(2,:,2,:) = Dr;
+        end
+        
+        function detJ = getEdgeJacobianDeterminant(obj, rr, varargin)
+            
+            dxy_dr = obj.getEdgeJacobian(iEdge, rr, varargin{:});
+            
+            % The determinant should be sqrt(dxy_dr' * dxy_dr).  Right?
+            % But I have to sort of do it by hand here.
+            detJ = sqrt(dxy_dr(:,1).^2 + dxy_dr(:,2).^2); 
+        end
+        
+        function DdetJ = getEdgeJacobianDeterminantSensitivity(obj, rr, varargin)
+            
+            % Beware indexing: dxy_dr(n,k) is backwards from J(k,n).  Geez.
+            dxy_dr = obj.getEdgeJacobian(iEdge, rr, varargin{:});
+            JdotJ = dxy_dr(:,1).^2 + dxy_dr(:,2).^2;
+            detJ = sqrt(JdotJ);
+            %detJ = sqrt(dxy_dr(:,1).^2 + dxy_dr(:,2).^2);
+            
+            numOut = length(rr);
+            numNodes = size(dxy_dr, 1); % beware indexing
+            
+            DdetJ = zeros(numOut, 2, numNodes);
+            
+            for n = 1:numOut
+                for k = 1:2
+                    for m = 1:numNodes
+                        DdetJ(n,k,m) = 2 * dot(DJ(:,n,k,m), dxy_dr(n,:)) / detJ(n);
+                    end
+                end
+            end
+            
         end
         
         function [dxy_dr, dxy_ds] = getFieldJacobian(obj, iFace)
@@ -438,6 +582,35 @@ classdef TriNodalMesh < handle
             
             outDx = diag(squish(invJacs(1,1,:)))*Dr + diag(squish(invJacs(2,1,:)))*Ds;
             outDy = diag(squish(invJacs(1,2,:)))*Dr + diag(squish(invJacs(2,2,:)))*Ds;
+        end
+        
+        function [DDx, DDy] = getFaceGradientMatrixSensitivities(obj, iFace)
+            
+            rBasis = obj.hFieldNodes.basis.r;
+            sBasis = obj.hFieldNodes.basis.s;
+            
+            [Dr, Ds] = obj.hFieldNodes.basis.gradientMatrix_rs(rBasis, sBasis);
+            numOut = size(Dr, 1);
+            numFieldNodes = size(Dr, 2);
+            
+            DK = obj.getInverseJacobianSensitivity(iFace, rBasis, sBasis);
+            numGeomNodes = size(DK, 5);
+            
+            DDx = zeros(numOut, numNodes, 2, numGeomNodes);
+            DDy = zeros(size(DDx));
+            
+            % Get out some paper and work this one out.  :-/
+            
+            for n = 1:numOut
+                for m = 1:numFieldNodes
+                    for k = 1:2
+                        for p = 1:numGeomNodes
+                            DDx(n,m,k,p) = DK(1,1,n,k,p)*Dr(n,m) + DK(2,1,n,k,p)*Ds(n,m);
+                            DDy(n,m,k,p) = DK(1,2,n,k,p)*Dr(n,m) + DK(2,2,n,k,p)*Ds(n,m);
+                        end
+                    end
+                end
+            end
             
         end
         
@@ -457,8 +630,9 @@ classdef TriNodalMesh < handle
             Qq = invVq' * invVq;
             
             % Jacobian on quadrature nodes
-            [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rsQuad(:,1), rsQuad(:,2));
-            detJq = dxy_dr(:,1).*dxy_ds(:,2) - dxy_dr(:,2).*dxy_ds(:,1);
+            detJq = obj.getJacobianDeterminant(iFace, rsQuad(:,1), rsQuad(:,2));
+            %[dxy_dr, dxy_ds] = obj.getJacobian(iFace, rsQuad(:,1), rsQuad(:,2));
+            %detJq = dxy_dr(:,1).*dxy_ds(:,2) - dxy_dr(:,2).*dxy_ds(:,1); % DETERMINANT!
             assert(all(detJq > 0));
             
             Q = Ifq' * Qq * diag(detJq) * Ifq;
@@ -482,11 +656,7 @@ classdef TriNodalMesh < handle
             invVq = obj.hQuadNodes.basis1d.invV;
             Qq = invVq' * invVq;
             
-            dxy_dr = obj.getEdgeJacobian(iEdge, rQuad, orientation);
-            
-            % The determinant should be sqrt(dxy_dr' * dxy_dr).  Right?
-            % But I have to sort of do it by hand here.
-            detJq = sqrt(dxy_dr(:,1).^2 + dxy_dr(:,2).^2);
+            detJq = obj.getEdgeJacobianDeterminant(iEdge, rQuad, orientation);
             
             Q = Ifq' * Qq * diag(detJq) * Ifq;
             
