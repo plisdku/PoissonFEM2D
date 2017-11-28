@@ -75,13 +75,13 @@ end
 
 iGlobal = tnMesh.hGeomNodes.getEdgeNodes(1); % Global indices of face nodes
 
-J = tnMesh.getEdgeJacobianMatrix(1, rr);
-DJ = tnMesh.getEdgeJacobianSensitivity(rr);
+J = tnMesh.getEdgeJacobianMatrix(1, rr, -1);
+DJ = tnMesh.getEdgeJacobianSensitivity(rr, -1);
 
 % Iterate over geometry nodes, perturb, test
 for mm = 1:tnMesh.hGeomNodes.N
     for dirIdx = 1:2
-        J2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getEdgeJacobianMatrix(1, rr);
+        J2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getEdgeJacobianMatrix(1, rr, -1);
         DJ_meas = (J2-J)/delta;
         DJ_calc = DJ(:,:,dirIdx,mm);
         
@@ -91,6 +91,8 @@ for mm = 1:tnMesh.hGeomNodes.N
         end
     end
 end
+
+%% Face Jacobian determinant sensitivity
 
 
 

@@ -373,10 +373,9 @@ classdef TriNodalMesh < handle
                 orientation = varargin{1};
             end
             
-            if orientation > 0
-                Dr = obj.hGeomNodes.basis1d.gradientMatrix_rs(rr);
-            else
-                Dr = Dr(end:-1:1, end:-1:1);
+            Dr = obj.hGeomNodes.basis1d.gradientMatrix_rs(rr);
+            if orientation < 0
+                Dr = Dr(:, end:-1:1);
             end
             
             numOut = size(Dr,1);
