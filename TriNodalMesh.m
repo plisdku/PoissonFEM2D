@@ -258,7 +258,7 @@ classdef TriNodalMesh < handle
             DJ = obj.getJacobianSensitivity(rr, ss);
             
             numOut = length(rr);
-            numNodes = size(K,3);
+            numNodes = size(DJ,5);
             DdetJ = zeros(numOut, 2, numNodes);
             
             for n = 1:numOut
