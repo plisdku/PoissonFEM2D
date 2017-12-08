@@ -113,6 +113,28 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
     end
 end
 
+%% Edge Jacobian determinant sensitivity
+
+iEdge = 1;
+iGlobal = tnMesh.hGeomNodes.getEdgeNodes(iEdge);
+
+detJ = tnMesh.getEdgeJacobianDeterminant(iEdge, rr);
+DdetJ = tnMesh.getEdgeJacobianDeterminantSensitivity(iEdge, rr);
+
+for mm = 1:tnMesh.hGeomNodes.N
+    for dirIdx = 1:2
+        detJ2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getEdgeJacobianDeterminant(iEdge, rr);
+        DdetJ_meas = (detJ2 - detJ)/delta;
+        DdetJ_calc = DdetJ(:,dirIdx,mm);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DdetJ_calc, DdetJ_meas);
+        if ~same
+            fprintf('DdetJ error %0.4e out of %0.4e ***\n', normDiff, normExact);
+        end
+    end
+end
+
+
 %% Let's try to assemble a system matrix for a whole grid!!
 
 N = 4;

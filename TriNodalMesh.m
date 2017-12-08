@@ -384,49 +384,35 @@ classdef TriNodalMesh < handle
             DJ = zeros(2,numOut,2,numGeomNodes);
             DJ(1,:,1,:) = Dr;
             DJ(2,:,2,:) = Dr;
-        end
+        end     
 
-%             [Dr, Ds] = obj.hGeomNodes.basis.gradientMatrix_rs(rr,ss);
-%             
-%             % J(i,j,n) is the Jacobian at output position n.
-%             % DJ(i,j,n,k,m) is sensitivity of J(i,j,n) to node m along k
-%             
-%             numOut = size(Dr,1);
-%             numGeomNodes = size(Dr,2);
-%             
-%             DJ = zeros(2,2,numOut,2,numGeomNodes);
-%             DJ(1,1,:,1,:) = Dr;
-%             DJ(2,1,:,2,:) = Dr;
-%             DJ(1,2,:,1,:) = Ds;
-%             DJ(2,2,:,2,:) = Ds;
-                
-
-        function detJ = getEdgeJacobianDeterminant(obj, rr, varargin)
+        function detJ = getEdgeJacobianDeterminant(obj, iEdge, rr, varargin)
             
             dxy_dr = obj.getEdgeJacobian(iEdge, rr, varargin{:});
             
             % The determinant should be sqrt(dxy_dr' * dxy_dr).  Right?
             % But I have to sort of do it by hand here.
-            detJ = sqrt(dxy_dr(:,1).^2 + dxy_dr(:,2).^2); 
+            detJ = sqrt(dxy_dr(:,1).^2 + dxy_dr(:,2).^2);
         end
         
-        function DdetJ = getEdgeJacobianDeterminantSensitivity(obj, rr, varargin)
+        function DdetJ = getEdgeJacobianDeterminantSensitivity(obj, iEdge, rr, varargin)
             
             % Beware indexing: dxy_dr(n,k) is backwards from J(k,n).  Geez.
             dxy_dr = obj.getEdgeJacobian(iEdge, rr, varargin{:});
             JdotJ = dxy_dr(:,1).^2 + dxy_dr(:,2).^2;
             detJ = sqrt(JdotJ);
-            %detJ = sqrt(dxy_dr(:,1).^2 + dxy_dr(:,2).^2);
+            
+            DJ = obj.getEdgeJacobianSensitivity(rr, varargin{:});
             
             numOut = length(rr);
-            numNodes = size(dxy_dr, 1); % beware indexing
+            numNodes = size(DJ, 4); % beware indexing
             
             DdetJ = zeros(numOut, 2, numNodes);
             
             for n = 1:numOut
                 for k = 1:2
                     for m = 1:numNodes
-                        DdetJ(n,k,m) = 2 * dot(DJ(:,n,k,m), dxy_dr(n,:)) / detJ(n);
+                        DdetJ(n,k,m) = dot(DJ(:,n,k,m), dxy_dr(n,:)) / detJ(n);
                     end
                 end
             end
@@ -1128,8 +1114,8 @@ classdef TriNodalMesh < handle
             
             for ii = 1:size(edges,1)
                 
-                v0 = obj.vertices(edges(ii,1),:);
-                v1 = obj.vertices(edges(ii,2),:);
+                v0 = obj.xyNodes(edges(ii,1),:);
+                v1 = obj.xyNodes(edges(ii,2),:);
                 
                 vCenter = 0.5*(v0+v1);
                 
