@@ -42,6 +42,53 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
     end
 end
 
+%% Element charge matrix
+
+A = poi.getElementChargeMatrix(1);
+DA = poi.getElementChargeMatrixSensitivity(1);
+
+iGeomGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
+
+% Iterate over geometry nodes, perturb, test
+for mm = 1:tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        A2 = PoissonFEM2D(tnMesh.perturbed(iGeomGlobal(mm), dirIdx, delta)).getElementChargeMatrix(1);
+        DA_meas = (A2-A)/delta;
+        DA_calc = DA(:,:,dirIdx,mm);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DA_calc, DA_meas);
+        if ~same
+            fprintf('DJ error %0.4e out of %0.4e ***\n', normDiff, normExact)
+        end
+    end
+end
+
+%% Element Neumann matrix
+
+iEdge = 1;
+orientation = 1;
+A = poi.getElementNeumannMatrix(iEdge, orientation);
+DA = poi.getElementNeumannMatrixSensitivity(iEdge, orientation);
+
+iGeomGlobal = tnMesh.hGeomNodes.getEdgeNodes(iEdge, orientation);
+
+% Iterate over geometry nodes, perturb, test
+for mm = 1:length(iGeomGlobal)
+    for dirIdx = 1:2
+        A2 = PoissonFEM2D(tnMesh.perturbed(iGeomGlobal(mm), dirIdx, delta)).getElementNeumannMatrix(iEdge, orientation);
+        DA_meas = (A2-A)/delta;
+        DA_calc = DA(:,:,dirIdx,mm);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DA_calc, DA_meas, 1e-6, 1e-6); % tolerance fail lol
+        if ~same
+            fprintf('DJ error %0.4e out of %0.4e ***\n', normDiff, normExact)
+        end
+    end
+end
+
+%% 
+
+
 %% Jacobian sensitivity
 
 delta = 1e-8;
