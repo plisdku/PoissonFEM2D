@@ -830,66 +830,6 @@ classdef TriNodalMesh < handle
             end
             
         end
-%         
-%         function iFace = getEnclosingFaces(obj, xs, ys)
-%             
-%             % We'll take a coarse first pass and then correct it.
-%             
-%             tr = triangulation(obj.hGeomNodes.getNodalMesh(), obj.xyNodes);
-%             numSubTris = (obj.hGeomNodes.N-1)^2;
-%             iFace0 = ceil(tr.pointLocation(xs(:), ys(:)) / numSubTris); % first guess.
-%             
-%             if obj.hGeomNodes.N == 2
-%                 % No mistakes to be made if the sides are straight.
-%                 iFace = iFace0;
-%                 return;
-%             else
-%                 iFace = nan(size(iFace0));
-%             end
-%             
-%             % We have curved sides.  Need to double-check all points.
-%             
-%             ffa = obj.hMesh.getFaceFaceAdjacency();
-%             
-%             numFaces = obj.hMesh.getNumFaces();
-%             
-%             for ff = 1:numFaces
-%                 
-%                 iNeighborFaces = find(ffa(ff,:));
-%                 iNeighborFaces = [];
-%                 
-%                 iPoint = find(iFace0 == ff);
-%                 
-%                 if isempty(iPoint)
-%                     continue
-%                 end
-%                 %fprintf('Face %i\n', ff);
-%                 xy = [xs(iPoint)'; ys(iPoint)'];
-%                 [rs, bad] = obj.inverseCoordinateTransform(ff, xs(iPoint), ys(iPoint));
-%                 iFace(iPoint(~bad)) = ff;
-%                 
-%                 iOutOfBounds = find(bad);
-%                 
-%                 for nf = iNeighborFaces
-%                     [rs2, newBad] = obj.inverseCoordinateTransform(nf, xs(iPoint(isBad)), ys(iPoint(isBad)));
-%                     
-%                     bad(~newBad) = 0;
-%                     %fprintf('Fixed %i good from %i bad\n', nnz(isGood), length(isBad));
-%                     
-%                     iFace(iPoint(iOutOfBounds(~newBad))) = nf;
-%                 end
-%                 
-%                 % rs(x or y, point index) should be inside the unit
-%                 % triangle.  For all the bad points, we will try to
-%                 % locate them in other triangles.
-%                 %
-%                 % A test of the residual should suffice though.
-%                 
-%             end
-%             
-%             %iFace = iFace0;
-%             
-%         end % getEnclosingFaces
         
         function [enclosingFace, rOut, sOut] = rasterize(obj, corner0, corner1, Nxy)
             %corner0 = [-1.0, -1.0];

@@ -187,15 +187,16 @@ end
 %% Edge quadrature matrix sensitivity
 
 iEdge = 1;
+orientation = 1;
 
 iGlobal = tnMesh.hGeomNodes.getEdgeNodes(iEdge);
 
-Q = tnMesh.getQuadratureMatrix1d(iEdge);
-DQ = tnMesh.getQuadratureMatrixSensitivity1d(iEdge);
+Q = tnMesh.getQuadratureMatrix1d(iEdge, orientation);
+DQ = tnMesh.getQuadratureMatrixSensitivity1d(iEdge, orientation);
 
 for mm = 1:tnMesh.hGeomNodes.N
     for dirIdx = 1:2
-        Q2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getQuadratureMatrix1d(1);
+        Q2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getQuadratureMatrix1d(iEdge, orientation);
         DQ_meas = (Q2-Q)/delta;
         DQ_calc = DQ(:,:,dirIdx,mm);
         
@@ -206,6 +207,10 @@ for mm = 1:tnMesh.hGeomNodes.N
         end
     end
 end
+
+%% 
+
+
 
 
 %% Let's try to assemble a system matrix for a whole grid!!
