@@ -416,7 +416,6 @@ classdef TriNodalMesh < handle
                     end
                 end
             end
-            
         end
         
         function [dxy_dr, dxy_ds] = getFieldJacobian(obj, iFace)
@@ -617,7 +616,7 @@ classdef TriNodalMesh < handle
             DK = obj.getInverseJacobianSensitivity(iFace, rBasis, sBasis);
             numGeomNodes = size(DK, 5);
             
-            DDx = zeros(numOut, numNodes, 2, numGeomNodes);
+            DDx = zeros(numOut, numFieldNodes, 2, numGeomNodes);
             DDy = zeros(size(DDx));
             
             % Get out some paper and work this one out.  :-/

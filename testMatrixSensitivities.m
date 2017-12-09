@@ -134,6 +134,41 @@ for mm = 1:tnMesh.hGeomNodes.N
     end
 end
 
+%% Face gradient matrix sensitivity
+
+iGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
+
+[Dx, Dy] = tnMesh.getFaceGradientMatrices(1);
+[DDx, DDy] = tnMesh.getFaceGradientMatrixSensitivities(1);
+
+for mm = 1:tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        
+        [Dx2, Dy2] = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getFaceGradientMatrices(1);
+        DDx_meas = (Dx2 - Dx)/delta;
+        DDy_meas = (Dy2 - Dy)/delta;
+        
+        DDx_calc = DDx(:,:,dirIdx,mm);
+        DDy_calc = DDy(:,:,dirIdx,mm);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DDx_calc, DDx_meas);
+        if ~same
+            fprintf('DDx error %0.4e out of %0.4e ***\n', normDiff, normExact);
+        end
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DDy_calc, DDy_meas);
+        if ~same
+            fprintf('DDy error %0.4e out of %0.4e ***\n', normDiff, normExact);
+        end
+    end
+end
+
+
+
+
+
+
+
 
 %% Let's try to assemble a system matrix for a whole grid!!
 
