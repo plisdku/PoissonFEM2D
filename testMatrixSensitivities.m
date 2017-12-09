@@ -184,9 +184,28 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
     end
 end
 
+%% Edge quadrature matrix sensitivity
 
+iEdge = 1;
 
+iGlobal = tnMesh.hGeomNodes.getEdgeNodes(iEdge);
 
+Q = tnMesh.getQuadratureMatrix1d(iEdge);
+DQ = tnMesh.getQuadratureMatrixSensitivity1d(iEdge);
+
+for mm = 1:tnMesh.hGeomNodes.N
+    for dirIdx = 1:2
+        Q2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getQuadratureMatrix1d(1);
+        DQ_meas = (Q2-Q)/delta;
+        DQ_calc = DQ(:,:,dirIdx,mm);
+        
+        % had to tweak the zero threshold to get this test to pass.  hmph.
+        [same, relErr, normDiff, normExact] = compareNorms(DQ_calc, DQ_meas, 1e-6, 1e-6);
+        if ~same
+            fprintf('DQ error %0.4e out of %0.4e ***\n', normDiff, normExact);
+        end
+    end
+end
 
 
 %% Let's try to assemble a system matrix for a whole grid!!

@@ -704,6 +704,37 @@ classdef TriNodalMesh < handle
             
         end
         
+        function DQ = getQuadratureMatrixSensitivity1d(obj, iEdge, varargin)
+            
+            if nargin < 3
+                orientation = 1;
+            else
+                orientation = varargin{1};
+            end
+            
+            rQuad = obj.hQuadNodes.basis1d.getNodes();
+            if orientation < 0
+                rQuad = rQuad(end:-1:1);
+            end
+            
+            Ifq = obj.hFieldNodes.basis1d.interpolationMatrix_r(rQuad);
+            invVq = obj.hQuadNodes.basis1d.invV;
+            Qq = invVq' * invVq;
+            
+            DdetJq = obj.getEdgeJacobianDeterminantSensitivity(iEdge, rQuad, orientation);
+            
+            numFieldNodes = size(Ifq, 2);
+            numGeomNodes = size(DdetJq,3);
+            
+            DQ = zeros(numFieldNodes, numFieldNodes, 2, numGeomNodes);
+            
+            for m = 1:numGeomNodes
+                for k = 1:2
+                    DQ(:,:,k,m) = Ifq' * Qq * diag(DdetJq(:,k,m)) * Ifq;
+                end
+            end
+        end
+        
         
         % ---- FULL-MESH OPERATORS
         
