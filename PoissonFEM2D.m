@@ -27,64 +27,6 @@ classdef PoissonFEM2D < handle
             
         end
         
-        % ---- Helper matrices
-        
-        function [Dx, Dy, dDxdJ, dDydJ] = elementGradientMatrix(obj, jacobian)
-            invJac = inv(jacobian);
-            
-            Dx = obj.Dr*invJac(1,1) + obj.Ds*invJac(2,1);
-            Dy = obj.Dr*invJac(1,2) + obj.Ds*invJac(2,2);
-            
-            dDxdJ = zeros([size(Dx), 2, 2]);
-            dDydJ = zeros([size(Dy), 2, 2]);
-            
-            for ii = 1:2
-                for jj = 1:2
-                    dDxdJ(:,:,ii,jj) = -invJac(1,ii)*invJac(jj,1)*obj.Dr - invJac(2,ii)*invJac(jj,1)*obj.Ds;
-                    dDydJ(:,:,ii,jj) = -invJac(1,ii)*invJac(jj,2)*obj.Dr - invJac(2,ii)*invJac(jj,2)*obj.Ds;
-                end
-            end
-            
-        end % elementGradientMatrix
-        
-        
-        function [Q, dQdJ] = elementQuadratureMatrix(obj, jacobian)
-            % [Q, dQdJ] = elementQuadratureMatrix(obj, jacobian)
-            %
-            % Sensitivities to jacobian(ii,jj) are indexed dQdJ(iNode1, iNode2, ii, jj).
-            %
-            
-            invJac = inv(jacobian);
-            detJac = det(jacobian);
-            Q = obj.Q*detJac;
-            
-            dDetJ_dJ = detJac*transpose(invJac); % this is all 4 sensitivities in a matrix
-            
-            dQdJ = zeros([size(Q), 2, 2]);
-            for ii = 1:2
-                for jj = 1:2
-                    dQdJ(:,:,ii,jj) = obj.Q*dDetJ_dJ(ii,jj);
-                end
-            end
-        end % elementQuadratureMatrix
-        
-        
-        function [Qv, dQvdJ] = elementQuadratureVector(obj, jacobian)
-            % [Qv, dQvdJ] = elementQuadratureVector(obj, jacobian)
-            %
-            % Qv is a column vector indexed Qv(node)
-            % dQvdJ is indexed dQvdJ(node, jacobian1, jacobian2)
-            
-            [Q, dQdJ] = obj.elementQuadratureMatrix(jacobian);
-            
-            sz_dQdJ = size(dQdJ);
-            
-            Qv = reshape(sum(Q, 1), [], 1);
-            dQvdJ = reshape(sum(dQdJ, 1), sz_dQdJ(2:4));
-            
-        end
-            
-        
         % ---- Elemental matrices
         
         function A = getElementPotentialMatrix(obj, iFace)
@@ -95,85 +37,48 @@ classdef PoissonFEM2D < handle
             % Matrix that multiplies the potential
             A = -(Dx'*QQ*Dx + Dy'*QQ*Dy);
             
-        end
+        end % getElementPotentialMatrix()
         
-        function [A, dAdJ] = elementPotentialMatrix(obj, jacobian)
-            % [A, dA_dJij] = elementPotentialMatrix(obj, jacobian)
-            %
-            % Sensitivities are indexed dA_dJij{ii}{jj}.
-            %
+        function DA = getElementPotentialMatrixSensitivity(obj, iFace)
             
-            [Dx, Dy, dDxdJ, dDydJ] = obj.elementGradientMatrix(jacobian);
-            [QQ, dQdJ] = obj.elementQuadratureMatrix(jacobian);
+            [Dx,Dy] = obj.tnMesh.getFaceGradientMatrices(iFace);
+            [DDx, DDy] = obj.tnMesh.getFaceGradientMatrixSensitivities(iFace);
+            QQ = obj.tnMesh.getQuadratureMatrix(iFace);
+            DQQ = obj.tnMesh.getQuadratureMatrixSensitivity(iFace);
             
-            % Matrix that multiplies the potential
-            A = - (Dx'*QQ*Dx + Dy'*QQ*Dy);
+            numGeomNodes = obj.tnMesh.hGeomNodes.basis.numNodes;
             
-            if nargout == 1
-                return
-            end
+            DA = zeros([size(Dx), 2, numGeomNodes]);
             
-            % Its sensitivities with respect to Jacobian elements
-           
-            
-            dAdJ = zeros([size(A), 2,2]);
-            for ii = 1:2
-                for jj = 1:2
-                    dAdJ(:,:,ii,jj) = -(dDxdJ(:,:,ii,jj)'*QQ*Dx + Dx'*dQdJ(:,:,ii,jj)*Dx + Dx'*QQ*dDxdJ(:,:,ii,jj)) ...
-                        - (dDydJ(:,:,ii,jj)'*QQ*Dy + Dy'*dQdJ(:,:,ii,jj)*Dy + Dy'*QQ*dDydJ(:,:,ii,jj));
+            for m = 1:numGeomNodes
+                for k = 1:2
+                    DA(:,:,k,m) = -( ...
+                        DDx(:,:,k,m)'*QQ*Dx + Dx'*DQQ(:,:,k,m)*Dx + Dx'*QQ*DDx(:,:,k,m) + ...
+                        DDy(:,:,k,m)'*QQ*Dy + Dy'*DQQ(:,:,k,m)*Dy + Dy'*QQ*DDy(:,:,k,m) ...
+                        );
                 end
             end
             
-        end % elementPotentialMatrix()
+        end % getElementPotentialMatrixSensitivity()
+        
         
         function B = getElementChargeMatrix(obj, iFace)
             B = obj.tnMesh.getQuadratureMatrix(iFace);
-        end
+        end % getElementChargeMatrix()
         
-        function [B, dBdJ] = elementChargeMatrix(obj, jacobian)
-            % [B, dBdJ_ij] = elementChargeMatrix(obj, jacobian)
-            %
-            % Sensitivities are indexed dB_dJ_ij{ii}{jj}.
-            %
-            
-            [B, dBdJ] = obj.elementQuadratureMatrix(jacobian);
-            
-        end % elementChargeMatrix()
+        function DB = getElementChargeMatrixSensitivity(obj, iFace)
+            DB = obj.tnMesh.getQuadratureMatrixSensitivity(iFace);
+        end % getElementChargeMatrixSensitivity()
         
         
         function C = getElementNeumannMatrix(obj, iEdge, orientation)
             C = obj.tnMesh.getQuadratureMatrix1d(iEdge, orientation);
-        end
+        end % getElementNeumannMatrix()
         
-        function [C, dCdJ] = elementNeumannMatrix(obj, jacobian1d, nodeFactors)
-            % [C, dCdJ] = elementNeumannMatrix(jacobian1d)
-            % [C, dCdJ] = elementNeumannMatrix(jacobian1d, nodeFactors)
-            %
-            % Calculate Neumann matrix for a single edge, with or without
-            % factors.
-            
-            detJ = sqrt(det(jacobian1d'*jacobian1d));
-            
-            if nargin < 3
-                C = obj.Q1d * detJ;
-            else
-                C = obj.Q1d * detJ * diag(nodeFactors);
-            end
-            
-            %dDetJ_dJ = detJ*transpose(invJac); % this is all 4 sensitivities in a matrix
-            dDetJ_dJ = detJ*jacobian1d*inv(jacobian1d'*jacobian1d);
-            
-            dCdJ = zeros([size(C), 2]);
-            
-            for ii = 1:2
-                if nargin < 3
-                    dCdJ(:,:,ii) = obj.Q1d*dDetJ_dJ(ii);
-                else
-                    dCdJ(:,:,ii) = obj.Q1d*dDetJ_dJ(ii) * diag(nodeFactors);
-                end
-            end
-            
-        end % elementNeumannMatrix
+        function DC = getElementNeumannMatrixSensitivity(obj, iEdge, orientation)
+            DC = obj.tnMesh.getQuadratureMatrixSensitivity1d(iEdge, orientation);
+        end % getElementNeumannMatrixSensitivity()
+        
         
         % ---- System Matrices
         
@@ -198,59 +103,38 @@ classdef PoissonFEM2D < handle
             
         end % getNeumannMatrix
         
-        
-        function [NM, DNM_dv] = neumannMatrix(obj, nodeFactors)
+        function DNM = getNeumannMatrixSensitivity(obj)
+            numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
             
-            % The Neumann matrix is sum( [get edge nodes] * Q * detJ ).
-            % Its raw dimensions are nNodes x nNodes and on the outside
-            % we can bake it down to the size of only the Neumann boundary
-            % nodes.
-            
-            numNodes = obj.tnMesh.hNodes.getNumNodes();
-            numVertices = obj.tnMesh.hMesh.getNumVertices();
-            
-            NM = sparse(numNodes, numNodes);
-            DNM_dv = cell(numVertices, 2);
-            for nn = 1:numel(DNM_dv)
-                DNM_dv{nn} = sparse(numNodes, numNodes);
+            DNM = cell(2,numGeomNodes);
+            for nn = 1:numel(DNM)
+                DNM{nn} = sparse(numFieldNodes,numFieldNodes);
             end
             
             [boundaryEdges, orientations] = obj.tnMesh.hMesh.getBoundaryEdges();
             
             numEdges = length(boundaryEdges);
-            
             for ii = 1:numEdges
                 ee = boundaryEdges(ii);
                 oo = orientations(ii);
                 
-                dJdv = obj.tnMesh.getLinearJacobianSensitivity1d(ee, oo);
+                iGeomGlobal = obj.tnMesh.hGeomNodes.getEdgeNodes(ee,oo);
+                iFieldGlobal = obj.tnMesh.hFieldNodes.getEdgeNodes(ee,oo);
                 
-                iVertices = obj.tnMesh.hMesh.getEdgeVertices(ee,oo);
-                iGlobal = obj.tnMesh.hNodes.getEdgeNodes(ee, oo);
+                DNM_edge = obj.getElementNeumannMatrixSensitivity(ee,oo);
                 
-                jac1d = obj.tnMesh.getLinearJacobian1d(ee, oo);
-                
-                if nargin < 2
-                    [neuMat, dNdJ] = obj.elementNeumannMatrix(jac1d);
-                else
-                    [neuMat, dNdJ] = obj.elementNeumannMatrix(jac1d, nodeFactors(iGlobal));
-                end
-                dNdv_local = multiplyTensors.txt(dNdJ, 3, dJdv, 3, 3, 1);
-                
-                NM(iGlobal, iGlobal) = NM(iGlobal, iGlobal) + neuMat;
-                
-                for iVert = 1:2
-                    iVertGlobal = iVertices(iVert);
-                    for iXY = 1:2
-                        DNM_dv{iVertGlobal, iXY}(iGlobal, iGlobal) = ...
-                            DNM_dv{iVertGlobal, iXY}(iGlobal, iGlobal) + ...
-                            dNdv_local(:,:,iVert,iXY);
+                for mm = 1:length(iGeomGlobal)
+                    for kk = 1:2
+                        DNM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
+                            DNM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DNM_edge(:,:,kk,mm);
                     end
                 end
-                
             end
             
-        end
+        end % getNeumannMatrixSensitivity
+        
+        
         
         function M = getRhsMatrix(obj)
             numNodes = obj.tnMesh.hFieldNodes.getNumNodes();
@@ -265,46 +149,33 @@ classdef PoissonFEM2D < handle
                 
                 M(iGlobal, iGlobal) = M(iGlobal,iGlobal) + faceMatrix;
             end
-        end
+        end % getRhsMatrix
         
-        function [rhsMatrix, DrhsMatrix_dv] = rhsMatrix(obj)
-            
-            numNodes = obj.tnMesh.hNodes.getNumNodes();
-            numVertices = obj.tnMesh.hMesh.getNumVertices();
-            rhsMatrix = sparse(numNodes, numNodes);
-            
-            DrhsMatrix_dv = cell(numVertices,2);
-            
-            for nn = 1:numel(DrhsMatrix_dv)
-                DrhsMatrix_dv{nn} = sparse(numNodes, numNodes);
+        function DM = getRhsMatrixSensitivity(obj)
+            numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            numGeomNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            DM = cell(2, numGeomNodes);
+            for nn = 1:numel(DM)
+                DM{nn} = sparse(numFieldNodes,numFieldNodes);
             end
             
-            
-            % Fill in the matrix!
             numFaces = obj.tnMesh.hMesh.getNumFaces();
-
+            
             for ff = 1:numFaces
-                jacobian = obj.tnMesh.getLinearJacobian(ff);
-                dJdv = obj.tnMesh.getLinearJacobianSensitivity(ff);
+                DM_face = obj.getElementChargeMatrixSensitivity(ff);
                 
-                [M2, dM2dJ] = obj.elementChargeMatrix(jacobian);
-                dM2dv = multiplyTensors.txt(dM2dJ, 4, dJdv, 4, 3:4, 1:2);
+                iFieldGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
+                iGeomGlobal = obj.tnMesh.hGeomNodes.getFaceNodes(ff);
                 
-                iVertices = obj.tnMesh.hMesh.getFaceVertices(ff);
-                iGlobal = obj.tnMesh.hNodes.getFaceNodes(ff);
-
-                rhsMatrix(iGlobal, iGlobal) = rhsMatrix(iGlobal, iGlobal) + M2;
-                
-                for iVert = 1:3
-                    iVertGlobal = iVertices(iVert);
-                    for iXY = 1:2
-                        DrhsMatrix_dv{iVertGlobal, iXY}(iGlobal, iGlobal) = ...
-                            DrhsMatrix_dv{iVertGlobal, iXY}(iGlobal, iGlobal) + ...
-                            dM2dv(:,:,iVert,iXY);
+                for mm = 1:length(iGeomGlobal)
+                    for kk = 1:2
+                        DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
+                            DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DM_face(:,:,kk,mm);
                     end
                 end
             end
-        end
+        end % getRhsMatrixSensitivity
+        
         
         
         function M = getSystemMatrix(obj)
@@ -323,57 +194,36 @@ classdef PoissonFEM2D < handle
                 M(iGlobal,iGlobal) = M(iGlobal, iGlobal) + facePotentialM;
                 
             end
-        end % getNewSystemMatrix
+        end % getSystemMatrix
         
-        function [systemMatrix, DsystemMatrix_dv] = systemMatrix(obj)
-            % [A, B, dAdJ, dBdJ] = systemMatrix(obj)
-            %
-            % The jacobian override is for sensitivity testing.
+        
+        function DM = getSystemMatrixSensitivity(obj)
+            numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
             
-            numNodes = obj.tnMesh.hNodes.getNumNodes();
-            numVertices = obj.tnMesh.hMesh.getNumVertices();
-            
-            systemMatrix = sparse(numNodes, numNodes);
-
-            % We will accumulate the system matrix sensitivities with respect to
-            % elemental Jacobians, first.
-            %
-            % DsystemMatrix_dJ{ii,jj} is the matrix of sensitivity to J(ii,jj).
-
-            DsystemMatrix_dv = cell(numVertices,2);
-            for nn = 1:numel(DsystemMatrix_dv)
-                DsystemMatrix_dv{nn} = sparse(numNodes, numNodes);
+            DM = cell(2, numGeomNodes);
+            for nn = 1:numel(DM)
+                DM{nn} = sparse(numFieldNodes, numFieldNodes);
             end
             
-            % Fill in the matrices!
             numFaces = obj.tnMesh.hMesh.getNumFaces();
-
+            
             for ff = 1:numFaces
+                DM_face = obj.getElementPotentialMatrixSensitivity(ff);
+                iFieldGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
+                iGeomGlobal = obj.tnMesh.hGeomNodes.getFaceNodes(ff);
                 
-                jacobian = obj.tnMesh.getLinearJacobian(ff);
-                dJdv = obj.tnMesh.getLinearJacobianSensitivity(ff);
-                
-                [M1, dM1dJ] = obj.elementPotentialMatrix(jacobian);
-                dM1dv = multiplyTensors.txt(dM1dJ, 4, dJdv, 4, 3:4, 1:2);
-                
-                iVertices = obj.tnMesh.hMesh.getFaceVertices(ff);
-                iGlobal = obj.tnMesh.hNodes.getFaceNodes(ff);
-                
-                systemMatrix(iGlobal,iGlobal) = systemMatrix(iGlobal, iGlobal) + M1;
-                
-                for iVert = 1:3
-                    for iXY = 1:2
-                        iVertGlobal = iVertices(iVert);
-                        DsystemMatrix_dv{iVertGlobal, iXY}(iGlobal, iGlobal) = ...
-                            DsystemMatrix_dv{iVertGlobal, iXY}(iGlobal, iGlobal) + ...
-                            dM1dv(:,:,iVert,iXY);
+                for mm = 1:length(iGeomGlobal)
+                    for kk = 1:2
+                        DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
+                            DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DM_face(:,:,kk,mm);
                     end
                 end
-
             end
-
             
-        end % systemMatrix()
+        end % getSystemMatrixSensitivity
+        
+        
         
         
         % ---- Function evaluation
