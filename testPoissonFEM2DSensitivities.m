@@ -86,6 +86,26 @@ for mm = 1:length(iGeomGlobal)
     end
 end
 
+
+
+%% Neumann matrix
+
+A = poi.getNeumannMatrix();
+DA = poi.getNeumannMatrixSensitivity();
+
+for mm = 1:tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        A2 = PoissonFEM2D(tnMesh.perturbed(mm, dirIdx, delta)).getNeumannMatrix();
+        DA_meas = (A2-A)/delta;
+        DA_calc = DA{dirIdx,mm};
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DA_calc, DA_meas, 1e-6, 1e-6); % tolerance fail lol
+        if ~same
+            fprintf('DJ error %0.4e out of %0.4e ***\n', normDiff, normExact);
+        end
+    end
+end
+
 %% 
 
 
