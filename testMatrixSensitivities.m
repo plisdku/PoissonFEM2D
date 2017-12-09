@@ -164,6 +164,25 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
 end
 
 
+%% Face quadrature matrix sensitivity
+
+iGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
+
+Q = tnMesh.getQuadratureMatrix(1);
+DQ = tnMesh.getQuadratureMatrixSensitivity(1);
+
+for mm = 1:tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        Q2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getQuadratureMatrix(1);
+        DQ_meas = (Q2-Q)/delta;
+        DQ_calc = DQ(:,:,dirIdx,mm);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DQ_calc, DQ_meas);
+        if ~same
+            fprintf('DQ error %0.4e out of %0.4e ***\n', normDiff, normExact);
+        end
+    end
+end
 
 
 

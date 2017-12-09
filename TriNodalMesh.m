@@ -658,6 +658,28 @@ classdef TriNodalMesh < handle
             Q = Ifq' * Qq * diag(detJq) * Ifq;
         end
         
+        function DQ = getQuadratureMatrixSensitivity(obj, iFace)
+            
+            rsQuad = obj.hQuadNodes.basis.getNodes();
+            Ifq = obj.hFieldNodes.basis.interpolationMatrix_rs(rsQuad(:,1), rsQuad(:,2));
+            invVq = obj.hQuadNodes.basis.invV;
+            Qq = invVq' * invVq;
+            
+            DdetJq = obj.getJacobianDeterminantSensitivity(iFace, rsQuad(:,1), rsQuad(:,2));
+            
+            numFieldNodes = size(Ifq, 2);
+            numGeomNodes = size(DdetJq,3);
+            
+            DQ = zeros(numFieldNodes, numFieldNodes, 2, numGeomNodes);
+            
+            for m = 1:numGeomNodes
+                for k = 1:2
+                    DQ(:,:,k,m) = Ifq' * Qq * diag(DdetJq(:,k,m)) * Ifq;
+                end
+            end
+            
+        end
+        
         
         function Q = getQuadratureMatrix1d(obj, iEdge, varargin)
             if nargin < 3
