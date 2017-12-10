@@ -269,7 +269,7 @@ iGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
 
 for mm = 1:length(iGlobal)
     for dirIdx = 1:2
-        fprintf('m = %i dir = %i\n', mm, dirIdx);
+        %fprintf('m = %i dir = %i\n', mm, dirIdx);
         outI2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getRasterInterpolationOperator(xy0, xy1, Nxy);
         DI_meas = (outI2-outI)/delta;
         DI_calc = DoutI{dirIdx,iGlobal(mm)};
@@ -280,6 +280,18 @@ for mm = 1:length(iGlobal)
         end
     end
 end
+
+
+
+
+
+
+%%
+
+error('The rest of the script is old stuff that I do not use.');
+
+
+
 
 %% Let's try to assemble a system matrix for a whole grid!!
 
