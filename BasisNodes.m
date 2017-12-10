@@ -32,7 +32,7 @@ classdef BasisNodes
         
         % ---- DIFFERENTIATION
         
-        function [Dr, Ds] = gradientMatrix_rs(obj, rr, ss)
+        function [Dr, Ds] = gradientMatrix(obj, rr, ss)
             
             [~, dVdr, dVds] = support2d.vandermonde(obj.N, rr, ss);
             
@@ -43,59 +43,9 @@ classdef BasisNodes
         
         % ---- INTERPOLATION
         
-        function M = interpolationMatrix_rs(obj, rr, ss)
+        function M = interpolationMatrix(obj, rr, ss)
             V2 = support2d.vandermonde(obj.N, rr, ss);
             M = V2 * obj.invV;
-        end
-        
-        function M = interpolationMatrix_xy(obj, triVerts, xx, yy)
-            xy = [reshape(xx,1,[]); reshape(yy,1,[])];
-            rs = support2d.xy2rs(triVerts, xy);
-            V2 = support2d.vandermonde(obj.N, rs(1,:), rs(2,:));
-            M = V2 * obj.invV;
-        end
-        
-        function DM = interpolationMatrixSensitivity_nodal_xy(obj, triVerts, DtriVerts, xx, yy)
-            % Works for interpolating nodal fields (values stuck to nodes)
-            % but not for interpolating fields in xy space.  For that,
-            % need the full derivative D(V2*inv(V)) instead of this which
-            % is just D(V2)*inv(V).
-            
-            xy = [reshape(xx,1,[]); reshape(yy,1,[])];
-            rs_query = support2d.xy2rs(triVerts, xy);
-            Drs = support2d.xy2rsSensitivity(triVerts, DtriVerts, xy);
-            [~, dVdr, dVds] = support2d.vandermonde(obj.N, rs_query(1,:), rs_query(2,:));
-            DV = bsxfun(@times, dVdr, Drs(1,:)') + bsxfun(@times, dVds, Drs(2,:)');
-            DM = DV*obj.invV;
-        end
-        
-        
-        %function outVals = interpolate(obj, vals, rr, ss)
-        %function outVals = interpolate(obj, vals, triVerts, xx, yy)
-        function outVals = interpolate(obj, vals, varargin)
-            
-            if nargin == 4
-                rr = varargin{1};
-                ss = varargin{2};
-                M = obj.interpolationMatrix_rs(rr,ss);
-                outVals = M*vals;
-            elseif nargin == 5
-                triVerts = varargin{1};
-                xx = varargin{2};
-                yy = varargin{3};
-                
-                M = obj.interpolationMatrix_xy(triVerts, xx, yy);
-                outVals = M*vals;
-            else
-                error('shit');
-            end
-                
-        end
-        
-        function outVals = scatteredInterp(obj, vals, rr, ss)
-            
-            interp = scatteredInterpolant(obj.r, obj.s, vals);
-            outVals = interp(rr, ss);
         end
         
         % ---- NODE COORDINATES

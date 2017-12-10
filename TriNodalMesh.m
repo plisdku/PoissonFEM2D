@@ -65,7 +65,7 @@ classdef TriNodalMesh < handle
                 orientation = varargin{1};
             end
             
-            M = obj.hGeomNodes.basis1d.interpolationMatrix_r(rs);
+            M = obj.hGeomNodes.basis1d.interpolationMatrix(rs);
             xy = M*obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge, orientation),:);
             
         end
@@ -74,7 +74,7 @@ classdef TriNodalMesh < handle
             % Get ordered [x,y] coordinates at positions on a given face.
             % getFaceCoordinates(obj, iFace, rr, ss)
             
-            M = obj.hGeomNodes.basis.interpolationMatrix_rs(rr, ss);
+            M = obj.hGeomNodes.basis.interpolationMatrix(rr, ss);
             xy = M*obj.xyNodes(obj.hGeomNodes.getFaceNodes(iFace),:);
         end
         
@@ -83,7 +83,7 @@ classdef TriNodalMesh < handle
             % Treats all elements as triangles.
             % getLinearFaceCoordinates(obj, iFace, rr, ss)
             
-            M = obj.hMeshNodes.basis.interpolationMatrix_rs(rr, ss);
+            M = obj.hMeshNodes.basis.interpolationMatrix(rr, ss);
             xy = M*obj.xyNodes(obj.hMeshNodes.getFaceNodes(iFace),:);
         end
         
@@ -185,7 +185,7 @@ classdef TriNodalMesh < handle
             xy = obj.xyNodes(obj.hMeshNodes.getFaceNodes(iFace),:);
             
             % Get gradient matrices for geom nodes
-            [Dr, Ds] = obj.hMeshNodes.basis.gradientMatrix_rs(rr,ss);
+            [Dr, Ds] = obj.hMeshNodes.basis.gradientMatrix(rr,ss);
             
             dxy_dr = Dr*xy;
             dxy_ds = Ds*xy;
@@ -202,7 +202,7 @@ classdef TriNodalMesh < handle
             xy = obj.xyNodes(obj.hGeomNodes.getFaceNodes(iFace),:);
             
             % Get gradient matrices for geom nodes
-            [Dr, Ds] = obj.hGeomNodes.basis.gradientMatrix_rs(rr,ss);
+            [Dr, Ds] = obj.hGeomNodes.basis.gradientMatrix(rr,ss);
             
             dxy_dr = Dr*xy;
             dxy_ds = Ds*xy;
@@ -231,7 +231,7 @@ classdef TriNodalMesh < handle
             %   k = direction of geometry vertex perturbation
             %   m = geometry node index (local)
             
-            [Dr, Ds] = obj.hGeomNodes.basis.gradientMatrix_rs(rr,ss);
+            [Dr, Ds] = obj.hGeomNodes.basis.gradientMatrix(rr,ss);
             
             % J(i,j,n) is the Jacobian at output position n.
             % DJ(i,j,n,k,m) is sensitivity of J(i,j,n) to node m along k
@@ -339,7 +339,7 @@ classdef TriNodalMesh < handle
             xy = obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge, orientation), :);
             
             % Get gradient matrix for geom nodes
-            Dr = obj.hGeomNodes.basis1d.gradientMatrix_rs(rr);
+            Dr = obj.hGeomNodes.basis1d.gradientMatrix(rr);
             
             dxy_dr = Dr*xy;
         end
@@ -359,7 +359,7 @@ classdef TriNodalMesh < handle
             xy = obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge, orientation), :);
             
             % Get gradient matrix for geom nodes
-            Dr = obj.hGeomNodes.basis1d.gradientMatrix_rs(rr);
+            Dr = obj.hGeomNodes.basis1d.gradientMatrix(rr);
             
             dxy_dr = Dr*xy;
             J = transpose(dxy_dr);
@@ -373,7 +373,7 @@ classdef TriNodalMesh < handle
                 orientation = varargin{1};
             end
             
-            Dr = obj.hGeomNodes.basis1d.gradientMatrix_rs(rr);
+            Dr = obj.hGeomNodes.basis1d.gradientMatrix(rr);
             if orientation < 0
                 Dr = Dr(:, end:-1:1);
             end
@@ -594,7 +594,7 @@ classdef TriNodalMesh < handle
             [rs, bad, outOfBounds, bigSteps] = obj.inverseCoordinateTransform(iFace, xx, yy);
             
             K = obj.getInverseJacobian(iFace, rs(1,:), rs(2,:));
-            I_g = obj.hGeomNodes.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
+            I_g = obj.hGeomNodes.basis.interpolationMatrix(rs(1,:), rs(2,:));
             Drs = -multiplyTensors.tfxtf(K,3,[3],I_g,2,[1]); % (rs,xy,outIdx,geomNodeIdx)
             
             % Mathematically, at each output point there is a K matrix
@@ -620,7 +620,7 @@ classdef TriNodalMesh < handle
             rBasis = obj.hFieldNodes.basis.r;
             sBasis = obj.hFieldNodes.basis.s;
             
-            [Dr, Ds] = obj.hFieldNodes.basis.gradientMatrix_rs(rBasis, sBasis);
+            [Dr, Ds] = obj.hFieldNodes.basis.gradientMatrix(rBasis, sBasis);
             
             invJacs = obj.getInverseJacobian(iFace, rBasis, sBasis);
             
@@ -633,7 +633,7 @@ classdef TriNodalMesh < handle
             rBasis = obj.hFieldNodes.basis.r;
             sBasis = obj.hFieldNodes.basis.s;
             
-            [Dr, Ds] = obj.hFieldNodes.basis.gradientMatrix_rs(rBasis, sBasis);
+            [Dr, Ds] = obj.hFieldNodes.basis.gradientMatrix(rBasis, sBasis);
             numOut = size(Dr, 1);
             numFieldNodes = size(Dr, 2);
             
@@ -667,7 +667,7 @@ classdef TriNodalMesh < handle
             rsQuad = obj.hQuadNodes.basis.getNodes();
             
             % Interpolation matrix from field nodes to quadrature nodes
-            Ifq = obj.hFieldNodes.basis.interpolationMatrix_rs(rsQuad(:,1), rsQuad(:,2));
+            Ifq = obj.hFieldNodes.basis.interpolationMatrix(rsQuad(:,1), rsQuad(:,2));
             
             % Integration kernel on quadrature nodes
             invVq = obj.hQuadNodes.basis.invV;
@@ -685,7 +685,7 @@ classdef TriNodalMesh < handle
         function DQ = getQuadratureMatrixSensitivity(obj, iFace)
             
             rsQuad = obj.hQuadNodes.basis.getNodes();
-            Ifq = obj.hFieldNodes.basis.interpolationMatrix_rs(rsQuad(:,1), rsQuad(:,2));
+            Ifq = obj.hFieldNodes.basis.interpolationMatrix(rsQuad(:,1), rsQuad(:,2));
             invVq = obj.hQuadNodes.basis.invV;
             Qq = invVq' * invVq;
             
@@ -717,7 +717,7 @@ classdef TriNodalMesh < handle
                 rQuad = rQuad(end:-1:1);
             end
             
-            Ifq = obj.hFieldNodes.basis1d.interpolationMatrix_r(rQuad);
+            Ifq = obj.hFieldNodes.basis1d.interpolationMatrix(rQuad);
             
             invVq = obj.hQuadNodes.basis1d.invV;
             Qq = invVq' * invVq;
@@ -741,7 +741,7 @@ classdef TriNodalMesh < handle
                 rQuad = rQuad(end:-1:1);
             end
             
-            Ifq = obj.hFieldNodes.basis1d.interpolationMatrix_r(rQuad);
+            Ifq = obj.hFieldNodes.basis1d.interpolationMatrix(rQuad);
             invVq = obj.hQuadNodes.basis1d.invV;
             Qq = invVq' * invVq;
             
@@ -924,7 +924,7 @@ classdef TriNodalMesh < handle
                     continue
                 end
                 
-                M = obj.hFieldNodes.basis.interpolationMatrix_rs(rr(iPoint), ss(iPoint));
+                M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
                 iGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 
                 outI(iPoint, iGlobal) = M;
@@ -933,120 +933,6 @@ classdef TriNodalMesh < handle
             
         end
         
-        % To implement this function I will need to invert the coordinate
-        % transformation.
-        function [outI] = getInterpolationOperator(obj, xs, ys)
-            
-            %warning('This function uses inaccurate point-in-element tests')
-            
-            assert(isvector(xs));
-            assert(isvector(ys));
-            
-            numPts = length(xs);
-            numNodes = obj.hFieldNodes.getNumNodes();
-            outI = sparse(numPts, numNodes);
-            count = zeros(numPts, 1);
-            
-            if numPts == 0
-                return
-            end
-            
-            [iEnclosingFaces, rr, ss] = obj.getEnclosingFaces(xs,ys);
-            
-            %tr = triangulation(obj.hMesh.getFaceVertices(), obj.xyNodes);
-            %iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
-            numFaces = obj.hMesh.getNumFaces();
-            
-            for ff = 1:numFaces
-                iPoint = find(iEnclosingFaces == ff);
-                
-                if isempty(iPoint)
-                    continue
-                end
-                
-                M = obj.hFieldNodes.basis.interpolationMatrix_rs(rr(iPoint), ss(iPoint));
-                iGlobal = obj.hFieldNodes.getFaceNodes(ff);
-                outI(iPoint, iGlobal) = M;
-                % Original idea: sum and then keep a count to handle the
-                % averaging on boundaries.  I want to be simpler.
-                %outI(iPoint, iGlobal) = outI(iPoint, iGlobal) + M;
-                %count(iPoint) = count(iPoint)+1;
-                
-            end
-
-            % This handles averaging on boundaries.
-            % Usually each output point will inside only one face.
-            % However in case a point is on a boundary between faces
-            % ...
-            % Instead of summing up above let's just overwrite.
-            %normalizer = spdiags(1./count, 0, numPts, numPts);
-            %outI = normalizer * outI;
-            
-        end
-        
-        
-        function dIdv = getInterpolationOperatorSensitivity(obj, xs, ys)
-            % dIdv = getInterpolationOperatorSensitivity(xs, ys)
-            %
-            
-            numPts = length(xs);
-            numNodes = obj.hNodes.getNumNodes();
-            numVertices = obj.hMesh.getNumVertices();
-            numFaces = obj.hMesh.getNumFaces();
-            
-            if numPts == 0
-                return
-            end
-            
-            dIdv = cell(numVertices, 2);
-            for nn = 1:numel(dIdv)
-                dIdv{nn} = sparse(numPts, numNodes);
-            end
-            
-            %count = cell(numVertices,2);
-            %for nn = 1:numel(count)
-            %    count{nn} = zeros(numPts, 1);
-            %end
-            
-            
-            tr = triangulation(obj.hMesh.getFaceVertices(), obj.vertices);
-            iEnclosingFaces = tr.pointLocation(xs(:), ys(:));
-            
-            for ff = 1:numFaces
-                iPoint = find(iEnclosingFaces == ff);
-                if isempty(iPoint)
-                    continue
-                end
-                iGlobal = obj.hNodes.getFaceNodes(ff);
-                iGlobalVertices = obj.hMesh.getFaceVertices(ff);
-                
-                xy = [xs(iPoint)'; ys(iPoint)'];
-                xyTri = obj.vertices(obj.hMesh.getFaceVertices(ff),:)';
-                
-                %M = obj.basis.interpolationMatrix_xy(xyTri, xy(1,:), xy(2,:));
-                
-                for iVert = 1:3
-                    iGlobalVert = iGlobalVertices(iVert);
-                    for iXY = 1:2
-                        DxyTri = zeros(size(xyTri));
-                        DxyTri(iXY, iVert) = 1;
-                        
-                        DM = obj.hNodes.basis.interpolationMatrixSensitivity_nodal_xy(xyTri, DxyTri, xy(1,:), xy(2,:));
-                        dIdv{iGlobalVert,iXY}(iPoint, iGlobal) = DM;
-                        %dIdv{iVert,iXY}(iPoint, iGlobal) = dIdv{iVert,iXY}(iPoint, iGlobal) + DM;
-                        %count{iVert,iXY}(iPoint) = count{iVert,iXY}(iPoint) + 1;
-                    end
-                end
-                
-            end
-            
-            %for nn = 1:numel(dIdv)
-            %    % this handles averaging on boundaries
-            %    normalizer = spdiags(1./count{nn}, 0, numPts, numPts);
-            %    dIdv{nn} = normalizer * dIdv{nn};
-            %end
-            
-        end
         
         % ---- POINT-IN-ELEMENT
         

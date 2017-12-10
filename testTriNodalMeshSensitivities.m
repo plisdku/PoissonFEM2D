@@ -229,6 +229,8 @@ for mm = 1:tnMesh.hGeomNodes.N
     end
 end
 
+%% 
+
 
 %% Let's try to assemble a system matrix for a whole grid!!
 

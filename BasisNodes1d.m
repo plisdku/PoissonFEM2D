@@ -31,7 +31,7 @@ classdef BasisNodes1d
         
         % ---- DIFFERENTIATION
         
-        function Dr = gradientMatrix_rs(obj, rr)
+        function Dr = gradientMatrix(obj, rr)
             
             dVdr = support.gradVandermonde(obj.N, rr);
             
@@ -40,30 +40,9 @@ classdef BasisNodes1d
         
         % ---- INTERPOLATION
         
-        function M = interpolationMatrix_r(obj, rr)
+        function M = interpolationMatrix(obj, rr)
             V2 = support.vandermonde(obj.N, rr);
             M = V2 * obj.invV;
-        end
-        
-        %function outVals = interpolate(obj, vals, rr)
-        %%%%function outVals = interpolate(obj, vals, edgeVerts, xx)
-        function outVals = interpolate(obj, vals, varargin)
-            
-            if nargin == 3
-                rr = varargin{1};
-                M = obj.interpolationMatrix_r(rr);
-                outVals = M*vals;
-            elseif nargin == 4
-                error('unimplemented');
-%                 triVerts = varargin{1};
-%                 xx = varargin{2};
-%                 
-%                 M = obj.interpolationMatrix_xy(triVerts, xx, yy);
-%                 outVals = M*vals;
-            else
-                error('shit');
-            end
-                
         end
         
         % ---- NODE COORDINATES
