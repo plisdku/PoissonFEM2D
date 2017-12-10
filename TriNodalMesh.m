@@ -759,6 +759,31 @@ classdef TriNodalMesh < handle
             end
         end
         
+        % ---- INTERPOLATION
+        
+        function [M, rs] = getFaceInterpolationMatrix(obj, iFace, xx, yy)
+
+            [rs, bad] = obj.inverseCoordinateTransform(iFace, xx, yy);
+            
+            M = obj.hFieldNodes.basis.interpolationMatrix(rs(1,:), rs(2,:));
+        end
+        
+        function [DM,M,Drs,rs] = getFaceInterpolationMatrixSensitivity(obj, iFace, xx, yy)
+            
+            [rs, bad] = obj.inverseCoordinateTransform(iFace, xx, yy);
+            
+            M = obj.hFieldNodes.basis.interpolationMatrix(rs(1,:), rs(2,:));
+              
+            Drs = obj.inverseCoordinateTransformSensitivity(iFace, xx, yy);
+            Dr = squish(Drs(1,:,:,:));
+            Ds = squish(Drs(2,:,:,:));
+
+            [dMdr, dMds] = obj.hFieldNodes.basis.gradientMatrix(rs(1,:), rs(2,:));
+
+            DM = multiplyTensors.tfxtf(dMdr, 2, [1], Dr, 3, [1]) + ...
+                multiplyTensors.tfxtf(dMds, 2, [1], Ds, 3, [1]);
+        end
+        
         
         % ---- FULL-MESH OPERATORS
         
@@ -933,8 +958,57 @@ classdef TriNodalMesh < handle
             
         end
         
+        function [DoutI, outI] = getRasterInterpolationOperatorSensitivity(obj, corner0, corner1, Nxy)
+            
+            numPts = prod(Nxy);
+            numFieldNodes = obj.hFieldNodes.getNumNodes();
+            numGeomNodes = obj.hFieldNodes.getNumNodes();
+            numFaces = obj.hMesh.getNumFaces();
+            
+            outI = sparse(numPts, numFieldNodes);
+            DoutI = cell(2, numGeomNodes);
+            for nn = 1:numel(DoutI)
+                DoutI{nn} = sparse(numPts, numFieldNodes);
+            end
+            
+            [iEnclosingFaces, rr, ss] = obj.rasterize(corner0, corner1, Nxy);
+            
+            for ff = 1:numFaces
+                iPoint = find(iEnclosingFaces == ff);
+                
+                if isempty(iPoint)
+                    continue
+                end
+                
+                Drs = obj.inverseCoordinateTransformSensitivity(ff, rr(iPoint), ss(iPoint));
+                Dr = squish(Drs(1,:,:,:));
+                Ds = squish(Drs(2,:,:,:));
+                
+                M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
+                [dMdr, dMds] = obj.hFieldNodes.basis.gradientMatrix(rr(iPoint), ss(iPoint));
+                
+                DM = multiplyTensors.tfxtf(dMdr, 2, [1], Dr, 3, [1]) + ...
+                    multiplyTensors.tfxtf(dMds, 2, [1], Ds, 3, [1]);
+                
+                iFieldGlobal = obj.hFieldNodes.getFaceNodes(ff);
+                iGeomGlobal = obj.hGeomNodes.getFaceNodes(ff);
+                
+                
+                for mm = 1:length(iGeomGlobal)
+                    for kk = 1:2
+                        DoutI{kk,iGeomGlobal(mm)}(iPoint,iFieldGlobal) = ...
+                            DoutI{kk,iGeomGlobal(mm)}(iPoint,iFieldGlobal) + DM(:,:,kk,mm);
+                    end
+                end
+                
+                outI(iPoint, iFieldGlobal) = M;
+                
+            end
+            
+        end
         
-        % ---- POINT-IN-ELEMENT
+        
+        % ---- MISCELLANY
         
         
         function xy = getFaceBoundary(obj, iFace)

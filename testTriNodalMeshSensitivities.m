@@ -210,12 +210,12 @@ end
 
 %% Inverse coordinate transformation sensitivity
 
-xx = [0.3, 0.4];
-yy = [0.5, 0.5];
+xx = [0.3, .35, 0.4];
+yy = [0.5, .45, 0.4];
 
 [Drs, rs, bad, outOfBounds, bigSteps] = tnMesh.inverseCoordinateTransformSensitivity(1, xx, yy);
 
-iGlobal = tnMesh.hGeomNodes.getEdgeNodes(iEdge);
+iGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
 for mm = 1:tnMesh.hGeomNodes.N
     for dirIdx = 1:2
         rs2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).inverseCoordinateTransform(1, xx, yy);
@@ -229,7 +229,48 @@ for mm = 1:tnMesh.hGeomNodes.N
     end
 end
 
-%% 
+%% Face interpolation matrix sensitivity
+
+xx = [0.3, .35, 0.4];
+yy = [0.5, .45, 0.4];
+[DM, M, Drs, rs] = tnMesh.getFaceInterpolationMatrixSensitivity(1, xx, yy);
+
+iGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
+for mm = 1:tnMesh.hGeomNodes.basis.numNodes
+    for dirIdx = 1:2
+        [M2, rs2] = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getFaceInterpolationMatrix(1, xx, yy);
+        DM_meas = (M2-M)/delta;
+        DM_calc = DM(:,:,dirIdx,mm);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(DM_calc, DM_meas);
+        if ~same
+            fprintf('Drs error %0.4e out of %0.4e ***\n', normDiff, normExact);
+        end
+    end
+end
+
+
+%% Raster interpolation matrix sensitivity
+% For fixed output (x,y) but shifting mesh.
+
+[DoutI, outI] = tnMesh.getRasterInterpolationOperatorSensitivity([0.1,0.1], [0.9, 0.9], [5,5]);
+
+iGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
+
+for mm = 1:tnMesh.hGeomNodes.N
+    for dirIdx = 1:2
+        outI2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getRasterInterpolationOperator([0,0], [1,1], [5,5]);
+        DI_meas = (outI2-outI)/delta;
+        DI_calc = DoutI{dirIdx,mm};
+        
+        %[same, relErr, normDiff, normExact] = compareNorms(Drs_calc, Drs_meas);
+        %if ~same
+        %    fprintf('Drs error %0.4e out of %0.4e ***\n', normDiff, normExact);
+        %end
+    end
+end
+
+% TODO: element interpolation matrix and sensitivity!!!!!!!!!
 
 
 %% Let's try to assemble a system matrix for a whole grid!!
