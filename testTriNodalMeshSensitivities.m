@@ -8,6 +8,10 @@ N_field = 4;
 N_geom = 3;
 N_quad = N_field;
 
+%N_field = 2;
+%N_geom = 2;
+%N_quad = 2;
+
 lng = LinearNodalGeometry(faces, vertices, N_geom);
 xyNodes = lng.getNodeCoordinates();
 tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
@@ -231,14 +235,16 @@ end
 
 %% Face interpolation matrix sensitivity
 
-xx = [0.3, .35, 0.4];
-yy = [0.5, .45, 0.4];
-[DM, M, Drs, rs] = tnMesh.getFaceInterpolationMatrixSensitivity(1, xx, yy);
+%xx = [0.3, .35, 0.4];
+%yy = [0.5, .45, 0.4];
+xx = [0.1, 0.1, 0.1, 0.1];
+yy = [0.1, 0.1, 0.1, 0.1];
+[DM, M] = tnMesh.getFaceInterpolationMatrixSensitivity(1, xx, yy);
 
 iGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
 for mm = 1:tnMesh.hGeomNodes.basis.numNodes
     for dirIdx = 1:2
-        [M2, rs2] = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getFaceInterpolationMatrix(1, xx, yy);
+        [M2] = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getFaceInterpolationMatrix(1, xx, yy);
         DM_meas = (M2-M)/delta;
         DM_calc = DM(:,:,dirIdx,mm);
         
@@ -253,25 +259,27 @@ end
 %% Raster interpolation matrix sensitivity
 % For fixed output (x,y) but shifting mesh.
 
-[DoutI, outI] = tnMesh.getRasterInterpolationOperatorSensitivity([0.1,0.1], [0.9, 0.9], [5,5]);
+xy0 = [0.1, 0.1];
+xy1 = [0.4, 0.4];
+Nxy = [5, 5];
+
+[DoutI, outI] = tnMesh.getRasterInterpolationOperatorSensitivity(xy0, xy1, Nxy);
 
 iGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
 
-for mm = 1:tnMesh.hGeomNodes.N
+for mm = 1:length(iGlobal)
     for dirIdx = 1:2
-        outI2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getRasterInterpolationOperator([0,0], [1,1], [5,5]);
+        fprintf('m = %i dir = %i\n', mm, dirIdx);
+        outI2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getRasterInterpolationOperator(xy0, xy1, Nxy);
         DI_meas = (outI2-outI)/delta;
-        DI_calc = DoutI{dirIdx,mm};
+        DI_calc = DoutI{dirIdx,iGlobal(mm)};
         
-        %[same, relErr, normDiff, normExact] = compareNorms(Drs_calc, Drs_meas);
-        %if ~same
-        %    fprintf('Drs error %0.4e out of %0.4e ***\n', normDiff, normExact);
-        %end
+        [same, relErr, normDiff, normExact] = compareNorms(DI_calc, DI_meas);
+        if ~same
+            fprintf('Drs error %0.4e out of %0.4e ***\n', normDiff, normExact);
+        end
     end
 end
-
-% TODO: element interpolation matrix and sensitivity!!!!!!!!!
-
 
 %% Let's try to assemble a system matrix for a whole grid!!
 

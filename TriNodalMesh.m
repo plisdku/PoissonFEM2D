@@ -590,11 +590,15 @@ classdef TriNodalMesh < handle
         
         
         function [Drs, rs, bad, outOfBounds, bigSteps] = inverseCoordinateTransformSensitivity(obj, iFace, xx, yy)
-            
             [rs, bad, outOfBounds, bigSteps] = obj.inverseCoordinateTransform(iFace, xx, yy);
             
-            K = obj.getInverseJacobian(iFace, rs(1,:), rs(2,:));
-            I_g = obj.hGeomNodes.basis.interpolationMatrix(rs(1,:), rs(2,:));
+            Drs = obj.inverseCoordinateTransformSensitivity_rs(iFace, rs(1,:), rs(2,:));
+        end
+            
+        function Drs = inverseCoordinateTransformSensitivity_rs(obj, iFace, rr, ss)
+            
+            K = obj.getInverseJacobian(iFace, rr, ss);
+            I_g = obj.hGeomNodes.basis.interpolationMatrix(rr, ss);
             Drs = -multiplyTensors.tfxtf(K,3,[3],I_g,2,[1]); % (rs,xy,outIdx,geomNodeIdx)
             
             % Mathematically, at each output point there is a K matrix
@@ -761,28 +765,33 @@ classdef TriNodalMesh < handle
         
         % ---- INTERPOLATION
         
-        function [M, rs] = getFaceInterpolationMatrix(obj, iFace, xx, yy)
+        function [M] = getFaceInterpolationMatrix(obj, iFace, xx, yy)
 
             [rs, bad] = obj.inverseCoordinateTransform(iFace, xx, yy);
             
             M = obj.hFieldNodes.basis.interpolationMatrix(rs(1,:), rs(2,:));
         end
         
-        function [DM,M,Drs,rs] = getFaceInterpolationMatrixSensitivity(obj, iFace, xx, yy)
+        function [DM,M] = getFaceInterpolationMatrixSensitivity(obj, iFace, xx, yy)
             
             [rs, bad] = obj.inverseCoordinateTransform(iFace, xx, yy);
+            [DM, M] = obj.getFaceInterpolationMatrixSensitivity_rs(iFace, rs(1,:), rs(2,:));
+        end
+        
+        function [DM,M] = getFaceInterpolationMatrixSensitivity_rs(obj, iFace, rr, ss)
             
-            M = obj.hFieldNodes.basis.interpolationMatrix(rs(1,:), rs(2,:));
+            M = obj.hFieldNodes.basis.interpolationMatrix(rr, ss);
               
-            Drs = obj.inverseCoordinateTransformSensitivity(iFace, xx, yy);
+            Drs = obj.inverseCoordinateTransformSensitivity_rs(iFace, rr, ss);
             Dr = squish(Drs(1,:,:,:));
             Ds = squish(Drs(2,:,:,:));
 
-            [dMdr, dMds] = obj.hFieldNodes.basis.gradientMatrix(rs(1,:), rs(2,:));
+            [dMdr, dMds] = obj.hFieldNodes.basis.gradientMatrix(rr, ss);
 
             DM = multiplyTensors.tfxtf(dMdr, 2, [1], Dr, 3, [1]) + ...
                 multiplyTensors.tfxtf(dMds, 2, [1], Ds, 3, [1]);
         end
+        
         
         
         % ---- FULL-MESH OPERATORS
@@ -980,19 +989,20 @@ classdef TriNodalMesh < handle
                     continue
                 end
                 
-                Drs = obj.inverseCoordinateTransformSensitivity(ff, rr(iPoint), ss(iPoint));
-                Dr = squish(Drs(1,:,:,:));
-                Ds = squish(Drs(2,:,:,:));
+%                 Drs = obj.inverseCoordinateTransformSensitivity_rs(ff, rr(iPoint), ss(iPoint));
+%                 Dr = squish(Drs(1,:,:,:));
+%                 Ds = squish(Drs(2,:,:,:));
+%                 
+%                 M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
+%                 [dMdr, dMds] = obj.hFieldNodes.basis.gradientMatrix(rr(iPoint), ss(iPoint));
+%                 
+%                 DM = multiplyTensors.tfxtf(dMdr, 2, [1], Dr, 3, [1]) + ...
+%                     multiplyTensors.tfxtf(dMds, 2, [1], Ds, 3, [1]);
                 
-                M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
-                [dMdr, dMds] = obj.hFieldNodes.basis.gradientMatrix(rr(iPoint), ss(iPoint));
-                
-                DM = multiplyTensors.tfxtf(dMdr, 2, [1], Dr, 3, [1]) + ...
-                    multiplyTensors.tfxtf(dMds, 2, [1], Ds, 3, [1]);
+                [DM,M] = obj.getFaceInterpolationMatrixSensitivity_rs(ff, rr(iPoint), ss(iPoint));
                 
                 iFieldGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 iGeomGlobal = obj.hGeomNodes.getFaceNodes(ff);
-                
                 
                 for mm = 1:length(iGeomGlobal)
                     for kk = 1:2
