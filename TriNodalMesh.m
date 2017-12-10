@@ -589,10 +589,26 @@ classdef TriNodalMesh < handle
         end
         
         
-        function Drs = inverseCoordinateTransformSensitivity(obj, iFace, xx, yy)
+        function [Drs, rs, bad, outOfBounds, bigSteps] = inverseCoordinateTransformSensitivity(obj, iFace, xx, yy)
             
             [rs, bad, outOfBounds, bigSteps] = obj.inverseCoordinateTransform(iFace, xx, yy);
             
+            K = obj.getInverseJacobian(iFace, rs(1,:), rs(2,:));
+            I_g = obj.hGeomNodes.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
+            Drs = -multiplyTensors.tfxtf(K,3,[3],I_g,2,[1]); % (rs,xy,outIdx,geomNodeIdx)
+            
+            % Mathematically, at each output point there is a K matrix
+            % and a row of the interpolation matrix Ig, and we are just
+            % taking the outer product of K(:,:,node) and Ig(node,:) at
+            % each node.  There is no contraction here, just pointwise
+            % multiplying a [2x2xN] with [NxM] to get [2x2xNxM].
+            %
+            % But then we should rearrange the indices a bit to match
+            % the convention used elsewhere.
+            
+            % Drs should be indexed (rs, nOut, dirIdx, geomNodeIdx)
+            
+            Drs = permute(Drs, [1,3,2,4]);
             
         end
         

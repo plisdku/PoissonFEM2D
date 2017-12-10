@@ -208,23 +208,19 @@ for mm = 1:tnMesh.hGeomNodes.N
     end
 end
 
-%% Inverse coordinate transform
+%% Inverse coordinate transformation sensitivity
 
 xx = [0.3, 0.4];
 yy = [0.5, 0.5];
 
-[rs, bad, outOfBounds, bigSteps] = tnMesh.inverseCoordinateTransform(1, xx, yy);
-       
-K = tnMesh.getInverseJacobian(1, rs(1,:), rs(2,:));
-I_g = tnMesh.hGeomNodes.basis.interpolationMatrix_rs(rs(1,:), rs(2,:));
-drs_dxyg = -multiplyTensors.tfxtf(K,3,[3],I_g,2,[1]); % (rs,xy,outIdx,geomNodeIdx)
+[Drs, rs, bad, outOfBounds, bigSteps] = tnMesh.inverseCoordinateTransformSensitivity(1, xx, yy);
 
 iGlobal = tnMesh.hGeomNodes.getEdgeNodes(iEdge);
 for mm = 1:tnMesh.hGeomNodes.N
     for dirIdx = 1:2
         rs2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).inverseCoordinateTransform(1, xx, yy);
         Drs_meas = (rs2-rs)/delta;
-        Drs_calc = squish(drs_dxyg(:,dirIdx,:,mm));
+        Drs_calc = Drs(:,:,dirIdx,mm);
         
         [same, relErr, normDiff, normExact] = compareNorms(Drs_calc, Drs_meas);
         if ~same
