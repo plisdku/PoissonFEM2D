@@ -589,6 +589,14 @@ classdef TriNodalMesh < handle
         end
         
         
+        function Drs = inverseCoordinateTransformSensitivity(obj, iFace, xx, yy)
+            
+            [rs, bad, outOfBounds, bigSteps] = obj.inverseCoordinateTransform(iFace, xx, yy);
+            
+            
+        end
+        
+        
         % ---- DIFFERENTIATION
         
         function [outDx, outDy] = getFaceGradientMatrices(obj, iFace)
