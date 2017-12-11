@@ -841,8 +841,6 @@ classdef TriNodalMesh < handle
                 multiplyTensors.tfxtf(dMds, 2, [1], Ds, 3, [1]);
         end
         
-        
-        
         % ---- FULL-MESH OPERATORS
         
         function outQ = getQuadratureOperator(obj)

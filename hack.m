@@ -41,8 +41,12 @@ axis image
 %% Set up the problem
 
 dirichletPredicate = @(x,y) 1; % everything is dirichlet
+freeChargeFunc = @(x,y) x*y;
+dirichletFunc = @(x,y) 0; %double(x>0);
+neumannFunc = @(x,y) 0;
+
 f = FEMProblem(poi, dirichletPredicate);
-f.setSources(@(x,y) 0, @(x,y) 0, @(x,y) 0);
+f.setSources(freeChargeFunc, dirichletFunc, neumannFunc);
 
 %% Objective function
 
@@ -55,6 +59,18 @@ f.solve(objFun);
 fprintf('F = %0.4e\n', f.F);
 
 f.solveAdjoint(DobjFun);
+
+%% Plot the field
+
+xCoarse = linspace(-1.2, 1.2, 40);
+yCoarse = linspace(-1.2, 1.2, 40);
+
+figure(1); clf
+u = f.poi.tnMesh.rasterizeField(f.u, xCoarse, yCoarse);
+imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
+hold on
+f.poi.tnMesh.plotMesh('color', 'w');
+
 
 %% Perturb Dirichlet
 
@@ -81,7 +97,7 @@ for ii = 1:length(f.iDirichlet)
     colorbar
     hold on
     g.poi.tnMesh.plotMesh('color', 'w');
-    pause
+    %pause
 end
 
 %% Perturb free charge
@@ -101,16 +117,51 @@ for ii = 1:numNodes
     
     fprintf('%0.4e vs %0.4e\n', dF_meas, dF_calc);
     
-    figure(1); clf
-    u = g.poi.tnMesh.rasterizeField(g.u, xCoarse, yCoarse);
-    imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
-    hold on
-    g.poi.tnMesh.plotMesh('color', 'w');
-    plot(xy(ii,1), xy(ii,2), 'wo');
-    pause
+    %figure(1); clf
+    %u = g.poi.tnMesh.rasterizeField(g.u, xCoarse, yCoarse);
+    %imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
+    %hold on
+    %g.poi.tnMesh.plotMesh('color', 'w');
+    %plot(xy(ii,1), xy(ii,2), 'wo');
+    %pause
 end
 
 %% Perturb Neumann
+
+%% Perturb geometry nodes
+
+delta = 1e-8;
+
+xy = f.poi.tnMesh.xyNodes;
+
+for mm = 1:f.poi.tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        g = f.perturbedMesh(mm, dirIdx, delta);
+        g.solve(objFun);
+        
+        dF_meas = (g.F - f.F)/delta;
+        dF_calc = f.dF_dxy(mm,dirIdx);
+        
+        dCharge_meas = (g.freeCharge - f.freeCharge)/delta;
+        if dirIdx == 1
+            dCharge_calc = f.dFreeCharge_dx(:,mm);
+        else
+            dCharge_calc = f.dFreeCharge_dy(:,mm);
+        end
+        
+        disp([dCharge_meas, dCharge_calc]);
+        
+        fprintf('Measured %0.7e expected %0.7e\n', dF_meas, dF_calc);
+        
+        %figure(1); clf
+        %u = g.poi.tnMesh.rasterizeField(g.u, xCoarse, yCoarse);
+        %imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
+        %hold on
+        %g.poi.tnMesh.plotMesh('color', 'w');
+        %plot(xy(mm,1), xy(mm,2), 'wo');
+        %pause
+    end
+end
 
 %% System matrices
 

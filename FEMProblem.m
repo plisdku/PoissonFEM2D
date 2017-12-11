@@ -7,13 +7,19 @@ classdef FEMProblem < handle
         iNeumann
         iCenter
         
+        dirichletFunc
+        neumannFunc
+        chargeFunc
+        
         u;
         v;
         
-        F, u0_dirichlet, dF_dud, freeCharge, dFreeCharge_dv, dF_df, en_neumann, dF_den, dFdv_total;
+        F, u0_dirichlet, dF_dud, freeCharge, dFreeCharge_dx, dFreeCharge_dy, dF_df, en_neumann, dF_den, dFdv_total;
         
         dF_dCharge;
         dF_dDirichlet;
+        dF_dNeumann;
+        dF_dxy;
         
         A, dA;
         B, dB;
@@ -38,10 +44,7 @@ classdef FEMProblem < handle
             other.iDirichlet = obj.iDirichlet;
             other.iNeumann = obj.iNeumann;
             other.iCenter = obj.iCenter;
-            
-            other.u0_dirichlet = obj.u0_dirichlet;
-            other.freeCharge = obj.freeCharge;
-            other.en_neumann = obj.en_neumann;
+            other.setSources(obj.chargeFunc, obj.dirichletFunc, obj.neumannFunc);
         end
         
         function other = perturbedDirichlet(obj, dirichletIdx, delta)
@@ -65,10 +68,14 @@ classdef FEMProblem < handle
         function other = perturbedMesh(obj, nodeIdx, dirIdx, delta)
             other = obj.copyModel();
             other.poi.tnMesh = obj.poi.tnMesh.perturbed(nodeIdx, dirIdx, delta);
+            other.setSources(obj.chargeFunc, obj.dirichletFunc, obj.neumannFunc); % need to rerun
         end
         
-        
         function setSources(obj, freeChargeFunction, dirichletFunction, neumannFunction)
+            
+            obj.chargeFunc = freeChargeFunction;
+            obj.dirichletFunc = dirichletFunction;
+            obj.neumannFunc = neumannFunction;
             
             xy = obj.poi.tnMesh.getNodeCoordinates();
             
@@ -78,18 +85,16 @@ classdef FEMProblem < handle
             obj.u0_dirichlet = zeros(length(obj.iDirichlet),1);
             obj.en_neumann = zeros(length(obj.iNeumann),1);
             
-            for nn = 1:numNodes
-                obj.freeCharge(nn) = freeChargeFunction(xy(nn,1), xy(nn,2));
-            end
+            [obj.freeCharge, obj.dFreeCharge_dx, obj.dFreeCharge_dy] = obj.poi.evaluateOnNodes(obj.chargeFunc);
             
             for nn = 1:length(obj.iDirichlet)
                 jj = obj.iDirichlet(nn);
-                obj.u0_dirichlet(nn) = dirichletFunction(xy(jj,1), xy(jj,2));
+                obj.u0_dirichlet(nn) = obj.dirichletFunc(xy(jj,1), xy(jj,2));
             end
             
             for nn = 1:length(obj.iNeumann)
                 jj = obj.iNeumann(nn);
-                obj.en_neumann(nn) = neumannFunction(xy(jj,1), xy(jj,2));
+                obj.en_neumann(nn) = obj.neumannFunc(xy(jj,1), xy(jj,2));
             end
         end
         
@@ -161,7 +166,34 @@ classdef FEMProblem < handle
             
             obj.dF_dNeumann = v_center' * NM_neumann;
             
-            % Sensitivity to 
+            % Sensitivity to perturbing geometry nodes
+            
+            numGeomNodes = obj.poi.tnMesh.hGeomNodes.getNumNodes();
+            
+            obj.dF_dxy = zeros(numGeomNodes,2);
+            
+            for mm = 1:numGeomNodes
+                
+                wx = -obj.dA{1,mm}(obj.iCenter, obj.iCenter)*obj.u(obj.iCenter)...
+                    - obj.dA{1,mm}(obj.iCenter, obj.iDirichlet)*obj.u0_dirichlet ...
+                    + obj.dNM{1,mm}(obj.iCenter, obj.iNeumann)*obj.en_neumann ...
+                    + obj.dB{1,mm}(obj.iCenter, :)*obj.freeCharge ...
+                    + obj.B(obj.iCenter,:)*obj.dFreeCharge_dx(:,mm);
+                
+                wy = -obj.dA{2,mm}(obj.iCenter, obj.iCenter)*obj.u(obj.iCenter)...
+                    - obj.dA{2,mm}(obj.iCenter, obj.iDirichlet)*obj.u0_dirichlet ...
+                    + obj.dNM{2,mm}(obj.iCenter, obj.iNeumann)*obj.en_neumann ...
+                    + obj.dB{2,mm}(obj.iCenter, :)*obj.freeCharge ...
+                    + obj.B(obj.iCenter,:)*obj.dFreeCharge_dy(:,mm);
+                
+                dFdx = v_center'*wx;
+                dFdy = v_center'*wy;
+                
+                obj.dF_dxy(mm,1) = dFdx;
+                obj.dF_dxy(mm,2) = dFdy;
+            end
+
+
         end
         
         
