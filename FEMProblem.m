@@ -1,11 +1,11 @@
 classdef FEMProblem < handle
     
     properties
-        fem@PoissonFEM2D;
+        poi@PoissonFEM2D;
         
-        iNodesDirichlet
-        iNodesNeumann
-        iNodesCenter
+        iDirichlet
+        iNeumann
+        iCenter
         
         u;
         v;
@@ -21,29 +21,38 @@ classdef FEMProblem < handle
     
     methods
         
-        function obj = FEMProblem(N, faces, vertices, dirichletPredicate)
-            meshNodes = TriNodalMesh(N, faces, vertices);
-            obj.fem = PoissonFEM2D(meshNodes);
+        function obj = FEMProblem(poissonFEM, dirichletPredicate)
+            obj.poi = poissonFEM;
             
-            numNodes = obj.fem.meshNodes.hNodes.getNumNodes();
-            [obj.iNodesDirichlet, obj.iNodesNeumann] = obj.classifyEdges(dirichletPredicate);
-            obj.iNodesCenter = setdiff(1:numNodes, obj.iNodesDirichlet);
+            numNodes = obj.poi.tnMesh.hFieldNodes.getNumNodes();
+            
+            [obj.iDirichlet, obj.iNeumann] = obj.classifyBoundary(dirichletPredicate);
+            obj.iCenter = setdiff(1:numNodes, obj.iDirichlet);
         end
         
         function setSources(obj, freeChargeFunction, dirichletFunction, neumannFunction)
             
-            xyNodes = obj.fem.meshNodes.getNodeCoordinates();
+            xy = obj.poi.tnMesh.getNodeCoordinates();
             
-            % Free charge
-            [obj.freeCharge, obj.dFreeCharge_dv] = obj.fem.evaluateOnNodes(freeChargeFunction);
+            numNodes = size(xy, 1);
             
-            % Dirichlet boundary condition
-            obj.u0_dirichlet = dirichletFunction(xyNodes(obj.iNodesDirichlet,:));
+            obj.freeCharge = zeros(numNodes,1);
+            obj.u0_dirichlet = zeros(length(obj.iDirichlet),1);
+            obj.en_neumann = zeros(length(obj.iNeumann),1);
             
-            % Neumann boundary condition
-            obj.en_neumann = neumannFunction(xyNodes(obj.iNodesNeumann,:));
+            for nn = 1:numNodes
+                obj.freeCharge(nn) = freeChargeFunction(xy(nn,1), xy(nn,2));
+            end
             
+            for nn = 1:length(obj.iDirichlet)
+                jj = obj.iDirichlet(nn);
+                obj.u0_dirichlet(nn) = dirichletFunction(xy(jj,1), xy(jj,2));
+            end
             
+            for nn = 1:length(obj.iNeumann)
+                jj = obj.iNeumann(nn);
+                obj.en_neumann(nn) = neumannFunction(xy(jj,1), xy(jj,2));
+            end
         end
         
         function solve(obj, evalPt)
@@ -165,24 +174,19 @@ classdef FEMProblem < handle
         
         
         % dirichletPredicate([v1x,v1y], [v2x,v2y])
-        function [iNodesDirichlet, iNodesNeumann, iNodesBoundary] = classifyEdges(obj, dirichletPredicate)
+        function [iDirichlet, iNeumann, iBoundary] = classifyBoundary(obj, dirichletPredicate)
             
-            iBoundaryEdges = obj.fem.meshNodes.hMesh.getBoundaryEdges();
+            iBoundary = obj.poi.tnMesh.hFieldNodes.getBoundaryNodes();
+            xyBoundary = obj.poi.tnMesh.getBoundaryNodeCoordinates();
             
-            flagDirichlet = false(length(iBoundaryEdges),1);
-            for ii = 1:length(iBoundaryEdges)
-                iEdge = iBoundaryEdges(ii);
-                verts = obj.fem.meshNodes.getVertexNodeCoordinates(...
-                    obj.fem.meshNodes.hMesh.getEdgeVertices(iEdge));
-                
-                flagDirichlet(ii) = dirichletPredicate(verts(1,:), verts(2,:));
+            flagDirichlet = 0*iBoundary;
+            for ii = 1:length(iBoundary)
+                xy = xyBoundary(ii,:);
+                flagDirichlet(ii) = dirichletPredicate(xy(1), xy(2));
             end
             
-            iDirichletEdges = iBoundaryEdges(flagDirichlet);
-            
-            iNodesBoundary = obj.fem.meshNodes.hNodes.getBoundaryNodes();
-            iNodesDirichlet = obj.fem.meshNodes.hNodes.getEdgeNodes(iDirichletEdges);
-            iNodesNeumann = setdiff(iNodesBoundary, iNodesDirichlet);
+            iDirichlet = iBoundary(flagDirichlet ~= 0);
+            iNeumann = setdiff(iBoundary, iDirichlet);
         end
         
     end
