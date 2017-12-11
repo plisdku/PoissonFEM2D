@@ -16,9 +16,33 @@ lng = LinearNodalGeometry(faces, vertices, N_geom);
 xyNodes = lng.getNodeCoordinates();
 tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
 
-%% Jacobian sensitivity
-
 delta = 1e-8;
+
+%% Coordinate sensitivity
+
+xy = tnMesh.getNodeCoordinates();
+dxdx = tnMesh.getNodeCoordinateSensitivities();
+zeds = zeros(size(dxdx,1),1);
+
+for mm = 1:tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        xy2 = tnMesh.perturbed(mm, dirIdx, delta).getNodeCoordinates();
+        dxy_meas = (xy2 - xy)/delta;
+        
+        if dirIdx == 1
+            dxy_calc = [dxdx(:,mm), zeds];
+        else
+            dxy_calc = [zeds, dxdx(:,mm)];
+        end
+        
+        [same, relErr, normDiff, normExact] = compareNorms(dxy_calc, dxy_meas);
+        if ~same
+            fprintf('Node coordinate sensitivity error %0.4e out of %0.4e ***\n', normDiff, normExact)
+        end
+    end
+end
+
+%% Jacobian sensitivity
 
 % Two test points
 rr = [-0.25, 0.25];

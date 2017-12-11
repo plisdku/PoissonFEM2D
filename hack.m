@@ -102,16 +102,6 @@ for ii = 1:numNodes
     fprintf('%0.4e vs %0.4e\n', dF_meas, dF_calc);
     
     figure(1); clf
-    
-%     xy = g.poi.tnMesh.getNodeCoordinates();
-%     tsi = scatteredInterpolant(xy(:,1), xy(:,2), g.u, 'linear', 'none');
-%     xs = linspace(-1.2, 1.2, 200);
-%     ys = linspace(-1.2, 1.2, 200);
-%     [xx,yy] = ndgrid(xs,ys);
-%     u = tsi(xx,yy);
-%     imagesc_centered(xs, ys, u'); axis xy image
-%     colorbar
-
     u = g.poi.tnMesh.rasterizeField(g.u, xCoarse, yCoarse);
     imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
     hold on
@@ -119,6 +109,8 @@ for ii = 1:numNodes
     plot(xy(ii,1), xy(ii,2), 'wo');
     pause
 end
+
+%% Perturb Neumann
 
 %% System matrices
 

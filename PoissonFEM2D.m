@@ -222,12 +222,12 @@ classdef PoissonFEM2D < handle
         
         % ---- Function evaluation
         
-        function f = evaluateOnNodes(obj,func)
-            % [f, dfdv] = evaluateOnNodes(func)
+        function [f, df_dxg, df_dyg] = evaluateOnNodes(obj,func)
+            % [f, df_dxg, df_dyg] = evaluateOnNodes(func)
             %
             % Evaluate the given function on the field nodes.
             % Calculate the sensitivity of the evaluated values to changing
-            % the mesh vertices.  (Eventually that.)
+            % the geometry nodes.
             
             xy = obj.tnMesh.getNodeCoordinates();
             
@@ -237,6 +237,34 @@ classdef PoissonFEM2D < handle
             for nn = 1:numNodes
                 f(nn) = func(xy(nn,1), xy(nn,2));
             end
+            
+            if nargout == 1
+                return
+            end
+            
+            dfdxy = zeros(numNodes,2);
+            delta = 1e-8;
+            for nn = 1:numNodes
+                dfdxy(nn,1) = (func(xy(nn,1)+delta, xy(nn,2)) - func(xy(nn,1)-delta, xy(nn,2)))/(2*delta);
+                dfdxy(nn,2) = (func(xy(nn,1), xy(nn,2)+delta) - func(xy(nn,1), xy(nn,2)-delta))/(2*delta);
+            end
+            
+            % Sensitivity of the function on field nodes to changing
+            % the geometry nodes
+            numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
+            %df_dxg = sparse(numNodes, numGeomNodes);
+            %df_dyg = sparse(numNodes, numGeomNodes);
+            
+            % Some nodes belong to one element, some to two, some to many.
+            % This makes it a little harder for me to get the field node
+            % position sensitivities out.
+            
+            dxdx = obj.tnMesh.getNodeCoordinateSensitivities();
+            
+            df_dxg = diag(dfdxy(:,1)) * dxdx;
+            df_dyg = diag(dfdxy(:,2)) * dxdx;
+            
+            
             
         end % evaluateOnNodes
         

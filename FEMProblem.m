@@ -156,6 +156,12 @@ classdef FEMProblem < handle
             % Sensitivity to Dirichlet boundary value
             
             obj.dF_dDirichlet = -v_center' * A_dirichlet;
+            
+            % Sensitivity to Neumann boundary value
+            
+            obj.dF_dNeumann = v_center' * NM_neumann;
+            
+            % Sensitivity to 
         end
         
         

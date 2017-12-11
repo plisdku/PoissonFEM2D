@@ -129,7 +129,6 @@ classdef TriNodalMesh < handle
             
             rs = obj.hFieldNodes.basis.getInteriorNodes();
             xy = obj.getFaceCoordinates(iFace, rs(:,1), rs(:,2));
-            
         end
         
         
@@ -169,6 +168,51 @@ classdef TriNodalMesh < handle
             % Nodes, section 3/3: Face-centers
             for iFace = 1:obj.hMesh.getNumFaces()
                 xy(obj.hFieldNodes.getFaceNodes(iFace),:) = obj.getFaceNodeCoordinates(iFace);
+            end
+        end
+        
+        function dxdx = getNodeCoordinateSensitivities(obj)
+            % dxdx = getNodeCoordinateSensitivities(obj)
+            % 
+            % Return sensitivity of field node positions to geometry node
+            % positions.
+            %
+            % dxdx = d(x_f)/d(x_g) and also d(y_f)/d(y_g).
+            % The x field nodes do not depend on y geom nodes.
+            % The y field nodes do not depend on x geom nodes.
+            %
+            % Use your head.
+            
+            numFieldNodes = obj.hFieldNodes.getNumNodes();
+            numGeomNodes = obj.hGeomNodes.getNumNodes();
+            dxdx = sparse(numFieldNodes, numGeomNodes);
+            %dydy = sparse(numFieldNodes, numGeomNodes);
+            
+            % Section 1/3: Vertices
+            numVertices = obj.hMesh.getNumVertices();
+            dxdx(1:numVertices, 1:numVertices) = speye(numVertices);
+            %dydy(1:numVertices, 1:numVertices) = speye(numVertices);
+            
+            % Section 2/3: Edge-centers
+            r = obj.hFieldNodes.basis1d.getInteriorNodes();
+            M = obj.hGeomNodes.basis1d.interpolationMatrix(r);
+            for iEdge = 1:obj.hMesh.getNumEdges()
+                iFieldGlobal = obj.hFieldNodes.getEdgeInteriorNodes(iEdge);
+                iGeomGlobal = obj.hGeomNodes.getEdgeNodes(iEdge);
+                
+                dxdx(iFieldGlobal, iGeomGlobal) = M;
+                %dydy(iFieldGlobal, iGeomGlobal) = M;
+            end
+            
+            % Section 3/3: Face-centers
+            rs = obj.hFieldNodes.basis.getInteriorNodes();
+            M = obj.hGeomNodes.basis.interpolationMatrix(rs(:,1), rs(:,2));
+            for iFace = 1:obj.hMesh.getNumFaces()
+                iFieldGlobal = obj.hFieldNodes.getFaceInteriorNodes(iFace);
+                iGeomGlobal = obj.hGeomNodes.getFaceNodes(iFace);
+                
+                dxdx(iFieldGlobal, iGeomGlobal) = M;
+                %dydy(iFieldGlobal, iGeomGlobal) = M;
             end
         end
         
@@ -1026,7 +1070,6 @@ classdef TriNodalMesh < handle
             
             I = obj.getRasterInterpolationOperator([xs(1),ys(1)], [xs(end),ys(end)], [length(xs), length(ys)]);
             pixels = reshape(I*fieldValues, [length(xs), length(ys)]);
-            
             
         end
         

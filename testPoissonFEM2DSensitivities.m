@@ -142,5 +142,31 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
     end
 end
 
+%% Function evaluation on field nodes
+
+func_x = @(x,y) x; % Try lots of things
+[f, dfdxg, dfdyg] = poi.evaluateOnNodes(func_x);
+
+for mm = 1:tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        f2 = PoissonFEM2D(tnMesh.perturbed(mm, dirIdx, delta)).evaluateOnNodes(func_x);
+        df_meas = (f2-f)/delta;
+        
+        if dirIdx == 1
+            df_calc = dfdxg(:,mm);
+        else
+            df_calc = dfdyg(:,mm);
+        end
+        
+        [same, relErr, normDiff, normExact] = compareNorms(df_calc, df_meas);
+        if ~same
+            fprintf('df error %0.4e out of %0.4e ***\n', normDiff, normExact);
+        end
+    end
+end
+
+
+
+
 
 
