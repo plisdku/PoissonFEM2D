@@ -236,7 +236,13 @@ classdef PoissonFEM2D < handle
             % the mesh vertices.  (Eventually that.)
             
             xy = obj.tnMesh.getNodeCoordinates();
-            f = func(xy(:,1), xy(:,2));
+            
+            numNodes = size(xy,1);
+            f = zeros(numNodes,1);
+            
+            for nn = 1:numNodes
+                f(nn) = func(xy(nn,1), xy(nn,2));
+            end
             
         end % evaluateOnNodes
         
