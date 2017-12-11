@@ -33,6 +33,11 @@ classdef TriNodalMesh < handle
             obj.xyNodes = xyNodes;
         end
         
+        function other = copy(obj)
+            other = TriNodalMesh(obj.hMesh.faceVertices, obj.xyNodes, ...
+                obj.hFieldNodes.N, obj.hGeomNodes.N, obj.hQuadNodes.N);
+        end
+        
         % For testing purposes
         function tnMesh = perturbed(obj, nodeIdx, directionIdx, delta)
             
@@ -1014,6 +1019,14 @@ classdef TriNodalMesh < handle
                 outI(iPoint, iFieldGlobal) = M;
                 
             end
+            
+        end
+        
+        function pixels = rasterizeField(obj, fieldValues, xs, ys)
+            
+            I = obj.getRasterInterpolationOperator([xs(1),ys(1)], [xs(end),ys(end)], [length(xs), length(ys)]);
+            pixels = reshape(I*fieldValues, [length(xs), length(ys)]);
+            
             
         end
         

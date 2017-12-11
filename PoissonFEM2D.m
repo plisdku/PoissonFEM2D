@@ -14,17 +14,11 @@ classdef PoissonFEM2D < handle
         
         % ---- CONSTRUCTOR
         function obj = PoissonFEM2D(tnMesh)
-            
             obj.tnMesh = tnMesh;
-            
-            %rs = obj.tnMesh.hNodes.basis.r;
-            %ss = obj.tnMesh.hNodes.basis.s;
-            
-            %[obj.Dr, obj.Ds] = support2d.gradients(obj.tnMesh.hNodes.N, rs, ss);
-            %obj.Q = support2d.quadratureKernel(obj.tnMesh.hNodes.N, rs, ss);
-            
-            %obj.Q1d = support.quadratureKernel(obj.tnMesh.hNodes.N, obj.tnMesh.hNodes.basis1d.r);
-            
+        end
+        
+        function other = copy(obj)
+            other = PoissonFEM2D(obj.tnMesh.copy());
         end
         
         % ---- Elemental matrices
