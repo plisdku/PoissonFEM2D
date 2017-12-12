@@ -27,6 +27,12 @@ writeGEO('fromMatlab.geo', contours, meshSizes);
 
 %%
 
+figure(101); clf
+patch('Faces', mshFaceVertices, 'Vertices', mshVerts, 'FaceColor', 'r');
+axis xy image
+
+%%
+
 % Node orders
 N_field = 2;
 N_geom = 2;
