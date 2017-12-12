@@ -20,7 +20,7 @@ patch('Faces', domainF, 'Vertices', domainV, 'FaceColor', 'r', 'FaceAlpha', 0.1,
 %% Make an FEM object
 
 % Node orders
-N_field = 4;
+N_field = 2;
 N_geom = 2;
 N_quad = N_field;
 
@@ -51,8 +51,9 @@ femp.setSources(freeChargeFunc, dirichletFunc, neumannFunc);
 %% Objective function
 
 iArbitraryFace = 13;
-arbitraryInteriorNodes = tnMesh.hFieldNodes.getFaceInteriorNodes(iArbitraryFace);
-iArbitraryNode = arbitraryInteriorNodes(1);
+%arbitraryInteriorNodes = tnMesh.hFieldNodes.getFaceInteriorNodes(iArbitraryFace);
+%iArbitraryNode = arbitraryInteriorNodes(1);
+iArbitraryNode = 24;
 
 objFun = @(u) u(iArbitraryNode);
 DobjFun = @(u) double( (1:length(u)) == iArbitraryNode );

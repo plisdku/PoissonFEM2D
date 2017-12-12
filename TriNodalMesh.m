@@ -64,13 +64,14 @@ classdef TriNodalMesh < handle
             % getEdgeNodeCoordinates(obj, iEdge, rs)
             % getEdgeNodeCoordinates(obj, iEdge, rs, orientation)
             
+            assert(numel(iEdge) == 1); % this function does not vectorize that simply
             if nargin < 4
                 orientation = 1;
             else
                 orientation = varargin{1};
             end
             
-            M = obj.hGeomNodes.basis1d.interpolationMatrix(rs);
+            M = obj.hGeomNodes.basis1d.interpolationMatrix(rs); % numel(rs) x N
             xy = M*obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge, orientation),:);
             
         end
@@ -510,7 +511,6 @@ classdef TriNodalMesh < handle
         function [rs, bad, outOfBounds, bigSteps] = inverseCoordinateTransform(obj, iFace, xx, yy)
             % 
             xyGoal = [reshape(xx,1,[]); reshape(yy,1,[])];
-            
             
             doPlots = 0;
             
@@ -1135,6 +1135,14 @@ classdef TriNodalMesh < handle
             
             iii = unique(ii);
             plot(xy(iii,1), xy(iii,2), varargin{:});
+        end
+        
+        
+        function plotVertexIndices(obj)
+            
+            for ii = 1:obj.hMesh.getNumVertices()
+                text(obj.xyNodes(ii,1), obj.xyNodes(ii,2), num2str(ii));
+            end
         end
         
         

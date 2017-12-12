@@ -116,7 +116,10 @@ classdef NodalTopology < handle
                 
                 if ~isempty(varargin)
                     orientations = varargin{1};
-                    assert(numel(varargin{1}) == numel(iEdge), 'Must supply one orientation per edge');
+                    if numel(orientations) ~= numel(iEdge)
+                        orientations = repmat(orientations(1), numel(iEdge), 1);
+                    end
+                    %assert(numel(varargin{1}) == numel(iEdge), 'Must supply one orientation per edge');
                 else
                     orientations = ones(numEdges,1);
                 end

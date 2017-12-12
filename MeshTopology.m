@@ -98,6 +98,12 @@ classdef MeshTopology < handle
             iVertices = obj.getEdgeVertices(iEdges, orientations);
         end
         
+        function iEdges = getVertexEdgesExclusive(obj, iVertices)
+            % Return edges whose endpoints are both in the given list.
+            A = obj.getEdgeVertexAdjacency();
+            
+            iEdges = find(sum(A(:, iVertices), 2) == 2);
+        end
         
         % ---- ADJACENCY MATRICES
         
