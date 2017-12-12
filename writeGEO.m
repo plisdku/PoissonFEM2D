@@ -2,6 +2,17 @@ function writeGEO(fname, contours, meshSizes)
 
 fh = fopen(fname, 'w');
 
+if ~iscell(meshSizes)
+    originalMeshSizes = meshSizes;
+    
+    meshSizes = cell(length(contours), 1);
+    for cc = 1:length(contours)
+        meshSizes{cc} = repmat(originalMeshSizes(cc), size(contours{cc},1), 1);
+    end
+end
+
+meshSizes
+
 %% Write the points and lines
 
 pointIdx = 1;
@@ -15,15 +26,13 @@ for cc = 1:length(contours)
     points = contours{cc};
     numPoints = size(points, 1);
     
-    meshSize = meshSizes(cc);
-    
     iPointsInContour = pointIdx + (1:numPoints) - 1;
     iLinesInContour = lineIdx + (1:numPoints) - 1;
     
     contourLines{cc} = iLinesInContour;
     
     for pp = 1:numPoints
-        fprintf(fh, 'Point(%i) = {%i, %i, 0.0, %i};\n', pointIdx, points(pp,1), points(pp,2), meshSize);
+        fprintf(fh, 'Point(%i) = {%i, %i, 0.0, %i};\n', pointIdx, points(pp,1), points(pp,2), meshSizes{cc}(pp));
         pointIdx = pointIdx + 1;
     end
     
