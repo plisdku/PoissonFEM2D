@@ -19,25 +19,62 @@ patch('Faces', domainF, 'Vertices', domainV, 'FaceColor', 'r', 'FaceAlpha', 0.1,
 
 %% Make an FEM object
 
-N = 4;
-dirichletPredicate = @(v1,v2) norm(v1-0.5) < 0.25 || norm(v2-0.5) < 0.25;
-femp = FEMProblem(N, domainF, domainV, dirichletPredicate);
+% Node orders
+N_field = 4;
+N_geom = 2;
+N_quad = N_field;
+
+lng = LinearNodalGeometry(domainF, domainV, N_geom);
+xyNodes = lng.getNodeCoordinates();
+
+tnMesh = TriNodalMesh(domainF, xyNodes, N_field, N_geom, N_quad);
+poi = PoissonFEM2D(tnMesh);
+
+dirichletPredicate = @(x,y) norm(x-0.5) < 0.25 || norm(y-0.5) < 0.25;
+
+femp = FEMProblem(poi, dirichletPredicate);
+
 
 %% Define some shit
 
 x0 = 0.55;
 y0 = 0.85;
 sigma = 0.05;
-freeCharge = @(x,y) exp( (-(x-x0).^2 - (y-y0).^2)/(2*sigma^2));
+freeChargeFunc = @(x,y) exp( (-(x-x0).^2 - (y-y0).^2)/(2*sigma^2));
 
-dirichletVal = @(xy) zeros(size(xy,1),1);
+dirichletFunc = @(x,y) 0; %double(x>0);
+neumannFunc = @(x,y) 0;
 
-neumannVal = @(xy) zeros(size(xy,1),1);
+femp.setSources(freeChargeFunc, dirichletFunc, neumannFunc);
 
-measPt = [0.2, 0.22];
 
-femp.setSources(freeCharge, dirichletVal, neumannVal);
-femp.solve(measPt);
+%% Objective function
+
+iArbitraryFace = 13;
+arbitraryInteriorNodes = tnMesh.hFieldNodes.getFaceInteriorNodes(iArbitraryFace);
+iArbitraryNode = arbitraryInteriorNodes(1);
+
+objFun = @(u) u(iArbitraryNode);
+DobjFun = @(u) double( (1:length(u)) == iArbitraryNode );
+
+%% Solve it
+
+femp.solve(objFun);
+fprintf('F = %0.4e\n', femp.F);
+
+%femp.solveAdjoint(DobjFun);
+
+%% Plot the field
+
+xCoarse = linspace(-1.2, 1.2, 40);
+yCoarse = linspace(-1.2, 1.2, 40);
+
+figure(1); clf
+u = f.poi.tnMesh.rasterizeField(f.u, xCoarse, yCoarse);
+imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
+hold on
+f.poi.tnMesh.plotMesh('color', 'w');
+
 
 %% Perturb (Dirichlet)
 
