@@ -7,10 +7,10 @@ assertClose = @(a,b) assert(norm(a(:)-b(:))/(norm(a(:)) + norm(b(:))) < 1e-5 || 
 lx = [0, 1, 1, 0];
 ly = [0, 0, 1, 1];
 
-in_lx = 0.5 + 0.05*[-1, -1, 1, 1];
-in_ly = 0.5 + 0.05*[-1, 1, 1, -1];
+in_lx = 0.5 + 0.15*[-1, -1, 1, 1];
+in_ly = 0.5 + 0.15*[-1, 1, 1, -1];
 
-density = 8;
+density = 4;
 [domainV,domainF] = meshPolygon(lx, ly, density, in_lx, in_ly);
 
 figure(1); clf
