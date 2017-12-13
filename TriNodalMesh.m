@@ -514,6 +514,15 @@ classdef TriNodalMesh < handle
             
             doPlots = 0;
             
+            if obj.hFieldNodes.N == 2
+                rs = obj.linearInverseCoordinateTransform(iFace, xx, yy);
+                delta = 1e-4;
+                outOfBounds = rs(1,:) < -1.0-delta | rs(2,:) < -1.0-delta | rs(2,:)+rs(1,:) > delta;
+                bad = outOfBounds;
+                bigSteps = [];
+                return;
+            end
+            
             % A note about step sizes.
             % When the algorithm is nearing convergence, I see no reason
             % to not take a full Newton step.  When it's still far from
