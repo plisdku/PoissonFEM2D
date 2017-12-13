@@ -1,6 +1,3 @@
-%% Test a whole adjoint thing
-
-
 %% Contour points (oriented correctly) and mesh size parameters
 
 Lx = 6;
