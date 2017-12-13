@@ -66,7 +66,7 @@ classdef FEMInterface < handle
             %axis xy image
             %hold on
             
-            N_field = 2;
+            N_field = 4;
             N_geom = 2;
             N_quad = N_field;
             

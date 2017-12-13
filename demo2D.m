@@ -21,8 +21,8 @@ p = [];
 
 %%
 
-xCoarse = linspace(-Lx, Lx, 20);
-yCoarse = linspace(0, Ly, 20);
+xCoarse = linspace(-Lx, Lx, 1000);
+yCoarse = linspace(0, Ly, 1000);
 
 tic
 u = f.femProblem.poi.tnMesh.rasterizeField(f.femProblem.u, xCoarse, yCoarse); % slow as hell
