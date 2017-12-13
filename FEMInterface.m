@@ -61,10 +61,10 @@ classdef FEMInterface < handle
             !/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt
             [mshFaceVertices, mshEdgeVertices, mshVerts, mshEdgeContour, mshEdgeLine] = readMSH('fromMatlab.msh');
             
-            figure(101); clf
-            patch('Faces', mshFaceVertices, 'Vertices', mshVerts, 'FaceColor', 'r');
-            axis xy image
-            hold on
+            %figure(101); clf
+            %patch('Faces', mshFaceVertices, 'Vertices', mshVerts, 'FaceColor', 'r');
+            %axis xy image
+            %hold on
             
             N_field = 2;
             N_geom = 2;
@@ -98,13 +98,14 @@ classdef FEMInterface < handle
                 fieldNodeContour(iContourNodes) = cc;
             end
             
-            % Plot field nodes.
             xyFieldNodes = tnMesh.getNodeCoordinates();
-            for cc = 1:length(obj.contours)
-                ii = find(fieldNodeContour == cc);
-                
-                plot(xyFieldNodes(ii,1), xyFieldNodes(ii,2), 'o');
-            end
+            
+            % Plot field nodes.
+            %for cc = 1:length(obj.contours)
+            %    ii = find(fieldNodeContour == cc);
+            %    
+            %    plot(xyFieldNodes(ii,1), xyFieldNodes(ii,2), 'o');
+            %end
             
             % Set Dirichlet and Neumann boundary conditions
             iDirichlet = [];

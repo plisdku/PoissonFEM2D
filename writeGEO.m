@@ -11,8 +11,6 @@ if ~iscell(meshSizes)
     end
 end
 
-meshSizes
-
 %% Write the points and lines
 
 pointIdx = 1;

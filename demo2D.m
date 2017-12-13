@@ -1,86 +1,46 @@
 %% Test a whole adjoint thing
 
-assertClose = @(a,b) assert(norm(a(:)-b(:))/(norm(a(:)) + norm(b(:))) < 1e-5 || norm(a(:) + b(:)) < 1e-50);
 
-%% Set up the mesh
+%% Contour points (oriented correctly) and mesh size parameters
 
-lx = [0, 1, 1, 0];
-ly = [0, 0, 1, 1];
+Lx = 6;
+Ly = 5;
+rAperture1 = 0.5;
+rAperture2 = 1.5;
+rAperture3 = 1;
 
-in_lx = 0.5 + 0.15*[-1, -1, 1, 1];
-in_ly = 0.5 + 0.15*[-1, 1, 1, -1];
-
-density = 4;
-[domainV,domainF] = meshPolygon(lx, ly, density, in_lx, in_ly);
-
-figure(1); clf
-VVMesh.plotFV(domainF, domainV, 'k-');
-patch('Faces', domainF, 'Vertices', domainV, 'FaceColor', 'r', 'FaceAlpha', 0.1, 'EdgeAlpha', 0);
-
-%% Make an FEM object
-
-% Node orders
-N_field = 2;
-N_geom = 2;
-N_quad = N_field;
-
-lng = LinearNodalGeometry(domainF, domainV, N_geom);
-xyNodes = lng.getNodeCoordinates();
-
-tnMesh = TriNodalMesh(domainF, xyNodes, N_field, N_geom, N_quad);
-poi = PoissonFEM2D(tnMesh);
-
-dirichletPredicate = @(x,y) norm(x-0.5) < 0.25 || norm(y-0.5) < 0.25;
-
-femp = FEMProblem(poi, dirichletPredicate);
-
-
-%% Define some shit
-
-x0 = 0.55;
-y0 = 0.85;
-sigma = 0.05;
-freeChargeFunc = @(x,y) exp( (-(x-x0).^2 - (y-y0).^2)/(2*sigma^2));
-
-dirichletFunc = @(x,y) 0; %double(x>0);
-neumannFunc = @(x,y) 0;
-
-femp.setSources(freeChargeFunc, dirichletFunc, neumannFunc);
-
-
-%% Objective function
-
-iArbitraryFace = 13;
-%arbitraryInteriorNodes = tnMesh.hFieldNodes.getFaceInteriorNodes(iArbitraryFace);
-%iArbitraryNode = arbitraryInteriorNodes(1);
-iArbitraryNode = 24;
-
-objFun = @(u) u(iArbitraryNode);
-DobjFun = @(u) double( (1:length(u)) == iArbitraryNode );
-
-%% Solve it
-
-femp.solve(objFun);
-fprintf('F = %0.4e\n', femp.F);
-
-%femp.solveAdjoint(DobjFun);
-
-%% Plot the field
-
-xCoarse = linspace(0, 1, 40);
-yCoarse = linspace(0, 1, 40);
-
-u = femp.poi.tnMesh.rasterizeField(femp.u, xCoarse, yCoarse); % slow as hell
 %%
+
+f = FEMInterface();
+f.addContour(@(p) [-Lx, Lx, Lx, -Lx], @(p) [0, 0, Ly, Ly], @(p) 1, 'neumann', @(p,x,y) 0.0);
+f.addContour(@(p) [-Lx+1, -Lx+2, -Lx+2, -Lx+1], @(p) [rAperture1, rAperture1, Ly-1, Ly-1], @(p) 0.5, 'dirichlet', @(p,x,y) 0.0);
+f.addContour(@(p) [-Lx+3, -Lx+4, -Lx+4, -Lx+3], @(p) [rAperture2, rAperture2, Ly-1, Ly-1], @(p) 0.5, 'dirichlet', @(p,x,y) 1.0);
+f.addContour(@(p) [Lx-2, Lx-1, Lx-1, Ly-1], @(p) [rAperture3, rAperture3, Ly-1, Ly-1], @(p) 0.5, 'dirichlet', @(p,x,y) 0.0);
+
+f.setFreeCharge(@(p,x,y) 0.0);
+
+p = [];
+[ff, vv] = f.solve(p, @(u) 1);
+
+%%
+
+xCoarse = linspace(-Lx, Lx, 20);
+yCoarse = linspace(0, Ly, 20);
+
+tic
+u = f.femProblem.poi.tnMesh.rasterizeField(f.femProblem.u, xCoarse, yCoarse); % slow as hell
+toc
+%%
+
 figure(1); clf
 imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
-%colormap orangecrush
+colormap orangecrush
 hold on
-femp.poi.tnMesh.plotMesh('color', 'w');
+f.femProblem.poi.tnMesh.plotMesh('color', 'w');
 
 %% Your potential:
 
-electromagneticPotential = femp.u;
+electromagneticPotential = f.femProblem.u;
 
 
 
