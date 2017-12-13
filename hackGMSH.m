@@ -80,7 +80,31 @@ dF_dv = dF_dn * dn_dv;
 
 %%
 
+f = FEMInterface();
+f.addContour(@(p) [-1, 1, 1, -1], @(p) [-1, -1, 1, 1], @(p) 1, 'dirichlet', @(p,x,y) 0.0);
+f.addContour(@(p) 0.5*[-1, -1, 1, 1], @(p) 0.5*[-1, 1, 1, -1], @(p) 0.5, 'dirichlet', @(p,x,y) 1.0);
 
+f.setFreeCharge(@(p,x,y) 0.0);
+
+p = [];
+[ff, vv] = f.solve(p, @(u) 1);
+
+%%
+
+xCoarse = linspace(-1, 1, 40);
+yCoarse = linspace(-1, 1, 40);
+
+u = f.femProblem.poi.tnMesh.rasterizeField(f.femProblem.u, xCoarse, yCoarse); % slow as hell
+
+%%
+
+figure(1); clf
+imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
+%colormap orangecrush
+hold on
+f.femProblem.poi.tnMesh.plotMesh('color', 'w');
+
+%%
 s.outerBoundary(@(p) [1, 2, 2, 1], @(p) [1, 1, 2, 2], 'Dirichlet', @(p,x,y) 1);
 s.innerBoundary(@(p) [0.1, 0.2, 0.2, 0.1], @(p) [0.1, 0.1, 0.2, 0.2], 'Neumann', @(p,x,y) 1);
 s.freeCharge(@(p,x,y) 1);

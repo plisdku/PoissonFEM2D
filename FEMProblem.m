@@ -30,13 +30,16 @@ classdef FEMProblem < handle
     
     methods
         
-        function obj = FEMProblem(poissonFEM, dirichletPredicate)
+        function obj = FEMProblem(poissonFEM)
             obj.poi = poissonFEM;
             
             numNodes = obj.poi.tnMesh.hFieldNodes.getNumNodes();
             
-            [obj.iDirichlet, obj.iNeumann] = obj.classifyBoundary(dirichletPredicate);
-            obj.iCenter = setdiff(1:numNodes, obj.iDirichlet);
+            obj.iDirichlet = [];
+            obj.iNeumann = [];
+            obj.iCenter = 1:numNodes;
+            %[obj.iDirichlet, obj.iNeumann] = obj.classifyBoundary(dirichletPredicate);
+            %obj.iCenter = setdiff(1:numNodes, obj.iDirichlet);
         end
         
         function other = copyModel(obj)
@@ -69,6 +72,24 @@ classdef FEMProblem < handle
             other = obj.copyModel();
             other.poi.tnMesh = obj.poi.tnMesh.perturbed(nodeIdx, dirIdx, delta);
             other.setSources(obj.chargeFunc, obj.dirichletFunc, obj.neumannFunc); % need to rerun
+        end
+        
+        function setDirichlet(obj, iNodes, nodeVals)
+            obj.iDirichlet = iNodes;
+            obj.u0_dirichlet = nodeVals;
+            
+            numNodes = obj.poi.tnMesh.hFieldNodes.getNumNodes();
+            obj.iCenter = setdiff(1:numNodes, obj.iDirichlet);
+        end
+        
+        function setNeumann(obj, iNodes, nodeVals)
+            obj.iNeumann = iNodes;
+            obj.en_neumann = nodeVals;
+        end
+        
+        function setFreeCharge(obj, freeChargeFunction)
+            obj.chargeFunc = freeChargeFunction;
+            [obj.freeCharge, obj.dFreeCharge_dx, obj.dFreeCharge_dy] = obj.poi.evaluateOnNodes(obj.chargeFunc);
         end
         
         function setSources(obj, freeChargeFunction, dirichletFunction, neumannFunction)
