@@ -14,16 +14,16 @@ classdef FEMProblem < handle
         u;
         v;
         
-        F, u0_dirichlet, dF_dud, freeCharge, dFreeCharge_dx, dFreeCharge_dy, dF_df, en_neumann, dF_den, dFdv_total;
+        F, u0_dirichlet, freeCharge, dFreeCharge_dx, dFreeCharge_dy, dF_df, en_neumann;
+        
+        A, dA;
+        B, dB;
+        NM, dNM;
         
         dF_dCharge;
         dF_dDirichlet;
         dF_dNeumann;
         dF_dxy;
-        
-        A, dA;
-        B, dB;
-        NM, dNM;
         
     end
     
@@ -76,7 +76,13 @@ classdef FEMProblem < handle
         
         function setDirichlet(obj, iNodes, nodeVals)
             obj.iDirichlet = iNodes;
-            obj.u0_dirichlet = nodeVals;
+            
+            if isa(nodeVals, 'function_handle')
+                xyFieldNodes = obj.poi.tnMesh.getNodeCoordinates();
+                obj.u0_dirichlet = arrayfun(nodeVals, xyFieldNodes(iNodes,1), xyFieldNodes(iNodes, 2));
+            else
+                obj.u0_dirichlet = nodeVals;
+            end
             
             numNodes = obj.poi.tnMesh.hFieldNodes.getNumNodes();
             obj.iCenter = setdiff(1:numNodes, obj.iDirichlet);
@@ -84,7 +90,14 @@ classdef FEMProblem < handle
         
         function setNeumann(obj, iNodes, nodeVals)
             obj.iNeumann = iNodes;
-            obj.en_neumann = nodeVals;
+            
+            if isa(nodeVals, 'function_handle')
+                xyFieldNodes = obj.poi.tnMesh.getNodeCoordinates();
+                obj.en_neumann = arrayfun(nodeVals, xyFieldNodes(iNodes,1), xyFieldNodes(iNodes, 2));
+            else
+                obj.en_neumann = nodeVals;
+            end
+            
         end
         
         function setFreeCharge(obj, freeChargeFunction)
@@ -92,32 +105,32 @@ classdef FEMProblem < handle
             [obj.freeCharge, obj.dFreeCharge_dx, obj.dFreeCharge_dy] = obj.poi.evaluateOnNodes(obj.chargeFunc);
         end
         
-        function setSources(obj, freeChargeFunction, dirichletFunction, neumannFunction)
-            
-            obj.chargeFunc = freeChargeFunction;
-            obj.dirichletFunc = dirichletFunction;
-            obj.neumannFunc = neumannFunction;
-            
-            xy = obj.poi.tnMesh.getNodeCoordinates();
-            
-            numNodes = size(xy, 1);
-            
-            obj.freeCharge = zeros(numNodes,1);
-            obj.u0_dirichlet = zeros(length(obj.iDirichlet),1);
-            obj.en_neumann = zeros(length(obj.iNeumann),1);
-            
-            [obj.freeCharge, obj.dFreeCharge_dx, obj.dFreeCharge_dy] = obj.poi.evaluateOnNodes(obj.chargeFunc);
-            
-            for nn = 1:length(obj.iDirichlet)
-                jj = obj.iDirichlet(nn);
-                obj.u0_dirichlet(nn) = obj.dirichletFunc(xy(jj,1), xy(jj,2));
-            end
-            
-            for nn = 1:length(obj.iNeumann)
-                jj = obj.iNeumann(nn);
-                obj.en_neumann(nn) = obj.neumannFunc(xy(jj,1), xy(jj,2));
-            end
-        end
+%         function setSources(obj, freeChargeFunction, dirichletFunction, neumannFunction)
+%             
+%             obj.chargeFunc = freeChargeFunction;
+%             obj.dirichletFunc = dirichletFunction;
+%             obj.neumannFunc = neumannFunction;
+%             
+%             xy = obj.poi.tnMesh.getNodeCoordinates();
+%             
+%             numNodes = size(xy, 1);
+%             
+%             obj.freeCharge = zeros(numNodes,1);
+%             obj.u0_dirichlet = zeros(length(obj.iDirichlet),1);
+%             obj.en_neumann = zeros(length(obj.iNeumann),1);
+%             
+%             [obj.freeCharge, obj.dFreeCharge_dx, obj.dFreeCharge_dy] = obj.poi.evaluateOnNodes(obj.chargeFunc);
+%             
+%             for nn = 1:length(obj.iDirichlet)
+%                 jj = obj.iDirichlet(nn);
+%                 obj.u0_dirichlet(nn) = obj.dirichletFunc(xy(jj,1), xy(jj,2));
+%             end
+%             
+%             for nn = 1:length(obj.iNeumann)
+%                 jj = obj.iNeumann(nn);
+%                 obj.en_neumann(nn) = obj.neumannFunc(xy(jj,1), xy(jj,2));
+%             end
+%         end
         
         function solve(obj, objFun)
             
@@ -153,6 +166,8 @@ classdef FEMProblem < handle
         function solveAdjoint(obj, objFunDerivative)
             
             Df_val = objFunDerivative(obj.u);
+            assert(isrow(Df_val));
+            
             Df_center = Df_val(obj.iCenter);
             
             A_center = obj.A(obj.iCenter, obj.iCenter);

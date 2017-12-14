@@ -15,6 +15,7 @@ end
 
 pointIdx = 1;
 lineIdx = 1;
+lineLoopIdx = 100000;
 
 lineLoops = [];
 
@@ -41,11 +42,11 @@ for cc = 1:length(contours)
         lineIdx = lineIdx + 1;
     end
     
-    fprintf(fh, 'Line Loop(%i) = {', lineIdx);
+    fprintf(fh, 'Line Loop(%i) = {', lineLoopIdx);
     fprintf(fh, '%i, ', iLinesInContour(1:end-1));
     fprintf(fh, '%i};\n', iLinesInContour(end));
-    lineLoops(end+1) = lineIdx;
-    lineIdx = lineIdx + 1;
+    lineLoops(end+1) = lineLoopIdx;
+    lineLoopIdx = lineLoopIdx + 1;
     
 end
 

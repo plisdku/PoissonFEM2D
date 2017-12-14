@@ -10,7 +10,7 @@ ly = [0, 0, 1, 1];
 in_lx = 0.5 + 0.05*[-1, -1, 1, 1];
 in_ly = 0.5 + 0.05*[-1, 1, 1, -1];
 
-density = 8;
+density = 2;
 [domainV,domainF] = meshPolygon(lx, ly, density, in_lx, in_ly);
 
 figure(1); clf
@@ -32,8 +32,9 @@ poi = PoissonFEM2D(tnMesh);
 
 dirichletPredicate = @(x,y) norm(x-0.5) < 0.25 || norm(y-0.5) < 0.25;
 
-femp = FEMProblem(poi, dirichletPredicate);
 
+femp = FEMProblem(poi);
+[iDirichlet, iNeumann] = femp.classifyBoundary(dirichletPredicate);
 
 %% Define some shit
 
@@ -45,51 +46,60 @@ freeChargeFunc = @(x,y) exp( (-(x-x0).^2 - (y-y0).^2)/(2*sigma^2));
 dirichletFunc = @(x,y) 0; %double(x>0);
 neumannFunc = @(x,y) 0;
 
-femp.setSources(freeChargeFunc, dirichletFunc, neumannFunc);
-
+femp.setDirichlet(iDirichlet, dirichletFunc);
+femp.setNeumann(iNeumann, neumannFunc);
+femp.setFreeCharge(freeChargeFunc);
 
 %% Objective function
 
 iArbitraryFace = 13;
 arbitraryInteriorNodes = tnMesh.hFieldNodes.getFaceInteriorNodes(iArbitraryFace);
 iArbitraryNode = arbitraryInteriorNodes(1);
+%%
+for iArbitraryNode = 1:500
+%iArbitraryNode = 1;
 
+%objFun = @(u) sum(u);
+%DobjFun = @(u) ones(size(u))';
 objFun = @(u) u(iArbitraryNode);
-DobjFun = @(u) double( (1:length(u)) == iArbitraryNode );
+DobjFun = @(u) double( (1:length(u)) == iArbitraryNode);
 
 %% Solve it
 
 femp.solve(objFun);
 fprintf('F = %0.4e\n', femp.F);
 
-%femp.solveAdjoint(DobjFun);
+femp.solveAdjoint(DobjFun);
 
 %% Plot the field
 
-xCoarse = linspace(-1.2, 1.2, 40);
-yCoarse = linspace(-1.2, 1.2, 40);
+xCoarse = linspace(-0.2, 1.2, 40);
+yCoarse = linspace(-0.2, 1.2, 40);
 
 figure(1); clf
-u = f.poi.tnMesh.rasterizeField(f.u, xCoarse, yCoarse);
+u = femp.poi.tnMesh.rasterizeField(femp.u, xCoarse, yCoarse);
 imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
 hold on
-f.poi.tnMesh.plotMesh('color', 'w');
+femp.poi.tnMesh.plotMesh('color', 'w');
 
 
 %% Perturb (Dirichlet)
 
 delta = 1e-6;
-femp2 = FEMProblem(N, domainF, domainV, dirichletPredicate);
-femp2.setSources(freeCharge, dirichletVal, neumannVal);
+femp2 = FEMProblem(poi);
+femp2.setDirichlet(iDirichlet, dirichletFunc);
+femp2.setNeumann(iNeumann, neumannFunc);
+femp2.setFreeCharge(freeChargeFunc);
 femp2.u0_dirichlet(1) = femp2.u0_dirichlet(1) + delta;
-femp2.solve(measPt);
+
+femp2.solve(objFun);
 
 dF_meas = (femp2.F - femp.F)/delta;
-dF_calc = femp.dF_dud(1);
+dF_calc = femp.dF_dDirichlet(1);
 
 fprintf('Measured %g, calculated %g\n', dF_meas, full(dF_calc));
 assertClose(dF_meas, dF_calc);
-
+end
 %% Perturb (Neumann)
 
 femp2 = FEMProblem(N, domainF, domainV, dirichletPredicate);
