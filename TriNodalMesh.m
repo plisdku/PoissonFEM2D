@@ -841,10 +841,12 @@ classdef TriNodalMesh < handle
             M = obj.hFieldNodes.basis.interpolationMatrix(rr, ss);
               
             Drs = obj.inverseCoordinateTransformSensitivity_rs(iFace, rr, ss);
-            Dr = squish(Drs(1,:,:,:));
-            Ds = squish(Drs(2,:,:,:));
+            Dr = squish(Drs(1,:,:,:), 1);
+            Ds = squish(Drs(2,:,:,:), 1);
+            % Dr and D
 
             [dMdr, dMds] = obj.hFieldNodes.basis.gradientMatrix(rr, ss);
+            % dMdr and dMds should be N_out x N_fields
 
             DM = multiplyTensors.tfxtf(dMdr, 2, [1], Dr, 3, [1]) + ...
                 multiplyTensors.tfxtf(dMds, 2, [1], Ds, 3, [1]);
