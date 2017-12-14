@@ -7,10 +7,10 @@ assertClose = @(a,b) assert(norm(a(:)-b(:))/(norm(a(:)) + norm(b(:))) < 1e-5 || 
 lx = [0, 1, 1, 0];
 ly = [0, 0, 1, 1];
 
-in_lx = 0.5 + 0.05*[-1, -1, 1, 1];
-in_ly = 0.5 + 0.05*[-1, 1, 1, -1];
+in_lx = 0.5 + 0.1*[-1, -1, 1, 1];
+in_ly = 0.5 + 0.1*[-1, 1, 1, -1];
 
-density = 2;
+density = 4;
 [domainV,domainF] = meshPolygon(lx, ly, density, in_lx, in_ly);
 
 figure(1); clf
@@ -30,19 +30,12 @@ xyNodes = lng.getNodeCoordinates();
 tnMesh = TriNodalMesh(domainF, xyNodes, N_field, N_geom, N_quad);
 poi = PoissonFEM2D(tnMesh);
 
-dirichletPredicate = @(x,y) norm(x-0.5) < 0.25 || norm(y-0.5) < 0.25;
-
+dirichletPredicate = @(x,y) norm(x-0.5) < 0.25 && norm(y-0.5) < 0.25;
 
 femp = FEMProblem(poi);
 [iDirichlet, iNeumann] = femp.classifyBoundary(dirichletPredicate);
 
-%% Define some shit
-
-x0 = 0.55;
-y0 = 0.85;
-sigma = 0.05;
-freeChargeFunc = @(x,y) exp( (-(x-x0).^2 - (y-y0).^2)/(2*sigma^2));
-
+freeChargeFunc = @(x,y) x*y;
 dirichletFunc = @(x,y) 0; %double(x>0);
 neumannFunc = @(x,y) 0;
 
@@ -52,29 +45,23 @@ femp.setFreeCharge(freeChargeFunc);
 
 %% Objective function
 
-iArbitraryFace = 13;
-arbitraryInteriorNodes = tnMesh.hFieldNodes.getFaceInteriorNodes(iArbitraryFace);
-iArbitraryNode = arbitraryInteriorNodes(1);
-%%
-for iArbitraryNode = 1:500
-%iArbitraryNode = 1;
+numFieldNodes = femp.poi.tnMesh.hFieldNodes.getNumNodes();
+df = zeros(1, numFieldNodes);
+df(femp.iCenter) = 1;
 
-%objFun = @(u) sum(u);
-%DobjFun = @(u) ones(size(u))';
-objFun = @(u) u(iArbitraryNode);
-DobjFun = @(u) double( (1:length(u)) == iArbitraryNode);
+objFun = @(u) sum(u(femp.iCenter));  % TODO: make it work for sum(u), incl. Dirichlet nodes.  WILL NEED!!!
+DobjFun = @(u) df;
 
 %% Solve it
 
 femp.solve(objFun);
 fprintf('F = %0.4e\n', femp.F);
-
 femp.solveAdjoint(DobjFun);
 
 %% Plot the field
 
-xCoarse = linspace(-0.2, 1.2, 40);
-yCoarse = linspace(-0.2, 1.2, 40);
+xCoarse = linspace(-0.1, 1.1, 40);
+yCoarse = linspace(-0.1, 1.1, 40);
 
 figure(1); clf
 u = femp.poi.tnMesh.rasterizeField(femp.u, xCoarse, yCoarse);
@@ -83,163 +70,125 @@ hold on
 femp.poi.tnMesh.plotMesh('color', 'w');
 
 
-%% Perturb (Dirichlet)
 
-delta = 1e-6;
-femp2 = FEMProblem(poi);
-femp2.setDirichlet(iDirichlet, dirichletFunc);
-femp2.setNeumann(iNeumann, neumannFunc);
-femp2.setFreeCharge(freeChargeFunc);
-femp2.u0_dirichlet(1) = femp2.u0_dirichlet(1) + delta;
+%% Perturb Dirichlet
 
-femp2.solve(objFun);
+delta = 1e-8;
 
-dF_meas = (femp2.F - femp.F)/delta;
-dF_calc = femp.dF_dDirichlet(1);
-
-fprintf('Measured %g, calculated %g\n', dF_meas, full(dF_calc));
-assertClose(dF_meas, dF_calc);
-end
-%% Perturb (Neumann)
-
-femp2 = FEMProblem(N, domainF, domainV, dirichletPredicate);
-femp2.setSources(freeCharge, dirichletVal, neumannVal);
-femp2.en_neumann(1) = femp2.en_neumann(1) + delta;
-femp2.solve(measPt);
-
-dF_meas = (femp2.F - femp.F)/delta;
-dF_calc = femp.dF_den(1);
-
-fprintf('Measured %g, calculated %g\n', dF_meas, full(dF_calc));
-assertClose(dF_meas, dF_calc);
-
-%% Perturb (free charge)
-
-femp2 = FEMProblem(N, domainF, domainV, dirichletPredicate);
-femp2.setSources(freeCharge, dirichletVal, neumannVal);
-femp2.freeCharge(10) = femp2.freeCharge(1) + delta;
-femp2.solve(measPt);
-
-dF_meas = (femp2.F - femp.F)/delta;
-dF_calc = femp.dF_df(10);
-
-fprintf('Measured %g, calculated %g\n', dF_meas, full(dF_calc));
-assertClose(dF_meas, dF_calc);
-
-%% Perturb (vertices)
-
-delta = 1e-6;
-
-iXY = 1;
-for iVert = 1:femp.fem.meshNodes.hMesh.getNumVertices()
-    disp(iVert)
-
-    femp2 = FEMProblem(N, domainF, domainV, dirichletPredicate);
-    femp2.fem.meshNodes.vertices(iVert,iXY) = femp.fem.meshNodes.vertices(iVert,iXY) + delta;
-    femp2.setSources(freeCharge, dirichletVal, neumannVal);
-    femp2.solve(measPt);
-
-    dF_meas = (femp2.F - femp.F)/delta;
-    dF_calc = femp.dFdv_total(iVert,iXY);
-    assertClose(dF_meas, dF_calc);
+for ii = 1:length(femp.iDirichlet)
+    g = femp.perturbedDirichlet(ii, delta);
+    g.solve(objFun);
     
-    nf = @(A) norm(full(A));
-    fprintf('%g vs %g\n', nf(dF_meas), nf(dF_calc));
-%    fprintf('Rel err %g/%f = %g\n', norm(full(dF_meas-dF_calc)), ...
-%        norm(full(dF_calc)), ...
-%        norm(full(dF_meas-dF_calc))/norm(full(dF_calc)));
+    dF_meas = (g.F - femp.F)/delta;
+    dF_calc = femp.dF_dDirichlet(ii);
+    
+    fprintf('%0.4e vs %0.4e\n', dF_meas, dF_calc);
+    
+    xy = g.poi.tnMesh.getNodeCoordinates();
+    tsi = scatteredInterpolant(xy(:,1), xy(:,2), g.u, 'linear', 'none');
+    
+    xs = linspace(-0.1, 1.1, 200);
+    ys = linspace(-0.1, 1.1, 200);
+    [xx,yy] = ndgrid(xs,ys);
+    figure(1); clf
+    u = tsi(xx,yy);
+    imagesc_centered(xs, ys, u'); axis xy image
+    colorbar
+    hold on
+    g.poi.tnMesh.plotMesh('color', 'w');
+    pause(0.01)
+end
 
-    if 0
-        figure(11); clf
-        VVMesh.plotFV(domainF, domainV, 'k-');
-        vertex = domainV(iVert,:);
-        hold on
-        plot(x0, y0, 'rx');
-        plot(vertex(1), vertex(2), 'ro', 'MarkerSize', 10);
-        title(sprintf('%g vs %g\n', nf(dF_meas), nf(dF_calc)));
-        pause
+
+%% Perturb Neumann
+
+delta = 1e-8;
+
+for ii = 1:length(femp.iNeumann)
+    g = femp.perturbedNeumann(ii, delta);
+    g.solve(objFun);
+    
+    dF_meas = (g.F - femp.F)/delta;
+    dF_calc = femp.dF_dNeumann(ii);
+    
+    fprintf('%0.4e vs %0.4e\n', dF_meas, dF_calc);
+    
+    xy = g.poi.tnMesh.getNodeCoordinates();
+    tsi = scatteredInterpolant(xy(:,1), xy(:,2), g.u, 'linear', 'none');
+    
+    xs = linspace(-0.1, 1.1, 200);
+    ys = linspace(-0.1, 1.1, 200);
+    [xx,yy] = ndgrid(xs,ys);
+    figure(1); clf
+    u = tsi(xx,yy);
+    imagesc_centered(xs, ys, u'); axis xy image
+    colorbar
+    hold on
+    g.poi.tnMesh.plotMesh('color', 'w');
+    pause
+end
+
+
+%% Perturb free charge
+
+xCoarse = linspace(-0.1, 1.1, 40);
+yCoarse = linspace(-0.1, 1.1, 40);
+
+xy = femp.poi.tnMesh.getNodeCoordinates();
+
+numNodes = length(f.u);
+for ii = 1:numNodes
+    g = femp.perturbedFreeCharge(ii, delta);
+    g.solve(objFun);
+    
+    dF_meas = (g.F - femp.F)/delta;
+    dF_calc = femp.dF_dCharge(ii);
+    
+    fprintf('%0.4e vs %0.4e\n', dF_meas, dF_calc);
+    
+    %figure(1); clf
+    %u = g.poi.tnMesh.rasterizeField(g.u, xCoarse, yCoarse);
+    %imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
+    %hold on
+    %g.poi.tnMesh.plotMesh('color', 'w');
+    %plot(xy(ii,1), xy(ii,2), 'wo');
+    %pause
+end
+
+
+%% Perturb geometry nodes
+
+delta = 1e-8;
+
+xy = femp.poi.tnMesh.xyNodes;
+
+for mm = 1:femp.poi.tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        g = femp.perturbedMesh(mm, dirIdx, delta);
+        g.solve(objFun);
+        
+        dF_meas = (g.F - femp.F)/delta;
+        dF_calc = femp.dF_dxy(mm,dirIdx);
+        
+        dCharge_meas = (g.freeCharge - femp.freeCharge)/delta;
+        if dirIdx == 1
+            dCharge_calc = femp.dFreeCharge_dx(:,mm);
+        else
+            dCharge_calc = femp.dFreeCharge_dy(:,mm);
+        end
+        
+        %disp([dCharge_meas, dCharge_calc]);
+        
+        fprintf('Measured %0.7e expected %0.7e\n', dF_meas, dF_calc);
+        
+%         figure(1); clf
+%         u = g.poi.tnMesh.rasterizeField(g.u, xCoarse, yCoarse);
+%         imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
+%         hold on
+%         g.poi.tnMesh.plotMesh('color', 'w');
+%         plot(xy(mm,1), xy(mm,2), 'wo');
+%         pause(0.01)
     end
-    
-    dA_meas = (femp2.A - femp.A)/delta;
-    dA_calc = femp.dA_dv{iVert,iXY};
-    assertClose(dA_meas, dA_calc);
-    
-    dB_meas = (femp2.B - femp.B)/delta;
-    dB_calc = femp.dB_dv{iVert,iXY};
-    assertClose(dB_meas, dB_calc);
-    
-    dNM_meas = (femp2.NM - femp.NM)/delta;
-    dNM_calc = femp.dNM_dv{iVert,iXY};
-    assertClose(dNM_meas, dNM_calc);
-    
-    dFreeCharge_meas = (femp2.freeCharge - femp.freeCharge)/delta;
-    dFreeCharge_calc = femp.dFreeCharge_dv{iVert, iXY};
-    assertClose(dFreeCharge_meas, dFreeCharge_calc);
-    
 end
-
-
-% TODO: check all the pieces
-
-%% Picture?
-
-xs = linspace(-0.1, 1.1, 400);
-ys = linspace(-0.1, 1.1, 400);
-[xx, yy] = ndgrid(xs, ys);
-
-II = femp.fem.meshNodes.getInterpolationOperator(xx(:), yy(:));
-
-%%
-
-xy_nodes = femp.fem.meshNodes.getNodeCoordinates();
-%%
-
-[Dx, Dy] = femp.fem.meshNodes.getGradientOperators();
-Ex = Dx*femp.u;
-Ey = Dy*femp.u;
-
-magE = sqrt(abs(Ex).^2 + abs(Ey).^2);
-
-%%
-
-dF_dud = 0*femp.u;
-dF_dud(femp.iNodesDirichlet) = femp.dF_dud;
-
-dF_den = 0*femp.u;
-dF_den(femp.iNodesNeumann) = femp.dF_den;
-%%
-u_grid = II*femp.u;
-%u_grid = II*femp.dF_df;
-u_grid = reshape(u_grid, size(xx));
-
-%%
-
-figure(1); clf
-imagesc_centered(xs, ys, u_grid'); %, [0, 0.1]);
-
-%%
-colormap orangecrush(0.7)
-%colorbar
-%
-hold on
-%VVMesh.plotFV(domainF, domainV, 'w-', 'linewidth', 0.001)
-%plot(measPt(1), measPt(2), 'go', 'markersize', 10);
-%plot(x0, y0, 'rx', 'markersize', 10);
-hold on
-%plot(meshNodes.vertices(:,1), meshNodes.vertices(:,2), 'wo');
-%plot(xy_nodes(:,1), xy_nodes(:,2), 'w.', 'MarkerSize', 2)
-colorbar
-axis xy image vis3d
-title('Basis interpolation')
-
-%%
-quiver(xy_nodes(:,1), xy_nodes(:,2), Ex, Ey, 'w', 'linewidth', 0.5);
-
-%%
-
-%plot(domainV(:,1), domainV(:,2), 'wo')
-hold on
-quiver(domainV(:,1), domainV(:,2), femp.dFdv_total(:,1), femp.dFdv_total(:,2), 'r', 'linewidth', 2);
-
 
 

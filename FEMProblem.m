@@ -38,16 +38,19 @@ classdef FEMProblem < handle
             obj.iDirichlet = [];
             obj.iNeumann = [];
             obj.iCenter = 1:numNodes;
-            %[obj.iDirichlet, obj.iNeumann] = obj.classifyBoundary(dirichletPredicate);
-            %obj.iCenter = setdiff(1:numNodes, obj.iDirichlet);
         end
         
         function other = copyModel(obj)
-            other = FEMProblem(obj.poi.copy(), @(x,y) 1);
+            other = FEMProblem(obj.poi.copy());
             other.iDirichlet = obj.iDirichlet;
             other.iNeumann = obj.iNeumann;
             other.iCenter = obj.iCenter;
-            other.setSources(obj.chargeFunc, obj.dirichletFunc, obj.neumannFunc);
+            
+            other.u0_dirichlet = obj.u0_dirichlet;
+            other.en_neumann = obj.en_neumann;
+            other.setFreeCharge(obj.chargeFunc);
+            
+            %other.setSources(obj.chargeFunc, obj.dirichletFunc, obj.neumannFunc);
         end
         
         function other = perturbedDirichlet(obj, dirichletIdx, delta)
@@ -71,7 +74,8 @@ classdef FEMProblem < handle
         function other = perturbedMesh(obj, nodeIdx, dirIdx, delta)
             other = obj.copyModel();
             other.poi.tnMesh = obj.poi.tnMesh.perturbed(nodeIdx, dirIdx, delta);
-            other.setSources(obj.chargeFunc, obj.dirichletFunc, obj.neumannFunc); % need to rerun
+            
+            other.setFreeCharge(obj.chargeFunc); % need to rerun
         end
         
         function setDirichlet(obj, iNodes, nodeVals)

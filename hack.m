@@ -45,8 +45,11 @@ freeChargeFunc = @(x,y) x*y;
 dirichletFunc = @(x,y) 0; %double(x>0);
 neumannFunc = @(x,y) 0;
 
-f = FEMProblem(poi, dirichletPredicate);
-f.setSources(freeChargeFunc, dirichletFunc, neumannFunc);
+f = FEMProblem(poi);
+[iDirichlet, iNeumann] = f.classifyBoundary(dirichletPredicate);
+f.setDirichlet(iDirichlet, dirichletFunc);
+f.setNeumann(iNeumann, neumannFunc);
+f.setFreeCharge(freeChargeFunc);
 
 %% Objective function
 
