@@ -42,6 +42,7 @@ femProblem.poi.tnMesh.plotMesh()
 
 %%
 
+%{
 for nn = 1:size(dnx_dp, 2)
     figure(101); clf
     femProblem.poi.tnMesh.plotMesh();
@@ -97,7 +98,7 @@ id = femProblem.iDirichlet;
 quiver(xy(id,1), xy(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'w-', 'linewidth', 2)
 quiver(xy(id,1), xy(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'g-', 'linewidth', 1)
 axis xy image
-
+%}
 
 %% Sensitivity
 
