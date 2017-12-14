@@ -22,9 +22,17 @@ f.addContour(@(p) [Lx-2, Lx-1, Lx-1, Lx-2], @(p) [rAperture3, rAperture3, Ly-d, 
 f.setFreeCharge(@(p,x,y) 0.0);
 
 p = [0,0,0,0,  0,0,0,0];
-[femProblem, dnx_dp, dny_dp] = f.instantiateProblem(p);
+[femProblem, geometry, dnx_dp, dny_dp] = f.instantiateProblem(p);
 
 xy = femProblem.poi.tnMesh.xyNodes;
+
+%% 
+
+plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
+    [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'b', 'linewidth', 3)
+hold on
+femProblem.poi.tnMesh.plotMesh()
+
 
 %%
 
@@ -64,13 +72,19 @@ toc
 figure(101); clf
 
 
-xCoarse = linspace(-Lx, Lx, 100);
-yCoarse = linspace(0, Ly, 100);
+xCoarse = linspace(-Lx, Lx, 200);
+yCoarse = linspace(0, Ly, 200);
 u = femProblem.poi.tnMesh.rasterizeField(femProblem.u, xCoarse, yCoarse);
 imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
 colormap orangecrush
 hold on
 femProblem.poi.tnMesh.plotMesh();
-quiver(xy(:,1), xy(:,2), femProblem.dF_dxy(:,1), femProblem.dF_dxy(:,2), 'w-', 'linewidth', 2)
-quiver(xy(:,1), xy(:,2), femProblem.dF_dxy(:,1), femProblem.dF_dxy(:,2), 'g-', 'linewidth', 1)
+
+plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
+    [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'color', [0.8 0.8 0.8], 'linewidth', 2)
+
+id = femProblem.iDirichlet;
+quiver(xy(id,1), xy(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'w-', 'linewidth', 2)
+quiver(xy(id,1), xy(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'g-', 'linewidth', 1)
 axis xy image
+

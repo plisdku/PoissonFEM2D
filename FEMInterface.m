@@ -212,7 +212,7 @@ classdef FEMInterface < handle
             end
         end
         
-        function [femp, dnx_dp, dny_dp] = instantiateProblem(obj, p)
+        function [femp, geometry, dnx_dp, dny_dp] = instantiateProblem(obj, p)
             
             geometry = obj.evaluateGeometry(p);
             

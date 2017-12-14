@@ -35,7 +35,7 @@ dirichletPredicate = @(x,y) norm(x-0.5) < 0.25 && norm(y-0.5) < 0.25;
 femp = FEMProblem(poi);
 [iDirichlet, iNeumann] = femp.classifyBoundary(dirichletPredicate);
 
-freeChargeFunc = @(x,y) x*y;
+freeChargeFunc = @(x,y) 0; %x*y;
 dirichletFunc = @(x,y) 0; %double(x>0);
 neumannFunc = @(x,y) 0;
 
@@ -51,6 +51,9 @@ df(femp.iCenter) = 1;
 
 objFun = @(u) sum(u(femp.iCenter));  % TODO: make it work for sum(u), incl. Dirichlet nodes.  WILL NEED!!!
 DobjFun = @(u) df;
+
+objFun = @(u) sum(u);
+DobjFun = @(u) ones(size(u))';
 
 %% Solve it
 
