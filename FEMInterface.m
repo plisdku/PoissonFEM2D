@@ -261,7 +261,7 @@ classdef FEMInterface < handle
             geometry = obj.evaluateGeometry(p);
             
             gmsh = obj.meshGeometry(geometry.contourVertices, geometry.contourMeshSizes);
-            
+        
             lng = LinearNodalGeometry(gmsh.faces, gmsh.vertices, obj.N_geom);
             xyGeomNodes = lng.getNodeCoordinates();
             tnMesh = TriNodalMesh(gmsh.faces, xyGeomNodes, obj.N_field, obj.N_geom, obj.N_quad);

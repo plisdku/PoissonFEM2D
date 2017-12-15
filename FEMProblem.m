@@ -27,6 +27,11 @@ classdef FEMProblem < handle
         B, dB;
         NM, dNM;
         
+        % For Cartesian mode ("only mode")
+        uCartesian;
+        interpolationOperator;
+        dInterpolationOperator; % for input/output
+        
         dF_dCharge;
         dF_dDirichlet;
         dF_dNeumann;
@@ -116,7 +121,85 @@ classdef FEMProblem < handle
             [obj.freeCharge, obj.dFreeCharge_dx, obj.dFreeCharge_dy] = obj.poi.evaluateOnNodes(obj.chargeFunc);
         end
         
-        function solve(obj, objFun)
+        function solveCartesian(obj, xy0, xy1, Nxy)
+            obj.solve();
+            
+            [obj.dInterpolationOperator, obj.interpolationOperator] = ...
+                obj.poi.tnMesh.getRasterInterpolationOperatorSensitivity(xy0, xy1, Nxy);
+            
+            obj.uCartesian = reshape(obj.interpolationOperator*obj.u, Nxy);
+        end
+        
+        function solveAdjointCartesian(obj, dF_du_cartesian)
+            
+            dF_du_rowVector = reshape(dF_du_cartesian, 1, []);
+            
+            Df_val = dF_du_rowVector * obj.interpolationOperator;
+            %Df_val = objFunDerivative(obj.u);
+            assert(isrow(Df_val));
+            
+            Df_center = Df_val(obj.iCenter);
+            
+            A_center = obj.A(obj.iCenter, obj.iCenter);
+            B_center = obj.B(obj.iCenter, :);
+            NM_neumann = obj.NM(obj.iCenter, obj.iNeumann);
+            A_dirichlet = obj.A(obj.iCenter, obj.iDirichlet);
+            
+            % Solve for the adjoint variable
+            
+            v_center = A_center' \ Df_center';
+            obj.v = 0*obj.u;
+            obj.v(obj.iCenter) = v_center;
+            
+            % Matrix sensitivities
+            
+            obj.dA = obj.poi.getSystemMatrixSensitivity();
+            obj.dB = obj.poi.getRhsMatrixSensitivity();
+            obj.dNM = obj.poi.getNeumannMatrixSensitivity();
+            
+            % Sensitivity to free charge (1 x N)
+            
+            obj.dF_dCharge = v_center' * B_center;
+            
+            % Sensitivity to Dirichlet boundary value (1 x N_dirichlet)
+            
+            obj.dF_dDirichlet = -v_center' * A_dirichlet + Df_val(obj.iDirichlet);
+            
+            % Sensitivity to Neumann boundary value (1 x N_neumann)
+            
+            obj.dF_dNeumann = v_center' * NM_neumann;
+            
+            % Sensitivity to perturbing geometry nodes
+            
+            numGeomNodes = obj.poi.tnMesh.hGeomNodes.getNumNodes();
+            
+            obj.dF_dxy = zeros(numGeomNodes,2);
+            
+            for mm = 1:numGeomNodes
+                
+                wx = -obj.dA{1,mm}(obj.iCenter, obj.iCenter)*obj.u(obj.iCenter)...
+                    - obj.dA{1,mm}(obj.iCenter, obj.iDirichlet)*obj.u0_dirichlet ...
+                    + obj.dNM{1,mm}(obj.iCenter, obj.iNeumann)*obj.en_neumann ...
+                    + obj.dB{1,mm}(obj.iCenter, :)*obj.freeCharge ...
+                    + obj.B(obj.iCenter,:)*obj.dFreeCharge_dx(:,mm);
+                
+                wy = -obj.dA{2,mm}(obj.iCenter, obj.iCenter)*obj.u(obj.iCenter)...
+                    - obj.dA{2,mm}(obj.iCenter, obj.iDirichlet)*obj.u0_dirichlet ...
+                    + obj.dNM{2,mm}(obj.iCenter, obj.iNeumann)*obj.en_neumann ...
+                    + obj.dB{2,mm}(obj.iCenter, :)*obj.freeCharge ...
+                    + obj.B(obj.iCenter,:)*obj.dFreeCharge_dy(:,mm);
+                
+                dFdx = v_center'*wx + dF_du_rowVector * obj.dInterpolationOperator{1,mm} * obj.u;
+                dFdy = v_center'*wy + dF_du_rowVector * obj.dInterpolationOperator{2,mm} * obj.u;
+                
+                obj.dF_dxy(mm,1) = dFdx;
+                obj.dF_dxy(mm,2) = dFdy;
+            end
+            
+        end
+        
+        
+        function solve(obj)
             
             obj.A = obj.poi.getSystemMatrix();
             obj.B = obj.poi.getRhsMatrix();
@@ -141,8 +224,10 @@ classdef FEMProblem < handle
             obj.u(obj.iDirichlet) = obj.u0_dirichlet;
             
             % Evaluate the functional
-            obj.F = objFun(obj.u);
+            %obj.F = objFun(obj.u);
         end
+        
+        
         
         function solveAdjoint(obj, objFunDerivative)
             
@@ -200,16 +285,13 @@ classdef FEMProblem < handle
                     + obj.dB{2,mm}(obj.iCenter, :)*obj.freeCharge ...
                     + obj.B(obj.iCenter,:)*obj.dFreeCharge_dy(:,mm);
                 
-                dFdx = v_center'*wx;
-                dFdy = v_center'*wy;
+                dFdx = v_center'*wx; % + Df_val * DoutI{1,mm} * obj.u;
+                dFdy = v_center'*wy; % + Df_val * DoutI{2,mm} * obj.u;
                 
                 obj.dF_dxy(mm,1) = dFdx;
                 obj.dF_dxy(mm,2) = dFdy;
             end
-
-
         end
-        
         
         % dirichletPredicate([v1x,v1y], [v2x,v2y])
         function [iDirichlet, iNeumann, iBoundary] = classifyBoundary(obj, dirichletPredicate)

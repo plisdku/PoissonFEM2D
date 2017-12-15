@@ -9,7 +9,7 @@ d = 4;
 
 %%
 
-N_field = 2;
+N_field = 3;
 N_geom = 2;
 N_quad = N_field;
 
@@ -28,10 +28,11 @@ f.setFreeCharge(@(p,x,y) 0.0);
 p = [0,0];
 [femProblem, geometry, dDirichlet_dp, dnx_dp, dny_dp] = f.instantiateProblem(p);
 
-xy = femProblem.poi.tnMesh.xyNodes;
+xyGeomNodes = femProblem.poi.tnMesh.xyNodes;
 
 %%
 
+figure(1); clf
 plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
     [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'b', 'linewidth', 3)
 hold on
@@ -47,30 +48,43 @@ deltas = linspace(0, 0.5, 10);
 Fs = 0*deltas;
 DFs = 0*deltas;
 
+[femProblem, geometry, dDirichlet_dp, dnx_dp, dny_dp] = f.instantiateProblem(p);
+xyNodes0 = femProblem.poi.tnMesh.xyNodes;
+
 for nn = 1:length(deltas)
     p = p0;
     p(iParamToVary) = p(iParamToVary) + deltas(nn);
     
     fprintf('Instantiating...\n');
     [femProblem, geometry, dDirichlet_dp, dnx_dp, dny_dp] = f.instantiateProblem(p);
-    xy = femProblem.poi.tnMesh.xyNodes;
+    xyGeomNodes = femProblem.poi.tnMesh.xyNodes;
     
     % Build and evaluate objective function and gradient
-    outI = femProblem.poi.tnMesh.getRasterInterpolationOperator([-0.5, -0.5], [0.5, 0.5], [5, 5]);
-    objFun = @(u_nodal) sum(outI * u_nodal);
-    DobjFun = @(u_nodal) sum(outI, 1);
+    %outI = femProblem.poi.tnMesh.getRasterInterpolationOperator([-0.5, -0.5], [0.5, 0.5], [5, 5]);
+    %[DoutI, outI] = femProblem.poi.tnMesh.getRasterInterpolationOperatorSensitivity([-0.5, -0.5], [0.5, 0.5], [5, 5]);
+    %objFun = @(u_nodal) sum(outI * u_nodal);
+    %DobjFun = @(u_nodal) sum(outI, 1);
+    
+    measBox = [-0.5, -0.5, 0.5, 0.5];
+    measNxy = [5, 5];
+    
+    objFun = @(u_Cartesian) sum(u_Cartesian(:));
+    DobjFun = @(u_Cartesian) ones(size(u_Cartesian));
     
     fprintf('Forward solution... ');
-    femProblem.solve(objFun);
+    femProblem.solveCartesian(measBox(1:2), measBox(3:4), measNxy);
+    F = objFun(femProblem.uCartesian);
+    
     fprintf('Adjoint solution... ');
-    femProblem.solveAdjoint(DobjFun);
+    %femProblem.solveAdjoint(DobjFun, DoutI);
+    femProblem.solveAdjointCartesian(DobjFun(femProblem.uCartesian));
     fprintf('complete.\n');
     
     % Sensitivity to parameters
     dFdp = femProblem.dF_dxy(:,1)' * dnx_dp + femProblem.dF_dxy(:,2)' * dny_dp ...
         + femProblem.dF_dDirichlet * dDirichlet_dp;
     
-    Fs(nn) = femProblem.F;
+    Fs(nn) = F; %femProblem.F;
     DFs(nn) = dFdp(iParamToVary);
     
     figure(1); clf
@@ -85,9 +99,10 @@ for nn = 1:length(deltas)
     plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
         [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'color', [0.8 0.8 0.8], 'linewidth', 2)
     
-    id = femProblem.iDirichlet;
-    quiver(xy(id,1), xy(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'w-', 'linewidth', 2)
-    quiver(xy(id,1), xy(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'g-', 'linewidth', 1)
+    %id = femProblem.iDirichlet;
+    id = ':';
+    quiver(xyGeomNodes(id,1), xyGeomNodes(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'w-', 'linewidth', 2)
+    quiver(xyGeomNodes(id,1), xyGeomNodes(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'g-', 'linewidth', 1)
     axis xy image
     title(sprintf('Iteration %i', nn));
     
