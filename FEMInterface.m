@@ -179,40 +179,84 @@ classdef FEMInterface < handle
             
         end
         
-        function [iDirichlet, iNeumann, dirichletVals, neumannVals] = getBoundaryConditions(obj, p, tnMesh, fieldNodeContour)
+        function [funcVals, jac] = getFunctionJacobian(obj, p, xx, yy, func)
+            % Evaluate Jacobian of parameterized source function e.g.
+            % dirichlet(p,x,y), neumann(p,x,y), freeCharge(p,x,y).
+            
+            jac = sparse(length(xx), length(p));
+            delta = 1e-8;
+            for nn = 1:length(xx)
+                
+                funcVals(nn) = func(p,xx,yy);
+                
+                for mm = 1:length(p)
+                    pLow = p;
+                    pLow(mm) = pLow(mm) - delta;
+                    pHigh = p;
+                    pHigh(mm) = pHigh(mm) + delta;
+                    
+                    jac(nn,mm) = (func(pHigh,xx(nn),yy(nn)) - func(pLow,xx(nn),yy(nn))) / (2*delta);
+                end
+            end
+        end
+        
+        function [iDirichlet, iNeumann, dirichletVals, neumannVals, dirichletJacobian, neumannJacobian] = getBoundaryConditions(obj, p, tnMesh, fieldNodeContour)
             
             % Set Dirichlet and Neumann boundary conditions
             iDirichlet = [];
             iNeumann = [];
             
-            dirichletVals = [];
-            neumannVals = [];
+            contourValues = {};
+            contourJacobians = {};
+            contourNodes = {};
             
             xyFieldNodes = tnMesh.getNodeCoordinates();
             for cc = 1:length(obj.contours)
                 iContourNodes = find(fieldNodeContour == cc);
-                xx = xyFieldNodes(iContourNodes,1);
-                yy = xyFieldNodes(iContourNodes,2);
-                bdyVals = zeros(length(iContourNodes),1);
                 
-                for nn = 1:length(bdyVals)
-                    bdyVals(nn) = obj.contours(cc).boundaryFunc(p, xx(nn), yy(nn));
-                end
+                [bdyVals, bdyJac] = obj.getFunctionJacobian(p, xyFieldNodes(iContourNodes,1), xyFieldNodes(iContourNodes,2), obj.contours(cc).boundaryFunc);
+                contourValues{cc} = bdyVals;
+                contourJacobians{cc} = bdyJac;
+                contourNodes{cc} = iContourNodes;
                 
                 if strcmpi(obj.contours(cc).type, 'dirichlet')
                     iDirichlet = [iDirichlet; iContourNodes];
-                    dirichletVals = [dirichletVals; bdyVals];
                 elseif strcmpi(obj.contours(cc).type, 'neumann')
                     iNeumann = [iNeumann; iContourNodes];
-                    neumannVals = [neumannVals; bdyVals];
                 else
                     error('Invalid boundary type %s', obj.contours(cc).type);
                 end
+            end
+            
+            dirichletVals = zeros(length(iDirichlet),1);
+            neumannVals = zeros(length(iNeumann),1);
+            
+            dirichletJacobian = sparse(length(iDirichlet), length(p));
+            neumannJacobian = sparse(length(iNeumann), length(p));
+            
+            dIdx = 1;
+            nIdx = 1;
+            for cc = 1:length(obj.contours)
+                contourLength = length(contourNodes{cc});
                 
+                if strcmpi(obj.contours(cc).type, 'dirichlet')
+                    indices = dIdx:(dIdx+contourLength-1);
+                    dirichletJacobian(indices,:) = contourJacobians{cc};
+                    dirichletVals(indices) = contourValues{cc};
+                    dIdx = dIdx + contourLength;
+                elseif strcmpi(obj.contours(cc).type, 'neumann')
+                    indices = dIdx:(dIdx+contourLength-1);
+                    neumannJacobian(indices,:) = contourJacobians{cc};
+                    neumannVals(indices) = contourValues{cc};
+                    nIdx = nIdx + contourLength;
+                else
+                    error('Invalid boundary type %s', obj.contours(cc).type);
+                end
             end
         end
         
-        function [femp, geometry, dnx_dp, dny_dp] = instantiateProblem(obj, p)
+        
+        function [femp, geometry, dDirichlet_dp, dnx_dp, dny_dp] = instantiateProblem(obj, p)
             
             geometry = obj.evaluateGeometry(p);
             
@@ -238,7 +282,7 @@ classdef FEMInterface < handle
             dnx_dp = dNode_dv * dvx_dp;
             dny_dp = dNode_dv * dvy_dp;
             
-            [iDirichlet, iNeumann, dirichletVals, neumannVals] = obj.getBoundaryConditions(p, tnMesh, fieldNodeContour);
+            [iDirichlet, iNeumann, dirichletVals, neumannVals, dDirichlet_dp, dNeumann_dp] = obj.getBoundaryConditions(p, tnMesh, fieldNodeContour);
             
             % Assemble the FEM problem
             poi = PoissonFEM2D(tnMesh);
