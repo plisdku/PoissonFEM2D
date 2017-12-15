@@ -144,11 +144,8 @@ classdef FEMProblem < handle
             
             A_center = obj.A(obj.iCenter, obj.iCenter);
             B_center = obj.B(obj.iCenter, :);
-            NM_center = obj.NM(obj.iCenter, obj.iCenter);
             NM_neumann = obj.NM(obj.iCenter, obj.iNeumann);
             A_dirichlet = obj.A(obj.iCenter, obj.iDirichlet);
-            
-            freeCharge_center = obj.freeCharge(obj.iCenter);
             
             if numel(obj.iNeumann) > 0
                 u_center = A_center \ (B_center*obj.freeCharge - A_dirichlet*obj.u0_dirichlet - NM_neumann*obj.en_neumann);
@@ -176,11 +173,8 @@ classdef FEMProblem < handle
             
             A_center = obj.A(obj.iCenter, obj.iCenter);
             B_center = obj.B(obj.iCenter, :);
-            NM_center = obj.NM(obj.iCenter, obj.iCenter);
             NM_neumann = obj.NM(obj.iCenter, obj.iNeumann);
             A_dirichlet = obj.A(obj.iCenter, obj.iDirichlet);
-            
-            %freeCharge_center = obj.freeCharge(obj.iCenter);
             
             % Solve for the adjoint variable
             
@@ -194,15 +188,15 @@ classdef FEMProblem < handle
             obj.dB = obj.poi.getRhsMatrixSensitivity();
             obj.dNM = obj.poi.getNeumannMatrixSensitivity();
             
-            % Sensitivity to free charge
+            % Sensitivity to free charge (1 x N)
             
             obj.dF_dCharge = v_center' * B_center;
             
-            % Sensitivity to Dirichlet boundary value
+            % Sensitivity to Dirichlet boundary value (1 x N_dirichlet)
             
-            obj.dF_dDirichlet = -v_center' * A_dirichlet;
+            obj.dF_dDirichlet = -v_center' * A_dirichlet + Df_val(obj.iDirichlet);
             
-            % Sensitivity to Neumann boundary value
+            % Sensitivity to Neumann boundary value (1 x N_neumann)
             
             obj.dF_dNeumann = v_center' * NM_neumann;
             

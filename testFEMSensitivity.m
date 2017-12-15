@@ -49,8 +49,8 @@ numFieldNodes = femp.poi.tnMesh.hFieldNodes.getNumNodes();
 df = zeros(1, numFieldNodes);
 df(femp.iCenter) = 1;
 
-objFun = @(u) sum(u(femp.iCenter));  % TODO: make it work for sum(u), incl. Dirichlet nodes.  WILL NEED!!!
-DobjFun = @(u) df;
+%objFun = @(u) sum(u(femp.iCenter));  % TODO: make it work for sum(u), incl. Dirichlet nodes.  WILL NEED!!!
+%DobjFun = @(u) df;
 
 objFun = @(u) sum(u);
 DobjFun = @(u) ones(size(u))';
