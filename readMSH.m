@@ -109,3 +109,5 @@ while false == done
         otherwise
     end
 end
+
+fclose(fh);
