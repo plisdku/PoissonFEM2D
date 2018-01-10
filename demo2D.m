@@ -53,8 +53,14 @@ for nn = 1:length(deltas)
     ps(nn) = p(iParamToVary);
     
     fprintf('Instantiating...\n');
-    %instance.adjustMesh(p);
-    instance.instantiateMesh(p);
+    
+    DO_ADJUST_MESH = 1;  % Lars pay attention to this!!!!
+    
+    if DO_ADJUST_MESH
+        instance.adjustMesh(p);
+    else
+        instance.instantiateMesh(p);
+    end
     [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.instantiateProblemNew(p, instance, geom2d);
     xyGeomNodes = femProblem.poi.tnMesh.xyNodes;
     
