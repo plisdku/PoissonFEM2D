@@ -7,9 +7,9 @@ classdef FEMProblem < handle
         iNeumann
         iCenter
         
-        dirichletFunc
-        neumannFunc
-        chargeFunc
+        dirichletFunc % unused
+        neumannFunc % unused
+        chargeFunc % USED (damn)
         
         u;
         v;

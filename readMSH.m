@@ -2,6 +2,11 @@ function [faceNodes, edgeNodes, xy, edgePhysicalEntity, edgeElementaryEntity] = 
 
 fh = fopen(fname);
 
+if fh == -1
+    error('Could not open file');
+end
+
+
 done = false;
 
 while false == done

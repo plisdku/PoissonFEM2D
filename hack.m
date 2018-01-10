@@ -13,19 +13,21 @@ N_field = 3;
 N_geom = 2;
 N_quad = N_field;
 
-f = FEMInterface(N_field, N_geom, N_quad);
-%f.addContour(@(p) [-Lx, 0, Lx, Lx, 0, -Lx], @(p) [0, 0, 0, Ly, Ly, Ly], @(p) [0.5, 4, 0.5, 4, 4, 4], 'neumann', @(p,x,y) 0.0);
-%f.addContour(@(p) [-Lx+1, -Lx+2, -Lx+2, -Lx+1]+p(1:4), @(p) [rAperture1, rAperture1, Ly-d, Ly-d]+p(5:8), @(p) 0.5, 'dirichlet', @(p,x,y) 0.0);
-%f.addContour(@(p) [-Lx+3, -Lx+4, -Lx+4, -Lx+3], @(p) [rAperture2, rAperture2, Ly-d, Ly-d], @(p) 0.5, 'dirichlet', @(p,x,y) 1.0);
-%f.addContour(@(p) [Lx-2, Lx-1, Lx-1, Lx-2], @(p) [rAperture3, rAperture3, Ly-d, Ly-d], @(p) 0.5, 'dirichlet', @(p,x,y) 0.0);
+s = 2; % mesh scale
 
-f.addContour(@(p) [-3, 3, 3, -3], @(p) [-3, -3, 3, 3], @(p) 2, 'neumann', @(p,x,y) 0.0);
-f.addContour(@(p) [-2, -1.5, -1.5, -2] + p(1), @(p) [-2, -2, 2, 2], @(p) 1, 'dirichlet', @(p, x, y) p(2));
-f.addContour(@(p) [1.5, 2, 2, 1.5], @(p) [-2, -2, 2, 2], @(p) 1, 'dirichlet', @(p, x, y) -1.0);
+f = FEMInterface(N_field, N_geom, N_quad);
+f.addContour(@(p) [-Lx, 0, Lx, Lx, 0, -Lx], @(p) [0, 0, 0, Ly, Ly, Ly], @(p) s*[0.5, 4, 0.5, 4, 4, 4], 'neumann', @(p,x,y) 0.0);
+f.addContour(@(p) [-Lx+1, -Lx+2, -Lx+2, -Lx+1], @(p) [rAperture1, rAperture1, Ly-d, Ly-d]+p(5:8), @(p) s*0.5, 'dirichlet', @(p,x,y) 0.0);
+f.addContour(@(p) [-Lx+3, -Lx+4, -Lx+4, -Lx+3]+p(1:4), @(p) [rAperture2, rAperture2, Ly-d, Ly-d], @(p) s*0.5, 'dirichlet', @(p,x,y) 1.0);
+f.addContour(@(p) [Lx-2, Lx-1, Lx-1, Lx-2], @(p) [rAperture3, rAperture3, Ly-d, Ly-d], @(p) s*0.5, 'dirichlet', @(p,x,y) 0.0);
+
+%f.addContour(@(p) 0.001*[-3, 3, 3, -3], @(p) [-3, -3, 3, 3]*0.001, @(p) 2, 'neumann', @(p,x,y) 0.0);
+%f.addContour(@(p) 0.001*[-2, -1.5, -1.5, -2] + [-p(1), 0, 0, 0], @(p) [-2, -2, 2, 2]*0.001, @(p) 1, 'dirichlet', @(p, x, y) p(2));
+%f.addContour(@(p) 0.001*[1.5, 2, 2, 1.5], @(p) [-2, -2, 2, 2]*0.001, @(p) 1, 'dirichlet', @(p, x, y) -1.0);
 
 f.setFreeCharge(@(p,x,y) 0.0);
 
-p = [0,0];
+p = [0,0,0,0,0,0,0,0];
 [femProblem, geometry, dDirichlet_dp, dnx_dp, dny_dp] = f.instantiateProblem(p);
 
 xyGeomNodes = femProblem.poi.tnMesh.xyNodes;
@@ -40,20 +42,21 @@ femProblem.poi.tnMesh.plotMesh()
 
 %% Sensitivity
 
-p0 = [0, 1];
-iParamToVary = 1;
+p0 = [0,0,0,0,0,0,0,0];
+iParamToVary = 3;
 
-deltas = linspace(0, 0.5, 10);
+%deltas = linspace(0.0, 0.15, 1000);
+deltas = linspace(0.0, 2.5, 10);
+deltas = deltas(2:end);
 
 Fs = 0*deltas;
 DFs = 0*deltas;
-
-[femProblem, geometry, dDirichlet_dp, dnx_dp, dny_dp] = f.instantiateProblem(p);
-xyNodes0 = femProblem.poi.tnMesh.xyNodes;
+ps = 0*deltas;
 
 for nn = 1:length(deltas)
     p = p0;
     p(iParamToVary) = p(iParamToVary) + deltas(nn);
+    ps(nn) = p(iParamToVary);
     
     fprintf('Instantiating...\n');
     [femProblem, geometry, dDirichlet_dp, dnx_dp, dny_dp] = f.instantiateProblem(p);
@@ -65,8 +68,8 @@ for nn = 1:length(deltas)
     %objFun = @(u_nodal) sum(outI * u_nodal);
     %DobjFun = @(u_nodal) sum(outI, 1);
     
-    measBox = [-0.5, -0.5, 0.5, 0.5];
-    measNxy = [5, 5];
+    measBox = [-1, 1, 0, 2]; %[-0.5, -0.5, 0.5, 0.5];
+    measNxy = [20, 20];
     
     objFun = @(u_Cartesian) sum(u_Cartesian(:));
     DobjFun = @(u_Cartesian) ones(size(u_Cartesian));
@@ -88,8 +91,10 @@ for nn = 1:length(deltas)
     DFs(nn) = dFdp(iParamToVary);
     
     figure(1); clf
-    xCoarse = linspace(-3, 3, 200);
-    yCoarse = linspace(-3, 3, 200);
+    %xCoarse = linspace(-3, 3, 200);
+    %yCoarse = linspace(-3, 3, 200);
+    xCoarse = linspace(-Lx, Lx, 200);
+    yCoarse = linspace(0, Ly, 200);
     u = femProblem.poi.tnMesh.rasterizeField(femProblem.u, xCoarse, yCoarse);
     imagesc_centered(xCoarse, yCoarse, u'); axis xy image; colorbar
     colormap orangecrush
@@ -103,17 +108,29 @@ for nn = 1:length(deltas)
     id = ':';
     quiver(xyGeomNodes(id,1), xyGeomNodes(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'w-', 'linewidth', 2)
     quiver(xyGeomNodes(id,1), xyGeomNodes(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'g-', 'linewidth', 1)
+    plot(measBox([1,3,3,1,1]), measBox([2,2,4,4,2]), 'w--');
     axis xy image
     title(sprintf('Iteration %i', nn));
     
-    if nn > 1
-        figure(2); clf
-        df_meas = gradient(Fs, deltas);
-        plot(1:nn, DFs(1:nn));
-        hold on
-        plot(1:nn, df_meas(1:nn));
-        legend('Adjoint', 'Calculated');
+    figure(2); clf
+    subplot(2,1,1);
+    plot(ps(1:nn), DFs(1:nn), 'o-');
+    %yl = ylim;
+    hold on
+    if nn >= 2
+        df_meas = gradient(Fs(1:nn), deltas(1:nn));
+        plot(ps(1:nn), df_meas, 'o-');
+        %ylim(yl);
     end
+    xlabel('p')
+    ylabel('gradient')
+    legend('Adjoint', 'Calculated');
+
+    subplot(2,1,2);
+    plot(ps(1:nn), Fs(1:nn), 'o-');
+    xlabel('p')
+    ylabel('F')
+
     pause(0.01)
 end
 

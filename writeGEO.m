@@ -31,7 +31,7 @@ for cc = 1:length(contours)
     contourLines{cc} = iLinesInContour;
     
     for pp = 1:numPoints
-        fprintf(fh, 'Point(%i) = {%i, %i, 0.0, %i};\n', pointIdx, points(pp,1), points(pp,2), meshSizes{cc}(pp));
+        fprintf(fh, 'Point(%i) = {%0.9g, %0.9g, 0.0, %0.9g};\n', pointIdx, points(pp,1), points(pp,2), meshSizes{cc}(pp));
         pointIdx = pointIdx + 1;
     end
     
@@ -65,3 +65,5 @@ for cc = 1:length(contourLines)
     fprintf(fh, '%i, ', contourLines{cc}(1:end-1));
     fprintf(fh, '%i};\n', contourLines{cc}(end));
 end
+
+fclose(fh);
