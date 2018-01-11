@@ -36,7 +36,9 @@ bb = b(1:N);
 polyCoeffs = zeros(N);
 
 polyCoeffs(1,end) = P0;
-polyCoeffs(2, end-1:end) = P1;
+if N > 1
+    polyCoeffs(2, end-1:end) = P1;
+end
 %%
 
 for nn = 3:N
