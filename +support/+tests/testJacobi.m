@@ -19,6 +19,9 @@ assert(isClose_tol(ll,jj,1e-5));
 alpha = 0.2;
 beta = -0.3;
 
+%alpha = 0.0;
+%beta = 1.0;
+
 jj = jacobiPolynomialsNormalized(5, alpha, beta);
 
 innerProds = zeros(5);
@@ -31,6 +34,8 @@ for nn = 1:5
         innerProds(nn,mm) = quadgk(integrand, -1, 1);
     end
 end
+
+disp(innerProds)
 
 %% Done!
 

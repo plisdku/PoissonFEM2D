@@ -7,6 +7,8 @@ classdef BasisNodes1d
         
         r;
         
+        basisEvaluator@BasisEvaluator1d;
+        
         iVertices;
         iEdges;
         
@@ -16,11 +18,12 @@ classdef BasisNodes1d
     methods
         function obj = BasisNodes1d(N)
             obj.N = N;
+            obj.basisEvaluator = BasisEvaluator1d(N);
             
             obj.r = support.nodes1d(N);
-            obj.V = support.vandermonde(N, obj.r);
+            %obj.V = support.vandermonde(N, obj.r);
+            obj.V = obj.basisEvaluator.vandermonde(obj.r);
             obj.invV = inv(obj.V);
-            
             
             obj.iVertices = [1, N];
             obj.iEdges = 2:(N-1);
@@ -33,7 +36,8 @@ classdef BasisNodes1d
         
         function Dr = gradientMatrix(obj, rr)
             
-            dVdr = support.gradVandermonde(obj.N, rr);
+            %dVdr = support.gradVandermonde(obj.N, rr);
+            dVdr = obj.basisEvaluator.vandermondeDerivative(rr);
             
             Dr = dVdr * obj.invV;
         end
@@ -41,7 +45,8 @@ classdef BasisNodes1d
         % ---- INTERPOLATION
         
         function M = interpolationMatrix(obj, rr)
-            V2 = support.vandermonde(obj.N, rr);
+            %V2 = support.vandermonde(obj.N, rr);
+            V2 = obj.basisEvaluator.vandermonde(rr);
             M = V2 * obj.invV;
         end
         
