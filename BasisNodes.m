@@ -7,6 +7,8 @@ classdef BasisNodes
         r;  % r-coordinates
         s;  % s-coordinates
         
+        basisEvaluator@BasisEvaluator2d;
+        
         iVertices;   % node numbers at the 3 corners
         iEdges;      % node numbers along the 3 edges, oriented.  Size [3, m]
         iCenter;     % node numbers in the center
@@ -18,8 +20,10 @@ classdef BasisNodes
     methods
         function obj = BasisNodes(N)
             obj.N = N;
+            obj.basisEvaluator = BasisEvaluator2d(N);
             
-            obj.V = support2d.vandermonde(N);
+            %obj.V = support2d.vandermonde(N);
+            obj.V = obj.basisEvaluator.vandermonde();
             obj.invV = inv(obj.V);
             
             [obj.r, obj.s] = support2d.nodes2d(N);
@@ -34,7 +38,8 @@ classdef BasisNodes
         
         function [Dr, Ds] = gradientMatrix(obj, rr, ss)
             
-            [~, dVdr, dVds] = support2d.vandermonde(obj.N, rr, ss);
+            %[~, dVdr, dVds] = support2d.vandermonde(obj.N, rr, ss);
+            [dVdr, dVds] = obj.basisEvaluator.vandermondeDerivative(rr, ss);
             
             Dr = dVdr * obj.invV;
             Ds = dVds * obj.invV;
@@ -44,7 +49,8 @@ classdef BasisNodes
         % ---- INTERPOLATION
         
         function M = interpolationMatrix(obj, rr, ss)
-            V2 = support2d.vandermonde(obj.N, rr, ss);
+            %V2 = support2d.vandermonde(obj.N, rr, ss);
+            V2 = obj.basisEvaluator.vandermonde(rr,ss);
             M = V2 * obj.invV;
         end
         

@@ -4,8 +4,15 @@ function [z, dz_dr, dz_ds] = jacobiNormalized2D(N, ii,jj, xs, ys, varargin)
 
 import support.*
 
+if ii+jj >= N
+    error('Jacobi polynomials on the unit simplex must have i+j < N');
+end
+
 jac_i = jacobiPolynomialsNormalized(N,0,0);
 jac_j = jacobiPolynomialsNormalized(N, 2*ii+1, 0);
+
+%disp(jac_i)
+%disp(jac_j)
 
 % Evaluate two Legendre polynomials (one is fancier than the other)
 P_i = @(x) polyval(jac_i(ii+1,:), x);

@@ -31,15 +31,12 @@ fem = FEMInterface(N_field, N_geom, N_quad);
 fem.setFreeCharge(@(p,x,y) 0.0);
 [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.instantiateProblemNew(p0, instance, geom2d);
 
-%%
-
-
 %% Sensitivity
 
 p0 = [0,0,0,0,0,0,0,0]';
 iParamToVary = 3;
 
-deltas = linspace(0.0, 0.15, 10);
+deltas = linspace(0.0, 0.15, 3);
 %deltas = linspace(0.0, 2.5, 10);
 deltas = deltas(2:end);
 
