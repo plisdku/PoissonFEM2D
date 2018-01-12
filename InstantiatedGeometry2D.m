@@ -201,7 +201,9 @@ classdef InstantiatedGeometry2D < handle
             end
             
             writeGEO('fromMatlab.geo', contourVertices, obj.contourMeshSizes);
-            [status, result] = unix('/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt');
+            path = getGmshPath();
+            %[status, result] = unix('/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt');
+            [status, result] = unix(path);
             [mshFaceVertices, mshEdgeVertices, mshVerts, mshEdgeContour, mshEdgeLine] = readMSH('fromMatlab.msh');
             
             obj.meshStruct = struct('faces', mshFaceVertices,...

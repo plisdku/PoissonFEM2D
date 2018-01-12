@@ -54,7 +54,7 @@ for nn = 1:length(deltas)
     
     fprintf('Instantiating...\n');
     
-    DO_ADJUST_MESH = 1;  % Lars pay attention to this!!!!
+    DO_ADJUST_MESH = 0;  % Lars pay attention to this!!!!
     
     if DO_ADJUST_MESH
         instance.adjustMesh(p);
