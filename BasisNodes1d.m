@@ -52,16 +52,38 @@ classdef BasisNodes1d
         
         % ---- NODE COORDINATES
         
-        function rs = getNodes(obj)
+        function rs = getNodes(obj, varargin)
             % Return row vector of nodes on the edge
-            rs = obj.r;
+            
+            if nargin < 2
+                orientation = 1;
+            else
+                orientation = varargin{1};
+            end
+            
+            if orientation > 0
+                rs = obj.r;
+            else
+                rs = obj.r(end:-1:1);
+            end
         end
         
-        function rs = getInteriorNodes(obj)
+        function rs = getInteriorNodes(obj, varargin)
             % Return row vector of interior nodes on the edge, or empty
             % array for N <= 2.
+            
+            if nargin < 2
+                orientation = 1;
+            else
+                orientation = varargin{1};
+            end
+            
             if obj.N > 2
-                rs = obj.r(2:(obj.N-1));
+                if orientation > 0
+                    rs = obj.r(2:(obj.N-1));
+                else
+                    rs = obj.r((obj.N-1):-1:2);
+                end
             else
                 rs = [];
             end

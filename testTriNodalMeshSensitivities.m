@@ -12,9 +12,11 @@ N_quad = N_field;
 %N_geom = 2;
 %N_quad = 2;
 
+isAxisymmetric = 1;
+
 lng = LinearNodalGeometry(faces, vertices, N_geom);
 xyNodes = lng.getNodeCoordinates();
-tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad, isAxisymmetric);
 
 delta = 1e-8;
 
@@ -38,6 +40,26 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
         [same, relErr, normDiff, normExact] = compareNorms(dxy_calc, dxy_meas);
         if ~same
             fprintf('Node coordinate sensitivity error %0.4e out of %0.4e ***\n', normDiff, normExact)
+        end
+    end
+end
+
+%% Quad coordinate sensitivity
+
+xy = tnMesh.getFaceQuadNodeCoordinates(1);
+rsQuad = tnMesh.hQuadNodes.basis.getNodes();
+dyQuad_dyGeom = tnMesh.hGeomNodes.basis.interpolationMatrix(rsQuad(:,1), rsQuad(:,2));
+
+% Iterate over geometry nodes, perturb, test
+for mm = 1:tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        xy2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getFaceQuadNodeCoordinates(1);
+        Dxy_meas = (xy2-xy)/delta;
+        Dxy_calc = dyQuad_dyGeom(:,mm) * (dirIdx == [1,2]);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(Dxy_calc, Dxy_meas);
+        if ~same
+            fprintf('DJ error %0.4e out of %0.4e ***\n', normDiff, normExact)
         end
     end
 end
@@ -207,7 +229,9 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
         
         [same, relErr, normDiff, normExact] = compareNorms(DQ_calc, DQ_meas);
         if ~same
-            fprintf('DQ error %0.4e out of %0.4e ***\n', normDiff, normExact);
+            fprintf('%i%s DQ error %0.4e out of %0.4e ***\n', mm, char(dirIdx+'w'), normDiff, normExact);
+        else
+            %fprintf('%i%s DQ correct\n', mm, char(dirIdx+'w'));
         end
     end
 end
@@ -231,7 +255,9 @@ for mm = 1:tnMesh.hGeomNodes.N
         % had to tweak the zero threshold to get this test to pass.  hmph.
         [same, relErr, normDiff, normExact] = compareNorms(DQ_calc, DQ_meas, 1e-6, 1e-6);
         if ~same
-            fprintf('DQ error %0.4e out of %0.4e ***\n', normDiff, normExact);
+            fprintf('%i%s DQ error %0.4e out of %0.4e ***\n', mm, char(dirIdx+'w'), normDiff, normExact);
+        else
+            %fprintf('%i%s DQ correct\n', mm, char(dirIdx+'w'));
         end
     end
 end

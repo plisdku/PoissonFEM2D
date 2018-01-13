@@ -6,6 +6,8 @@ N_field = 3;
 N_geom = 3;
 [xyNodes, faces] = nodalWagonWheel(5, N_geom);
 
+isAxisymmetric = 1;
+
 %% Test Jacobian on unit simplex
 % Try changing N and the vertices, or moving a node.
 
@@ -15,7 +17,7 @@ faces = [1,2,3];
 [xyNodes, faces] = nodalMesh(faces, vertices, N);
 %xyNodes(6,2) = xyNodes(6,2) + 0.1;
 
-tnMesh = TriNodalMesh(faces, xyNodes, N, N, N);
+tnMesh = TriNodalMesh(faces, xyNodes, N, N, N, isAxisymmetric);
 
 %figure(1); clf; tnMesh.plotMesh();
 
@@ -74,7 +76,7 @@ faces = [1,2,3];
 xyNodes(6,2) = xyNodes(6,2) + 0.1;
 xyNodes(5,1) = xyNodes(5,1) - 0.1;
 
-tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_field);
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_field, isAxisymmetric);
 [Dx, Dy] = tnMesh.getGradientOperators();
 xy = tnMesh.getNodeCoordinates(); % Field nodes
 
@@ -115,6 +117,150 @@ fprintf('Relative error of df/dy = %0.4e\n', relErr(df_dy_meas, df_dy_calc));
 %assert(norm(df_dx_meas - df_dx_calc) < 1e-6);
 %assert(norm(df_dy_meas - df_dy_calc) < 1e-6);
 
+%% Quadrature
+
+vertices = [0,0; 1,0; 0,1; 1,1];
+faces = [1,2,3; 3,2,4];
+
+N_field = 2;
+N_geom = 4;
+N_quad = 3;
+
+[xyNodes,~] = nodalMesh(faces, vertices, N_geom);
+%xyNodes(:,2) = xyNodes(:,2) + xyNodes(:,2).^2;
+%xyNodes(:,2) = xyNodes(:,2).^2; % + xyNodes(:,1).^2;
+
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad, isAxisymmetric);
+
+%% Integrate 1 and get the area of the square
+% 0.5 on unit simplex
+% 1/6 axisymmetric on unit simplex
+% 0.5 axisymmetric on the square
+
+xyFields = tnMesh.getNodeCoordinates();
+f = ones(size(xyFields,1),1);
+%Q = tnMesh.getQuadratureMatrix(1);
+Q = tnMesh.getQuadratureOperator();
+integral_meas = sum(Q*f);
+
+if isAxisymmetric
+    integral_expected = 0.5;
+else
+    integral_expected = 1.0;
+end
+
+fprintf('Got %2.8f, expected %2.8f\n', integral_meas, integral_expected);
+
+%% Integrate x and get 1/2
+% 1/6 on unit simplex
+% 
+
+xyFields = tnMesh.getNodeCoordinates();
+f = xyFields(:,1);
+%xy = tnMesh.getFaceNodeCoordinates(1);
+%f = xy(:,1);
+%Q = tnMesh.getQuadratureMatrix(1);
+Q = tnMesh.getQuadratureOperator();
+
+integral_meas = sum(Q*f);
+
+if isAxisymmetric
+    integral_expected = 0.25;
+else
+    integral_expected = 0.5;
+end
+
+fprintf('Got %2.8f, expected %2.8f\n', integral_meas, integral_expected);
+
+%% Quadrature in 1D
+
+vertices = [0,0; 1,0; 0,1];
+faces = 1:3;
+N_field = 2;
+N_geom = 2;
+N_quad = 3;
+[xyNodes,~] = nodalMesh(faces, vertices, N_geom);
+
+% Do NOT perturb the nodess yet...
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad, isAxisymmetric);
+
+%% Integrate 1 and get the length of the edge
+
+edgeIntegrals = [1, 1, sqrt(2)]; % I guess edges are 1-2, 1-3 and 2-3 (diagonal is last)... whatever.
+edgeIntegralsAxisymmetric = [0, 0.5, 0.5*sqrt(2)];
+
+for iEdge = 1:3
+    xyFields = tnMesh.getEdgeNodeCoordinates(iEdge);
+    f = ones(size(xyFields(:,1)));
+    Q = tnMesh.getQuadratureMatrix1d(iEdge);
+    integral_meas = sum(Q*f);
+    
+    if isAxisymmetric
+        fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegralsAxisymmetric(iEdge));
+    else
+        fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegrals(iEdge));
+    end
+end
+
+%% Integrate x and get various things
+
+edgeIntegrals = [0.5, 0.0, 0.5*sqrt(2)];
+edgeIntegralsAxisymmetric = [0.0, 0.0, sqrt(2)/6.0];
+
+for iEdge = 1:3
+    xyFields = tnMesh.getEdgeNodeCoordinates(iEdge);
+    f = xyFields(:,1);
+    Q = tnMesh.getQuadratureMatrix1d(iEdge);
+    integral_meas = sum(Q*f);
+
+    if isAxisymmetric
+        fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegralsAxisymmetric(iEdge));
+    else
+        fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegrals(iEdge));
+    end
+end
+
+%% Stretch in the x direction, integrate 1
+
+[xyNodes,~] = nodalMesh(faces,vertices,N_geom);
+QxyNodes(:,1) = xyNodes(:,1).^2;
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad, isAxisymmetric);
+
+for iEdge = 1:2  % the hypotenuse doesn't work so do the straight edges
+    xyFields = tnMesh.getEdgeNodeCoordinates(iEdge, -1);
+    f = ones(size(xyFields(:,1)));
+    Q = tnMesh.getQuadratureMatrix1d(iEdge);
+    integral_meas = sum(Q*f);
+    
+    fprintf('Got %2.6f, expected %2.6f\n', integral_meas, 1);
+end
+
+%% Stretch in the x direction, integrate 1 - x
+% Also flip the edge orientation and redo it.
+
+[xyNodes,~] = nodalMesh(faces,vertices,N_geom);
+xyNodes(:,1) = xyNodes(:,1).^2;
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad, isAxisymmetric);
+
+edgeIntegrals = [0.5, 1.0];
+
+for iEdge = 1:2  % the hypotenuse doesn't work so do the straight edges
+    for orientation = [1, -1]
+        xyFields = tnMesh.getEdgeNodeCoordinates(iEdge, orientation);
+        f = 1 - xyFields(:,1);
+        Q = tnMesh.getQuadratureMatrix1d(iEdge, orientation);
+        integral_meas = sum(Q*f);
+
+        fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegrals(iEdge));
+    end
+end
+
+
+warning('Not running interpolation tests, they need to be rewritten');
+return
+
+
+
 %% Interpolation operator
 
 
@@ -133,7 +279,7 @@ xyNodes = xyNodes + 0.03*randn(size(xyNodes));
 %xyNodes(5,1) = xyNodes(5,1) - 0.1;
 %xyNodes(11,1) = xyNodes(11,1) - 0.3;
 
-tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
+tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad, isAxisymmetric);
 
 figure(3); clf
 tnMesh.plotMesh();
@@ -195,118 +341,6 @@ title('Interpolated')
 colorbar
 
 
-%% Quadrature
-
-vertices = [0,0; 1,0; 0,1; 1,1];
-faces = [1,2,3; 3,2,4];
-
-N_field = 3;
-N_geom = 4;
-N_quad = 3;
-
-[xyNodes,~] = nodalMesh(faces, vertices, N_geom);
-%xyNodes(:,2) = xyNodes(:,2) + xyNodes(:,2).^2;
-%xyNodes(:,2) = xyNodes(:,2).^2; % + xyNodes(:,1).^2;
-
-tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
-
-%% Integrate 1 and get the area of the square
-% 0.5 on unit simplex
-
-xyFields = tnMesh.getNodeCoordinates();
-f = ones(size(xyFields,1),1);
-%Q = tnMesh.getQuadratureMatrix(1);
-Q = tnMesh.getQuadratureOperator();
-integral_meas = sum(Q*f);
-
-fprintf('Got %2.8f, expected 1.0\n', integral_meas);
-
-%% Integrate x and get 1/2
-% 1/6 on unit simplex
-
-xyFields = tnMesh.getNodeCoordinates();
-f = xyFields(:,1);
-%xy = tnMesh.getFaceNodeCoordinates(1);
-%f = xy(:,1);
-%Q = tnMesh.getQuadratureMatrix(1);
-Q = tnMesh.getQuadratureOperator();
-
-integral_meas = sum(Q*f);
-
-fprintf('Got %2.8f, expected %2.8f\n', integral_meas, 0.5);
-
-%% Quadrature in 1D
-
-vertices = [0,0; 1,0; 0,1];
-faces = 1:3;
-N_field = 2;
-N_geom = 2;
-N_quad = 2;
-[xyNodes,~] = nodalMesh(faces, vertices, N_geom);
-
-% Do NOT perturb the nodess yet...
-tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
-
-%% Integrate 1 and get the length of the edge
-
-edgeIntegrals = [1, 1, sqrt(2)];
-
-for iEdge = 1:3
-    xyFields = tnMesh.getEdgeNodeCoordinates(iEdge);
-    f = ones(size(xyFields(:,1)));
-    Q = tnMesh.getQuadratureMatrix1d(iEdge);
-    integral_meas = sum(Q*f);
-
-    fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegrals(iEdge));
-end
-
-%% Integrate x and get various things
-
-edgeIntegrals = [0.5, 0.0, 0.5*sqrt(2)];
-
-for iEdge = 1:3
-    xyFields = tnMesh.getEdgeNodeCoordinates(iEdge);
-    f = xyFields(:,1);
-    Q = tnMesh.getQuadratureMatrix1d(iEdge);
-    integral_meas = sum(Q*f);
-
-    fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegrals(iEdge));
-end
-
-%% Stretch in the x direction, integrate 1
-
-[xyNodes,~] = nodalMesh(faces,vertices,N_geom);
-QxyNodes(:,1) = xyNodes(:,1).^2;
-tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
-
-for iEdge = 1:2  % the hypotenuse doesn't work so do the straight edges
-    xyFields = tnMesh.getEdgeNodeCoordinates(iEdge, -1);
-    f = ones(size(xyFields(:,1)));
-    Q = tnMesh.getQuadratureMatrix1d(iEdge);
-    integral_meas = sum(Q*f);
-    
-    fprintf('Got %2.6f, expected %2.6f\n', integral_meas, 1);
-end
-
-%% Stretch in the x direction, integrate 1 - x
-% Also flip the edge orientation and redo it.
-
-[xyNodes,~] = nodalMesh(faces,vertices,N_geom);
-xyNodes(:,1) = xyNodes(:,1).^2;
-tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
-
-edgeIntegrals = [0.5, 1.0];
-
-for iEdge = 1:2  % the hypotenuse doesn't work so do the straight edges
-    for orientation = [1, -1]
-        xyFields = tnMesh.getEdgeNodeCoordinates(iEdge, orientation);
-        f = 1 - xyFields(:,1);
-        Q = tnMesh.getQuadratureMatrix1d(iEdge, orientation);
-        integral_meas = sum(Q*f);
-
-        fprintf('Got %2.6f, expected %2.6f\n', integral_meas, edgeIntegrals(iEdge));
-    end
-end
 
 
 
@@ -316,52 +350,3 @@ end
 
 
 
-
-
-
-
-
-%% Interpolation operator sensitivity
-
-[vertices,faces] = VVMesh.wagonWheel(5);
-vertices = vertices(:,1:2);
-
-%vertices = [0,0; 1,0; 0,1; 1,0.95];
-%faces = [1,2,4];
-
-N = 4;
-tnMesh = TriNodalMesh(N, faces, vertices);
-
-figure(1); clf
-VVMesh.plotFV(faces, vertices, 'k');
-
-%% Make the interpolation operator and its derivative
-
-xs = linspace(-0.9,0.9, 10);
-ys = xs;
-[xx,yy] = ndgrid(xs,ys);
-
-%xx = 0.2;
-%yy = 0.25;
-
-M = tnMesh.getInterpolationOperator(xx(:), yy(:));
-DM = tnMesh.getInterpolationOperatorSensitivity(xx(:), yy(:));
-
-%% Test perturbations
-
-% Try a few vertices and directions
-iVert = 2;
-iXY = 2;
-
-delta = 1e-6;
-vertices2 = vertices;
-vertices2(iVert, iXY) = vertices2(iVert, iXY) + delta;
-
-tnMesh2 = TriNodalMesh(N, faces, vertices2);
-M2 = tnMesh2.getInterpolationOperator(xx(:), yy(:));
-
-DM_meas = (M2-M)/delta;
-DM_calc = DM{iVert,iXY};
-
-fprintf('Norm of DM_measured: %g\n', norm(full(DM_meas)));
-fprintf('Norm of error: %e\n', norm(full(DM_meas - DM_calc)));

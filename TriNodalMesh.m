@@ -10,6 +10,7 @@ classdef TriNodalMesh < handle
         hQuadNodes@NodalTopology;
         hMeshNodes@NodalTopology; % this is the N=2 version
         
+        isAxisymmetric; % only affects calculation of the quadrature matrices
     end
     
     
@@ -19,7 +20,7 @@ classdef TriNodalMesh < handle
         % ---- CONSTRUCTOR
         
         
-        function obj = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad)
+        function obj = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad, inIsAxisymmetric)
             
             assert(N_quad >= N_field);
             
@@ -31,11 +32,17 @@ classdef TriNodalMesh < handle
             
             assert(size(xyNodes,2) == 2, 'Vertices must be Nx2'); % test because 3d verts are common
             obj.xyNodes = xyNodes;
+            
+            if nargin < 6
+                inIsAxisymmetric = 0;
+            end
+            obj.isAxisymmetric = inIsAxisymmetric;
+            
         end
         
         function other = copy(obj)
             other = TriNodalMesh(obj.hMesh.faceVertices, obj.xyNodes, ...
-                obj.hFieldNodes.N, obj.hGeomNodes.N, obj.hQuadNodes.N);
+                obj.hFieldNodes.N, obj.hGeomNodes.N, obj.hQuadNodes.N, obj.isAxisymmetric);
         end
         
         % For testing purposes
@@ -44,12 +51,54 @@ classdef TriNodalMesh < handle
             xyNodes = obj.xyNodes;
             xyNodes(nodeIdx, directionIdx) = xyNodes(nodeIdx, directionIdx) + delta;
             tnMesh = TriNodalMesh(obj.hMesh.faceVertices, xyNodes, ...
-                obj.hFieldNodes.N, obj.hGeomNodes.N, obj.hQuadNodes.N);
+                obj.hFieldNodes.N, obj.hGeomNodes.N, obj.hQuadNodes.N, obj.isAxisymmetric);
             
         end
         
         % ---- NODAL COORDINATES
         % a.k.a. coordinate transformation
+        
+        function xyz = getVertexGeomNodeCoordinates(obj, iVertex)
+            xyz = obj.xyNodes(iVertex,:);
+        end
+        
+        function xyz = getEdgeGeomNodeCoordinates(obj, iEdge, varargin)
+            assert(numel(iEdge) == 1); % this function does not vectorize that simply
+            if nargin < 4
+                orientation = 1;
+            else
+                orientation = varargin{1};
+            end
+            
+            ii = obj.hGeomNodes.getEdgeNodes(iEdge, orientation);
+            xyz = obj.xyNodes(ii,:);
+        end
+        
+        function xyz = getFaceGeomNodeCoordinates(obj, iFace)
+            assert(numel(iFace) == 1);
+            
+            ii = obj.hGeomNodes.getFaceNodes(iFace);
+            xyz = obj.xyNodes(ii,:);
+        end
+        
+        
+        function xy = getEdgeQuadNodeCoordinates(obj, iEdge, varargin)
+            % Get ordered [x,y] coordinates at positions on a given edge.
+            % getEdgeNodeCoordinates(obj, iEdge, rs)
+            % getEdgeNodeCoordinates(obj, iEdge, rs, orientation)
+            
+            rField = obj.hQuadNodes.basis1d.getNodes(varargin{:});
+            xy = obj.getEdgeCoordinates(iEdge, rField, varargin{:});
+        end
+        
+        function xy = getFaceQuadNodeCoordinates(obj, iFace)
+            % Get ordered [x,y] coordinates at positions on a given face.
+            % getFaceCoordinates(obj, iFace, rr, ss)
+            
+            rs = obj.hQuadNodes.basis.getNodes();
+            xy = obj.getFaceCoordinates(iFace, rs(:,1), rs(:,2));
+        end
+        
         
         function xyz = getVertexNodeCoordinates(obj, iVertex)
             % Get [x,y] coordinates of the node on a given vertex
@@ -73,7 +122,6 @@ classdef TriNodalMesh < handle
             
             M = obj.hGeomNodes.basis1d.interpolationMatrix(rs); % numel(rs) x N
             xy = M*obj.xyNodes(obj.hGeomNodes.getEdgeNodes(iEdge, orientation),:);
-            
         end
         
         function xy = getFaceCoordinates(obj, iFace, rr, ss)
@@ -477,15 +525,6 @@ classdef TriNodalMesh < handle
             [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rr, ss);
         end
         
-        function [dxy_dr, dxy_ds] = getQuadratureJacobian(obj, iFace)
-            
-            % Evaluate AT field nodal (r,s).
-            rr = obj.hQuadNodes.basis.r;
-            ss = obj.hQuadNodes.basis.s;
-            
-            [dxy_dr, dxy_ds] = obj.getJacobian(iFace, rr, ss);
-        end
-        
         % ---- INVERSE COORDINATE TRANSFORM
         
         function rs = linearInverseCoordinateTransform(obj, iFace, xx, yy)
@@ -741,7 +780,14 @@ classdef TriNodalMesh < handle
             %detJq = dxy_dr(:,1).*dxy_ds(:,2) - dxy_dr(:,2).*dxy_ds(:,1); % DETERMINANT!
             assert(all(detJq > 0));
             
-            Q = Ifq' * Qq * diag(detJq) * Ifq;
+            if obj.isAxisymmetric
+                xyQuad = obj.getFaceQuadNodeCoordinates(iFace);
+                Q = Ifq' * Qq * diag(detJq) * diag(xyQuad(:,2)) * Ifq;
+                %xyFields = obj.getFaceNodeCoordinates(iFace);
+                %Q = Ifq' * Qq * diag(detJq) * Ifq * diag(xyFields(:,2));
+            else
+                Q = Ifq' * Qq * diag(detJq) * Ifq;
+            end
         end
         
         function DQ = getQuadratureMatrixSensitivity(obj, iFace)
@@ -758,9 +804,32 @@ classdef TriNodalMesh < handle
             
             DQ = zeros(numFieldNodes, numFieldNodes, 2, numGeomNodes);
             
-            for m = 1:numGeomNodes
-                for k = 1:2
-                    DQ(:,:,k,m) = Ifq' * Qq * diag(DdetJq(:,k,m)) * Ifq;
+            if obj.isAxisymmetric
+                %xyFields = obj.getFaceNodeCoordinates(iFace);
+                %rsFields = obj.hFieldNodes.basis.getNodes();
+                %dyFields_dyGeom = obj.hGeomNodes.basis.interpolationMatrix(rsFields(:,1), rsFields(:,2));
+                
+                xyQuad = obj.getFaceQuadNodeCoordinates(iFace);
+                rsQuad = obj.hQuadNodes.basis.getNodes();
+                dyQuad_dyGeom = obj.hGeomNodes.basis.interpolationMatrix(rsQuad(:,1), rsQuad(:,2));
+                
+                %xyQuad = obj.getFaceGeomNodeCoordinates(iFace);
+                diagY = diag(xyQuad(:,2));
+                
+                diagDetJq = diag(obj.getJacobianDeterminant(iFace, rsQuad(:,1), rsQuad(:,2)));
+                
+                for m = 1:numGeomNodes
+                    DQ(:,:,1,m) = Ifq' * Qq * (...
+                        diag(DdetJq(:,1,m)) * diagY * Ifq );
+                    DQ(:,:,2,m) = Ifq' * Qq * (...
+                        diag(DdetJq(:,2,m)) * diagY * Ifq + ...
+                        diagDetJq * diag(dyQuad_dyGeom(:,m)) * Ifq);
+                end
+            else
+                for m = 1:numGeomNodes
+                    for k = 1:2
+                        DQ(:,:,k,m) = Ifq' * Qq * diag(DdetJq(:,k,m)) * Ifq;
+                    end
                 end
             end
             
@@ -774,10 +843,10 @@ classdef TriNodalMesh < handle
                 orientation = varargin{1};
             end
             
-            rQuad = obj.hQuadNodes.basis1d.getNodes();
-            if orientation < 0
-                rQuad = rQuad(end:-1:1);
-            end
+            rQuad = obj.hQuadNodes.basis1d.getNodes(orientation);
+            %if orientation < 0
+            %    rQuad = rQuad(end:-1:1);
+            %end
             
             Ifq = obj.hFieldNodes.basis1d.interpolationMatrix(rQuad);
             
@@ -786,7 +855,16 @@ classdef TriNodalMesh < handle
             
             detJq = obj.getEdgeJacobianDeterminant(iEdge, rQuad, orientation);
             
-            Q = Ifq' * Qq * diag(detJq) * Ifq;
+            if obj.isAxisymmetric
+                %xyQuad = obj.getEdgeGeomNodeCoordinates(iEdge, orientation);
+                %Q = Ifq' * Qq * diag(detJq) * diag(xyQuad(:,2)) * Ifq;
+                %xyFields = obj.getEdgeNodeCoordinates(iEdge, orientation);
+                %Q = Ifq' * Qq * diag(detJq) * Ifq * diag(xyFields(:,2));
+                xyQuad = obj.getEdgeQuadNodeCoordinates(iEdge, orientation);
+                Q = Ifq' * Qq * diag(detJq) * diag(xyQuad(:,2)) * Ifq;
+            else
+                Q = Ifq' * Qq * diag(detJq) * Ifq;
+            end
             
         end
         
@@ -798,10 +876,10 @@ classdef TriNodalMesh < handle
                 orientation = varargin{1};
             end
             
-            rQuad = obj.hQuadNodes.basis1d.getNodes();
-            if orientation < 0
-                rQuad = rQuad(end:-1:1);
-            end
+            rQuad = obj.hQuadNodes.basis1d.getNodes(orientation);
+            %if orientation < 0
+            %    rQuad = rQuad(end:-1:1);
+            %end
             
             Ifq = obj.hFieldNodes.basis1d.interpolationMatrix(rQuad);
             invVq = obj.hQuadNodes.basis1d.invV;
@@ -814,9 +892,35 @@ classdef TriNodalMesh < handle
             
             DQ = zeros(numFieldNodes, numFieldNodes, 2, numGeomNodes);
             
-            for m = 1:numGeomNodes
-                for k = 1:2
-                    DQ(:,:,k,m) = Ifq' * Qq * diag(DdetJq(:,k,m)) * Ifq;
+            if obj.isAxisymmetric
+                
+                %xyFields = obj.getEdgeNodeCoordinates(iEdge, orientation);
+                %rFields = obj.hFieldNodes.basis1d.getNodes(orientation);
+                %dyFields_dyGeom = obj.hGeomNodes.basis1d.interpolationMatrix(rFields);
+                %diagY = diag(xyFields(:,2));
+                xyQuad = obj.getEdgeNodeCoordinates(iEdge, orientation);
+                rQuad = obj.hQuadNodes.basis1d.getNodes(orientation);
+                dyQuad_dyGeom = obj.hGeomNodes.basis1d.interpolationMatrix(rQuad);
+                diagY = diag(xyQuad(:,2));
+                
+                %xyQuad = obj.getEdgeGeomNodeCoordinates(iEdge, orientation);
+                %diagY = diag(xyQuad(:,2));
+                
+                diagDetJq = diag(obj.getEdgeJacobianDeterminant(iEdge, rQuad, orientation));
+                
+                for m = 1:numGeomNodes
+                    DQ(:,:,1,m) = Ifq' * Qq * ( ...
+                        diag(DdetJq(:,1,m)) * diagY * Ifq );
+                    DQ(:,:,2,m) = Ifq' * Qq * ( ...
+                        diag(DdetJq(:,2,m)) * diagY * Ifq + ...
+                        diagDetJq * diag(dyQuad_dyGeom(:,m)) * Ifq );
+                end
+                
+            else
+                for m = 1:numGeomNodes
+                    for k = 1:2
+                        DQ(:,:,k,m) = Ifq' * Qq * diag(DdetJq(:,k,m)) * Ifq;
+                    end
                 end
             end
         end
