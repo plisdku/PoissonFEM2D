@@ -53,7 +53,9 @@ end
 %% Surface to mesh
 
 fprintf(fh, 'Plane Surface(1) = {');
-fprintf(fh, '%i, ', lineLoops(1:end-1));
+for nn = 1:length(lineLoops)-1
+    fprintf(fh, '%i, ', lineLoops(nn));
+end
 fprintf(fh, '%i};\n', lineLoops(end));
 
 %% Physical entities (labels)

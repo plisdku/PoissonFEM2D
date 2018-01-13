@@ -21,11 +21,13 @@ classdef InstantiatedGeometry2D < handle
         N_geom;
         N_field;
         N_quad;
+        
+        isAxisymmetric;
     end
     
     methods
         
-        function obj = InstantiatedGeometry2D(inParameterizedGeometry, inN_field, inN_geom, inN_quad)
+        function obj = InstantiatedGeometry2D(inParameterizedGeometry, inN_field, inN_geom, inN_quad, inIsAxisymmetric)
             obj.parameterizedGeometry = inParameterizedGeometry;
             
             obj.meshStruct = [];
@@ -37,12 +39,24 @@ classdef InstantiatedGeometry2D < handle
             obj.N_field = inN_field;
             obj.N_geom = inN_geom;
             obj.N_quad = inN_quad;
+            
+            if nargin < 5
+                obj.isAxisymmetric = 0;
+            else
+                obj.isAxisymmetric = inIsAxisymmetric;
+            end
         end
         
         function instantiateMesh(obj, paramVector)
             
             geometry = obj.parameterizedGeometry.evaluateGeometry(paramVector);
-            [obj.dvx_dp, obj.dvy_dp] = obj.parameterizedGeometry.evaluateGeometryJacobian(paramVector);
+            
+            if ~isempty(paramVector)
+                [obj.dvx_dp, obj.dvy_dp] = obj.parameterizedGeometry.evaluateGeometryJacobian(paramVector);
+            else
+                obj.dvx_dp = sparse(length(geometry.vertices), 0);
+                obj.dvy_dp = sparse(length(geometry.vertices), 0);
+            end
             
             obj.contourVertexIndices = geometry.contourVertexIndices;
             obj.contourMeshSizes = geometry.contourMeshSizes;
@@ -211,7 +225,7 @@ classdef InstantiatedGeometry2D < handle
                 'edgeGeometryLines', mshEdgeLine);
             
             lng = LinearNodalGeometry(obj.meshStruct.faces, obj.meshStruct.vertices, obj.N_geom);
-            obj.tnMesh = TriNodalMesh(obj.meshStruct.faces, lng.getNodeCoordinates(), obj.N_field, obj.N_geom, obj.N_quad);
+            obj.tnMesh = TriNodalMesh(obj.meshStruct.faces, lng.getNodeCoordinates(), obj.N_field, obj.N_geom, obj.N_quad, obj.isAxisymmetric);
             
             obj.geomNodeJacobian = obj.getMeshGeometryJacobians();
         end

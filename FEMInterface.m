@@ -33,7 +33,7 @@ classdef FEMInterface < handle
             delta = 1e-8;
             for nn = 1:length(xx)
                 
-                funcVals(nn) = func(p,xx,yy);
+                funcVals(nn) = func(p,xx(nn),yy(nn));
                 
                 for mm = 1:length(p)
                     pLow = p;

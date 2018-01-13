@@ -16,12 +16,12 @@ classdef ParameterizedGeometry2D < handle
         
         function addContour(obj, x, y, meshSize, dirichletOrNeumann, boundaryFunction)
             
-            assert(isa(x, 'function_handle'));
-            assert(isa(y, 'function_handle'));
-            assert(isa(meshSize, 'function_handle'));
-            assert(isa(boundaryFunction, 'function_handle'));
+            assert(isa(x, 'function_handle'), 'x must be a function handle returning vertex x coordinates');
+            assert(isa(y, 'function_handle'), 'y must be a function handle returning vertex y coordinates');
+            assert(isa(meshSize, 'numeric'), 'meshSize must be a scalar or an array of one mesh size per vertex');
+            assert(isa(boundaryFunction, 'function_handle'), 'boundaryFunction must be a function handle returning a scalar for each vertex');
             
-            c = struct('xFunc', x, 'yFunc', y, 'meshSizeFunc', meshSize, ...
+            c = struct('xFunc', x, 'yFunc', y, 'meshSize', meshSize, ...
                 'type', dirichletOrNeumann, 'boundaryFunc', boundaryFunction);
             
             if isempty(obj.contours)
@@ -53,7 +53,7 @@ classdef ParameterizedGeometry2D < handle
                 x = obj.contours(cc).xFunc(p); %local
                 y = obj.contours(cc).yFunc(p); %local
                 contourLength = length(x); %local
-                meshSize = obj.contours(cc).meshSizeFunc(p); %local
+                meshSize = obj.contours(cc).meshSize; %local
                 
                 if length(meshSize) == 1
                     meshSize = repmat(meshSize, length(x), 1);

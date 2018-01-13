@@ -17,10 +17,10 @@ p0 = [0,0,0,0,0,0,0,0]';
 s = 2; % mesh scale
 
 geom2d = ParameterizedGeometry2D();
-geom2d.addContour(@(p) [-Lx, 0, Lx, Lx, 0, -Lx], @(p) [0, 0, 0, Ly, Ly, Ly], @(p) s*[0.5, 4, 0.5, 4, 4, 4], 'neumann', @(p,x,y) 0.0);
-geom2d.addContour(@(p) [-Lx+1, -Lx+2, -Lx+2, -Lx+1], @(p) [rAperture1, rAperture1, Ly-d, Ly-d]+p(5:8)', @(p) s*0.5, 'dirichlet', @(p,x,y) 0.0);
-geom2d.addContour(@(p) [-Lx+3, -Lx+4, -Lx+4, -Lx+3]+p(1:4)', @(p) [rAperture2, rAperture2, Ly-d, Ly-d], @(p) s*0.5, 'dirichlet', @(p,x,y) 1.0);
-geom2d.addContour(@(p) [Lx-2, Lx-1, Lx-1, Lx-2], @(p) [rAperture3, rAperture3, Ly-d, Ly-d], @(p) s*0.5, 'dirichlet', @(p,x,y) 0.0);
+geom2d.addContour(@(p) [-Lx, 0, Lx, Lx, 0, -Lx], @(p) [0, 0, 0, Ly, Ly, Ly], s*[0.5, 4, 0.5, 4, 4, 4], 'neumann', @(p,x,y) 0.0);
+geom2d.addContour(@(p) [-Lx+1, -Lx+2, -Lx+2, -Lx+1], @(p) [rAperture1, rAperture1, Ly-d, Ly-d]+p(5:8)', s*0.5, 'dirichlet', @(p,x,y) 0.0);
+geom2d.addContour(@(p) [-Lx+3, -Lx+4, -Lx+4, -Lx+3]+p(1:4)', @(p) [rAperture2, rAperture2, Ly-d, Ly-d], s*0.5, 'dirichlet', @(p,x,y) 1.0);
+geom2d.addContour(@(p) [Lx-2, Lx-1, Lx-1, Lx-2], @(p) [rAperture3, rAperture3, Ly-d, Ly-d], s*0.5, 'dirichlet', @(p,x,y) 0.0);
 
 instance = InstantiatedGeometry2D(geom2d, N_field, N_geom, N_quad);
 instance.instantiateMesh(p0);
