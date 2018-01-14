@@ -248,8 +248,11 @@ classdef InstantiatedGeometry2D < handle
                 contourVertices{cc} = obj.geometry.vertices(obj.geometry.contourVertexIndices{cc},:);
             end
             
-            writeGEO('fromMatlab.geo', contourVertices, obj.geometry.contourMeshSizes);
-            [status, result] = unix('/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt');
+            writeGEO('fromMatlab.geo', contourVertices, obj.contourMeshSizes);
+            path = getGmshPath();
+            %[status, result] = unix('/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt');
+            [status, result] = unix(path);
+
             [mshFaceVertices, mshEdgeVertices, mshVerts, mshEdgeContour, mshEdgeLine] = readMSH('fromMatlab.msh');
             
             obj.meshStruct = struct('faces', mshFaceVertices,...
