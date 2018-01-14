@@ -64,7 +64,9 @@ for nn = 1:length(deltas)
     xyGeomNodes = femProblem.poi.tnMesh.xyNodes;
     
     measBox = [-1, 1, 0, 2]; %[-0.5, -0.5, 0.5, 0.5];
-    measNxy = [20, 20];
+    %measNxy = [20, 20];
+    measBox = [-5, 0, 5, 0.4];
+    measNxy = [2, 2];
     
     objFun = @(u_Cartesian) sum(u_Cartesian(:));
     DobjFun = @(u_Cartesian) ones(size(u_Cartesian));
@@ -85,6 +87,12 @@ for nn = 1:length(deltas)
     Fs(nn) = F; %femProblem.F;
     DFs(nn) = dFdp(iParamToVary);
     
+    % Create some fake trajectories
+    numT = 100;
+    numParticles = 10;
+    [xTraj, yTraj] = fakeTrajectories(-Lx, 0, Lx, 0, numT, numParticles);
+    yTraj = abs(yTraj); % implement mirroring
+    
     figure(1); clf
     %xCoarse = linspace(-3, 3, 200);
     %yCoarse = linspace(-3, 3, 200);
@@ -95,6 +103,7 @@ for nn = 1:length(deltas)
     colormap orangecrush
     hold on
     femProblem.poi.tnMesh.plotMesh();
+    plot(xTraj, yTraj, 'w.');
     
     geometry = fem.instantiatedGeom.geometry;
     plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
@@ -120,7 +129,7 @@ for nn = 1:length(deltas)
     end
     xlabel('p')
     ylabel('gradient')
-    legend('Adjoint', 'Calculated');
+    legend('Adjoint', 'Calculated', 'location', 'best');
 
     subplot(2,1,2);
     plot(ps(1:nn), Fs(1:nn), 'o-');
