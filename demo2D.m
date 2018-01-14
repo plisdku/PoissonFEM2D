@@ -24,20 +24,14 @@ geom2d.addContour(@(p) [-Lx+1, -Lx+2, -Lx+2, -Lx+1], @(p) [rAperture1, rAperture
 geom2d.addContour(@(p) [-Lx+3, -Lx+4, -Lx+4, -Lx+3]+p(1:4)', @(p) [rAperture2, rAperture2, Ly-d, Ly-d], s*0.5, 3, 1:4);
 geom2d.addContour(@(p) [Lx-2, Lx-1, Lx-1, Lx-2], @(p) [rAperture3, rAperture3, Ly-d, Ly-d], s*0.5, 2, 1:4);
 
-
 fem = FEMInterface(geom2d, N_field, N_geom, N_quad, isAxisymmetric);
 fem.setNeumann(1, @(p,x,y) 0.0);
 fem.setDirichlet(2, @(p,x,y) 0.0);
 fem.setDirichlet(3, @(p,x,y) 1.0);
 fem.setFreeCharge(@(p,x,y) 0.0);
 
-%instance = InstantiatedGeometry2D(geom2d, N_field, N_geom, N_quad);
-%instance.instantiateMesh(p0);
-
 %%
 
-%fem = FEMInterface(N_field, N_geom, N_quad);
-%fem.setFreeCharge(@(p,x,y) 0.0);
 [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.instantiateProblem(p0);
 
 %% Sensitivity

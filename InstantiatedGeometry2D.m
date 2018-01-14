@@ -272,8 +272,6 @@ classdef InstantiatedGeometry2D < handle
             
             patch('Faces', obj.meshStruct.faces, 'Vertices', obj.meshStruct.vertices, varargin{:});
         end
-            
-            
         
     end
     
