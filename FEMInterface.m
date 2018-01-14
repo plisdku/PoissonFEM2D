@@ -1,28 +1,30 @@
 classdef FEMInterface < handle
     
     properties
-        %contours;
         freeChargeFunction;
-        
-        N_field;
-        N_geom;
-        N_quad;
+        instantiatedGeom@InstantiatedGeometry2D;
+        boundaryConditions;
     end
     
     methods
         
-        function obj = FEMInterface(N_field, N_geom, N_quad)
-            obj.N_field = N_field;
-            obj.N_geom = N_geom;
-            obj.N_quad = N_quad;
-%            obj.contours = [];
+        function obj = FEMInterface(parameterizedGeom, N_field, N_geom, N_quad, isAxisymmetric)
+            obj.instantiatedGeom = InstantiatedGeometry2D(parameterizedGeom, N_field, N_geom, N_quad, isAxisymmetric);
             obj.freeChargeFunction = [];
+            obj.boundaryConditions = {};
         end
         
         function setFreeCharge(obj, freeChargeFunc)
             assert(isa(freeChargeFunc, 'function_handle'));
-            
             obj.freeChargeFunction = freeChargeFunc;
+        end
+        
+        function setDirichlet(obj, inLabel, inFunc)
+            obj.boundaryConditions{end+1} = struct('label', inLabel, 'func', inFunc, 'type', 'dirichlet');
+        end
+        
+        function setNeumann(obj, inLabel, inFunc)
+            obj.boundaryConditions{end+1} = struct('label', inLabel, 'func', inFunc, 'type', 'neumann');
         end
         
         function [funcVals, jac] = getFunctionJacobian(obj, p, xx, yy, func)
@@ -46,89 +48,91 @@ classdef FEMInterface < handle
             end
         end
         
-        function [iDirichlet, iNeumann, dirichletVals, neumannVals, dirichletJacobian, neumannJacobian] = getBoundaryConditions(obj, p, tnMesh, paramGeom, fieldNodeContour)
+        function [iDirichlet, iNeumann, iBoundaryNodes, boundaryNodeLabels] = getBoundaryFieldNodeIndices(obj)
             
-            % Set Dirichlet and Neumann boundary conditions
-            iDirichlet = [];
-            iNeumann = [];
+            %[iBoundaryNodes,~,nodeLabels] = find(obj.instantiatedGeom.getFieldNodeLabels());
+            %boundaryDorN = zeros(size(nodeLabels));
             
-            contourValues = {};
-            contourJacobians = {};
-            contourNodes = {};
+            numFieldNodes = obj.instantiatedGeom.tnMesh.hFieldNodes.getNumNodes();
+            boundaryDorN = sparse(numFieldNodes, 1);
+            nodeLabels = sparse(numFieldNodes, 1);
             
+            for ii = 1:length(obj.boundaryConditions)
+                bcType = obj.boundaryConditions{ii}.type;
+                bcLabel = obj.boundaryConditions{ii}.label;
+                
+                iNodes = obj.instantiatedGeom.getLabeledFieldNodes(bcLabel);
+                nodeLabels(iNodes) = bcLabel;
+                
+                if strcmpi(bcType, 'dirichlet')
+                    boundaryDorN(iNodes) = 'd';
+                    %boundaryDorN(nodeLabels == bcLabel) = 'd';
+                else
+                    boundaryDorN(iNodes) = 'n';
+                    %boundaryDorN(nodeLabels == bcLabel) = 'n';
+                end
+            end
+            [iBoundaryNodes,~,bcType] = find(boundaryDorN);
+            iDirichlet = iBoundaryNodes(bcType == 'd');
+            iNeumann = iBoundaryNodes(bcType == 'n');
+            [iBoundaryNodes,~,boundaryNodeLabels] = find(nodeLabels);
+        end
+        
+        function [iDirichlet, iNeumann, dirichletVals, neumannVals, dirichletJacobian, neumannJacobian] = ...
+                getBoundaryConditions(obj, p)
+            
+            % Copy the handles out here for convenience.
+            paramGeom = obj.instantiatedGeom.parameterizedGeometry;
+            tnMesh = obj.instantiatedGeom.tnMesh;
             xyFieldNodes = tnMesh.getNodeCoordinates();
-            for cc = 1:length(paramGeom.contours)
-                iContourNodes = find(fieldNodeContour == cc);
+            numFieldNodes = size(xyFieldNodes, 1);
+            numParameters = length(p);
+            
+            % Indices of field nodes that are Dirichlet or Neumann.
+            % iBoundary is the union of iDirichlet and iNeumann.
+            [iDirichlet, iNeumann, iBoundary, nodeLabels] = obj.getBoundaryFieldNodeIndices();
+            
+            boundaryVals = sparse(numFieldNodes, 1);
+            boundaryJacobian = sparse(numFieldNodes, numParameters);
+            
+            for ii = 1:length(obj.boundaryConditions)
+                bc = obj.boundaryConditions{ii};
+                iNodes = iBoundary(nodeLabels == bc.label);
                 
-                [bdyVals, bdyJac] = obj.getFunctionJacobian(p, xyFieldNodes(iContourNodes,1), xyFieldNodes(iContourNodes,2), paramGeom.contours(cc).boundaryFunc);
-                contourValues{cc} = bdyVals;
-                contourJacobians{cc} = bdyJac;
-                contourNodes{cc} = iContourNodes;
+                [bdyVals, bdyJac] = obj.getFunctionJacobian(p, xyFieldNodes(iNodes,1), xyFieldNodes(iNodes,2), bc.func);
                 
-                if strcmpi(paramGeom.contours(cc).type, 'dirichlet')
-                    iDirichlet = [iDirichlet; iContourNodes];
-                elseif strcmpi(paramGeom.contours(cc).type, 'neumann')
-                    iNeumann = [iNeumann; iContourNodes];
-                else
-                    error('Invalid boundary type %s', paramGeom.contours(cc).type);
-                end
+                boundaryVals(iNodes) = bdyVals;
+                boundaryJacobian(iNodes,:) = bdyJac;
             end
             
-            dirichletVals = zeros(length(iDirichlet),1);
-            neumannVals = zeros(length(iNeumann),1);
+            dirichletVals = boundaryVals(iDirichlet,:);
+            dirichletJacobian = boundaryJacobian(iDirichlet,:);
             
-            dirichletJacobian = sparse(length(iDirichlet), length(p));
-            neumannJacobian = sparse(length(iNeumann), length(p));
-            
-            dIdx = 1;
-            nIdx = 1;
-            for cc = 1:length(paramGeom.contours)
-                contourLength = length(contourNodes{cc});
-                
-                if strcmpi(paramGeom.contours(cc).type, 'dirichlet')
-                    indices = dIdx:(dIdx+contourLength-1);
-                    dirichletJacobian(indices,:) = contourJacobians{cc};
-                    dirichletVals(indices) = contourValues{cc};
-                    dIdx = dIdx + contourLength;
-                elseif strcmpi(paramGeom.contours(cc).type, 'neumann')
-                    indices = dIdx:(dIdx+contourLength-1);
-                    neumannJacobian(indices,:) = contourJacobians{cc};
-                    neumannVals(indices) = contourValues{cc};
-                    nIdx = nIdx + contourLength;
-                else
-                    error('Invalid boundary type %s', paramGeom.contours(cc).type);
-                end
-            end
+            neumannVals = boundaryVals(iNeumann,:);
+            neumannJacobian = boundaryJacobian(iNeumann,:);
         end
         
         
-        function [femp, geometry, dDirichlet_dp, dnx_dp, dny_dp] = instantiateProblem(obj, p)
-            
-            geometry = obj.evaluateGeometry(p);
-            
-            gmsh = obj.meshGeometry(geometry.contourVertices, geometry.contourMeshSizes);
-            
-            [femp, geometry, dDirichlet_dp, dnx_dp, dny_dp] = obj.instantiateProblemWithMesh(p, geometry, gmsh);
-        
+        function [femp, dDirichlet_dp, dnx_dp, dny_dp] = instantiateProblem(obj, p)
+            obj.instantiatedGeom.instantiateMesh(p);
+            [femp, dDirichlet_dp, dnx_dp, dny_dp] = obj.assembleProblemWithMesh(p);
         end
         
+        function [femp, dDirichlet_dp, dnx_dp, dny_dp] = adjustProblem(obj, p)
+            obj.instantiatedGeom.adjustMesh(p);
+            [femp, dDirichlet_dp, dnx_dp, dny_dp] = obj.assembleProblemWithMesh(p);
+        end
         
-        
-        function [femp, dDirichlet_dp, dnx_dp, dny_dp] = instantiateProblemNew(obj, p, ig, paramGeom)  % gmsh is needed for topology and labels.
+        function [femp, dDirichlet_dp, dnx_dp, dny_dp] = assembleProblemWithMesh(obj, p)
             
             % Geometry node parameter sensitivity
-            dnx_dp = ig.geomNodeJacobian * ig.dvx_dp;
-            dny_dp = ig.geomNodeJacobian * ig.dvy_dp;
+            dnx_dp = obj.instantiatedGeom.geomNodeJacobian * obj.instantiatedGeom.dvx_dp;
+            dny_dp = obj.instantiatedGeom.geomNodeJacobian * obj.instantiatedGeom.dvy_dp;
             
-            % Assign contour indices to all field nodes on boundaries.
-            % We'll use this to impose Dirichlet and Neumann conditions.
-            fieldNodeContour = ig.getFieldNodeContours();
-            
-            [iDirichlet, iNeumann, dirichletVals, neumannVals, dDirichlet_dp, dNeumann_dp] = obj.getBoundaryConditions(p, ig.tnMesh, paramGeom, fieldNodeContour);
-            
+            [iDirichlet, iNeumann, dirichletVals, neumannVals, dDirichlet_dp, dNeumann_dp] = obj.getBoundaryConditions(p);
             
             % Assemble the FEM problem
-            poi = PoissonFEM2D(ig.tnMesh);
+            poi = PoissonFEM2D(obj.instantiatedGeom.tnMesh);
             femp = FEMProblem(poi);
             
             femp.setDirichlet(iDirichlet, dirichletVals);
@@ -136,45 +140,6 @@ classdef FEMInterface < handle
             femp.setFreeCharge(@(x,y) obj.freeChargeFunction(p, x, y));
         end
         
-        %function [femp, dDirichlet_dp, dnx_dp, dny_dp] = reinstantiateProblem(obj, p, ig, paramGeom)
-        %    
-        %end
-        
-        
-        function [femp, geometry, dDirichlet_dp, dnx_dp, dny_dp] = instantiateProblemWithMesh(obj, p, ig)  % gmsh is needed for topology and labels.
-            lng = LinearNodalGeometry(gmsh.faces, gmsh.vertices, obj.N_geom);
-            xyGeomNodes = lng.getNodeCoordinates();
-            tnMesh = TriNodalMesh(gmsh.faces, xyGeomNodes, obj.N_field, obj.N_geom, obj.N_quad);
-            
-            
-            % Assign geometry line indices to all geometry nodes on
-            % boundaries.  We'll use this for sensitivity calculations.
-            geomNodeLine = obj.getGeomNodeLines(tnMesh, gmsh.boundaryEdges, gmsh.edgeGeometryLines);
-            
-            % Derivative of geometry nodes with respect to geometry
-            % vertices (user vertices).
-            [dvx_dp, dvy_dp] = obj.evaluateGeometryJacobian(p); % ig.dvx_dp, ig.dvy_dp
-            dNode_dv = obj.getGeometryNodeJacobians(geometry, tnMesh, geomNodeLine); % ig.geomNodeJacobian
-            
-            dnx_dp = dNode_dv * dvx_dp;
-            dny_dp = dNode_dv * dvy_dp;
-            
-            
-            % Assign contour indices to all field nodes on boundaries.
-            % We'll use this to impose Dirichlet and Neumann conditions.
-            fieldNodeContour = obj.getFieldNodeContours(tnMesh, gmsh.boundaryEdges, gmsh.edgeGeometryContours);
-            
-            [iDirichlet, iNeumann, dirichletVals, neumannVals, dDirichlet_dp, dNeumann_dp] = obj.getBoundaryConditions(p, tnMesh, fieldNodeContour);
-            
-            
-            % Assemble the FEM problem
-            poi = PoissonFEM2D(tnMesh);
-            femp = FEMProblem(poi);
-            
-            femp.setDirichlet(iDirichlet, dirichletVals);
-            femp.setNeumann(iNeumann, neumannVals);
-            femp.setFreeCharge(@(x,y) obj.freeChargeFunction(p, x, y));
-        end
         
     end % methods
     

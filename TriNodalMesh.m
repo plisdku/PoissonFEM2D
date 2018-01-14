@@ -898,7 +898,7 @@ classdef TriNodalMesh < handle
                 %rFields = obj.hFieldNodes.basis1d.getNodes(orientation);
                 %dyFields_dyGeom = obj.hGeomNodes.basis1d.interpolationMatrix(rFields);
                 %diagY = diag(xyFields(:,2));
-                xyQuad = obj.getEdgeNodeCoordinates(iEdge, orientation);
+                xyQuad = obj.getEdgeQuadNodeCoordinates(iEdge, orientation);
                 rQuad = obj.hQuadNodes.basis1d.getNodes(orientation);
                 dyQuad_dyGeom = obj.hGeomNodes.basis1d.interpolationMatrix(rQuad);
                 diagY = diag(xyQuad(:,2));
