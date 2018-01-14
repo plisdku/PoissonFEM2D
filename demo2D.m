@@ -13,7 +13,7 @@ isAxisymmetric = 1;
 
 N_field = 3;
 N_geom = 2;
-N_quad = N_field + isAxisymmetric + 1; % there is a reason for this
+N_quad = N_field + isAxisymmetric; % there is a reason for this
 
 p0 = [0,0,0,0,0,0,0,0]';
 s = 2; % mesh scale
@@ -54,7 +54,7 @@ for nn = 1:length(deltas)
     
     fprintf('Instantiating...\n');
     
-    DO_ADJUST_MESH = 0;  % Lars pay attention to this!!!!
+    DO_ADJUST_MESH = 1;  % Lars pay attention to this!!!!
     
     if DO_ADJUST_MESH
         [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.adjustProblem(p);
