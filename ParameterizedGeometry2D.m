@@ -8,26 +8,59 @@ classdef ParameterizedGeometry2D < handle
     end
     
     
+    methods (Static)
+        function bc = dirichlet(value, lineIds)
+            bc = ParameterizedGeometry2D.boundaryCondition('dirichlet', value, lineIds);
+        end
+        
+        function bc = neumann(value, lineIds)
+            bc = ParameterizedGeometry2D.boundaryCondition('neumann', value, lineIds);
+        end
+        
+        function bc = boundaryCondition(bcType, value, lineIds)
+            assert(isa(value, 'function_handle') || isscalar(value), ...
+                'Boundary value must be a scalar or a function handle of (p,x,y)');
+            if isscalar(value)
+                value = @(p,x,y) value;
+            end
+            bc = struct('type', bcType, 'func', value, 'relativeLineIds', lineIds);
+        end
+    end
+    
     methods
         
         function obj = ParameterizedGeometry2D()
             obj.contours = [];
         end
         
-        function addContour(obj, x, y, meshSize, dirichletOrNeumann, boundaryFunction)
+        function addContour(obj, x, y, meshSize, varargin)
             
-            assert(isa(x, 'function_handle'));
-            assert(isa(y, 'function_handle'));
-            assert(isa(meshSize, 'function_handle'));
-            assert(isa(boundaryFunction, 'function_handle'));
+            assert(isa(x, 'function_handle'), 'x must be a function handle returning vertex x coordinates');
+            assert(isa(y, 'function_handle'), 'y must be a function handle returning vertex y coordinates');
+            assert(isa(meshSize, 'numeric'), 'meshSize must be a scalar or an array of one mesh size per vertex');
             
-            c = struct('xFunc', x, 'yFunc', y, 'meshSizeFunc', meshSize, ...
-                'type', dirichletOrNeumann, 'boundaryFunc', boundaryFunction);
+            lineLabels = [];
+            for nn = 1:2:length(varargin)
+                labelId = varargin{nn};
+                lineIdsInContour = varargin{nn+1};
+                maxLineId = max(lineIdsInContour);
+                
+                if length(lineLabels) < maxLineId
+                    tmp = zeros(1, maxLineId);
+                    tmp(1:length(lineLabels)) = lineLabels;
+                    lineLabels = tmp;
+                end
+                
+                lineLabels(lineIdsInContour) = labelId;
+            end
+            
+            % Duh, I should put the labels HERE
+            contourStruct = struct('xFunc', x, 'yFunc', y, 'meshSize', meshSize, 'lineLabels', lineLabels);
             
             if isempty(obj.contours)
-                obj.contours = c;
+                obj.contours = contourStruct;
             else
-                obj.contours(end+1) = c;
+                obj.contours(end+1) = contourStruct;
             end
         end
         
@@ -47,13 +80,23 @@ classdef ParameterizedGeometry2D < handle
             
             outGeometryVertices = [];
             outGeometryLines = [];
+            outGeometryLineLabels = [];
             idxGeomVert = 1;
+            
+            contourLengths = zeros(size(obj.contours));
             
             for cc = 1:length(obj.contours)
                 x = obj.contours(cc).xFunc(p); %local
                 y = obj.contours(cc).yFunc(p); %local
                 contourLength = length(x); %local
-                meshSize = obj.contours(cc).meshSizeFunc(p); %local
+                numLineLabels = length(obj.contours(cc).lineLabels);
+                
+                if numLineLabels ~= contourLength
+                    error(sprintf('Contour %i has %i line labels for %i lines\n', cc, numLineLabels, contourLength));
+                end
+                
+                contourLengths(cc) = contourLength;
+                meshSize = obj.contours(cc).meshSize; %local
                 
                 if length(meshSize) == 1
                     meshSize = repmat(meshSize, length(x), 1);
@@ -65,17 +108,18 @@ classdef ParameterizedGeometry2D < handle
                 outGeometryVertices = [outGeometryVertices; [col(x), col(y)]];
                 
                 arange = (0:(contourLength-1))'; %local
-                
                 outContourVertexIndices{cc} = idxGeomVert + arange;
                 
                 outGeometryLines = [outGeometryLines; idxGeomVert + [arange, mod(arange+1, contourLength)]];
+                outGeometryLineLabels = [outGeometryLineLabels; reshape(obj.contours(cc).lineLabels, [], 1)];
                 idxGeomVert = idxGeomVert + contourLength; % local
             end
             
             g = struct('contourVertexIndices', {outContourVertexIndices}, ...
                 'contourMeshSizes', {outMeshSizes}, ...
                 'vertices', outGeometryVertices, ...
-                'lines', outGeometryLines);
+                'lines', outGeometryLines, ...
+                'lineLabels', outGeometryLineLabels);
         end
         
         

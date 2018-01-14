@@ -7,29 +7,38 @@ rAperture2 = 1.5;
 rAperture3 = 1;
 d = 4;
 
+isAxisymmetric = 1;
+
 %%
 
 N_field = 3;
 N_geom = 2;
-N_quad = N_field;
+N_quad = N_field + isAxisymmetric + 1; % there is a reason for this
 
 p0 = [0,0,0,0,0,0,0,0]';
 s = 2; % mesh scale
 
 geom2d = ParameterizedGeometry2D();
-geom2d.addContour(@(p) [-Lx, 0, Lx, Lx, 0, -Lx], @(p) [0, 0, 0, Ly, Ly, Ly], @(p) s*[0.5, 4, 0.5, 4, 4, 4], 'neumann', @(p,x,y) 0.0);
-geom2d.addContour(@(p) [-Lx+1, -Lx+2, -Lx+2, -Lx+1], @(p) [rAperture1, rAperture1, Ly-d, Ly-d]+p(5:8)', @(p) s*0.5, 'dirichlet', @(p,x,y) 0.0);
-geom2d.addContour(@(p) [-Lx+3, -Lx+4, -Lx+4, -Lx+3]+p(1:4)', @(p) [rAperture2, rAperture2, Ly-d, Ly-d], @(p) s*0.5, 'dirichlet', @(p,x,y) 1.0);
-geom2d.addContour(@(p) [Lx-2, Lx-1, Lx-1, Lx-2], @(p) [rAperture3, rAperture3, Ly-d, Ly-d], @(p) s*0.5, 'dirichlet', @(p,x,y) 0.0);
+geom2d.addContour(@(p) [-Lx, 0, Lx, Lx, 0, -Lx], @(p) [0, 0, 0, Ly, Ly, Ly], s*[0.5, 4, 0.5, 4, 4, 4], 1, 1:6);
+geom2d.addContour(@(p) [-Lx+1, -Lx+2, -Lx+2, -Lx+1], @(p) [rAperture1, rAperture1, Ly-d, Ly-d]+p(5:8)', s*0.5, 2, 1:4);
+geom2d.addContour(@(p) [-Lx+3, -Lx+4, -Lx+4, -Lx+3]+p(1:4)', @(p) [rAperture2, rAperture2, Ly-d, Ly-d], s*0.5, 3, 1:4);
+geom2d.addContour(@(p) [Lx-2, Lx-1, Lx-1, Lx-2], @(p) [rAperture3, rAperture3, Ly-d, Ly-d], s*0.5, 2, 1:4);
 
-instance = InstantiatedGeometry2D(geom2d, N_field, N_geom, N_quad);
-instance.instantiateMesh(p0);
+
+fem = FEMInterface(geom2d, N_field, N_geom, N_quad, isAxisymmetric);
+fem.setNeumann(1, @(p,x,y) 0.0);
+fem.setDirichlet(2, @(p,x,y) 0.0);
+fem.setDirichlet(3, @(p,x,y) 1.0);
+fem.setFreeCharge(@(p,x,y) 0.0);
+
+%instance = InstantiatedGeometry2D(geom2d, N_field, N_geom, N_quad);
+%instance.instantiateMesh(p0);
 
 %%
 
-fem = FEMInterface(N_field, N_geom, N_quad);
-fem.setFreeCharge(@(p,x,y) 0.0);
-[femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.instantiateProblemNew(p0, instance, geom2d);
+%fem = FEMInterface(N_field, N_geom, N_quad);
+%fem.setFreeCharge(@(p,x,y) 0.0);
+[femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.instantiateProblem(p0);
 
 %% Sensitivity
 
@@ -38,7 +47,7 @@ iParamToVary = 3;
 
 deltas = linspace(0.0, 0.15, 3);
 %deltas = linspace(0.0, 2.5, 10);
-deltas = deltas(2:end);
+%deltas = deltas(2:end);
 
 Fs = 0*deltas;
 DFs = 0*deltas;
@@ -54,11 +63,10 @@ for nn = 1:length(deltas)
     DO_ADJUST_MESH = 0;  % Lars pay attention to this!!!!
     
     if DO_ADJUST_MESH
-        instance.adjustMesh(p);
+        [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.adjustProblem(p);
     else
-        instance.instantiateMesh(p);
+        [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.instantiateProblem(p);
     end
-    [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.instantiateProblemNew(p, instance, geom2d);
     xyGeomNodes = femProblem.poi.tnMesh.xyNodes;
     
     measBox = [-1, 1, 0, 2]; %[-0.5, -0.5, 0.5, 0.5];
@@ -94,8 +102,9 @@ for nn = 1:length(deltas)
     hold on
     femProblem.poi.tnMesh.plotMesh();
     
-    plot([instance.vertices(instance.lines(:,1),1), instance.vertices(instance.lines(:,2),1)]', ...
-        [instance.vertices(instance.lines(:,1),2), instance.vertices(instance.lines(:,2),2)]', 'color', [0.8 0.8 0.8], 'linewidth', 2)
+    geometry = fem.instantiatedGeom.geometry;
+    plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
+        [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'color', [0.8 0.8 0.8], 'linewidth', 2)
     
     %id = femProblem.iDirichlet;
     id = ':';
