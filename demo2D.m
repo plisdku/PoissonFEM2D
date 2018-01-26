@@ -16,7 +16,8 @@ N_geom = 2;
 N_quad = N_field + isAxisymmetric; % there is a reason for this
 
 p0 = [0,0,0,0,0,0,0,0]';
-s = 2; % mesh scale
+%s = 2; % mesh scale
+s = 2e-1;
 
 geom2d = ParameterizedGeometry2D();
 geom2d.addContour(@(p) [-Lx, 0, Lx, Lx, 0, -Lx], @(p) [0, 0, 0, Ly, Ly, Ly], s*[0.5, 4, 0.5, 4, 4, 4], 1, 1:6);
@@ -39,7 +40,7 @@ fem.setFreeCharge(@(p,x,y) 0.0);
 p0 = [0,0,0,0,0,0,0,0]';
 iParamToVary = 3;
 
-deltas = linspace(0.0, 0.15, 3);
+deltas = linspace(0.0, 0.015, 3);
 %deltas = linspace(0.0, 2.5, 10);
 %deltas = deltas(2:end);
 
@@ -65,7 +66,9 @@ for nn = 1:length(deltas)
     geometry = fem.instantiatedGeom.geometry;
     
     measBox = [-1, 1, 0, 2]; %[-0.5, -0.5, 0.5, 0.5];
-    measNxy = [20, 20];
+    %measNxy = [20, 20];
+    measNxy = [100, 100];
+    
     %measBox = [-5, 0, 5, 0.4];
     %measNxy = [2, 2];
     
@@ -75,6 +78,7 @@ for nn = 1:length(deltas)
     fprintf('Forward solution... ');
     femProblem.solveCartesian(measBox(1:2), measBox(3:4), measNxy);
     F = objFun(femProblem.uCartesian);
+    
     
     fprintf('Adjoint solution... ');
     %femProblem.solveAdjoint(DobjFun, DoutI);
@@ -113,7 +117,8 @@ for nn = 1:length(deltas)
         [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'color', [0.8 0.8 0.8], 'linewidth', 2)
     
     % Plot geometry
-    id = ':';
+    %id = ':';
+    id = find(fem.instantiatedGeom.getGeomNodeLines);
     quiver(xyGeomNodes(id,1), xyGeomNodes(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'w-', 'linewidth', 2)
     quiver(xyGeomNodes(id,1), xyGeomNodes(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'g-', 'linewidth', 1)
     plot(measBox([1,3,3,1,1]), measBox([2,2,4,4,2]), 'w--');

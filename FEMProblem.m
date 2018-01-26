@@ -153,8 +153,19 @@ classdef FEMProblem < handle
             
             % Matrix sensitivities
             
-            obj.dA = obj.poi.getSystemMatrixSensitivity();
-            obj.dB = obj.poi.getRhsMatrixSensitivity();
+            
+            % Get all faces that have a boundary vertex.
+            % This is more faces than just those that have a boundary edge.
+            [boundaryEdges, ~] = obj.poi.tnMesh.hMesh.getBoundaryEdges();
+            evMat = obj.poi.tnMesh.hMesh.getEdgeVertexAdjacency();
+            fvMat = obj.poi.tnMesh.hMesh.getFaceVertexAdjacency();
+            feMat = fvMat * evMat';
+            [iBoundaryFaces,~,~] = find(feMat(:,boundaryEdges));
+            iBoundaryFaces = unique(iBoundaryFaces);
+            %[boundaryFaces, = find(adjMat(:,boundaryEdges));
+            
+            obj.dA = obj.poi.getSystemMatrixSensitivity(iBoundaryFaces);
+            obj.dB = obj.poi.getRhsMatrixSensitivity(iBoundaryFaces);
             obj.dNM = obj.poi.getNeumannMatrixSensitivity();
             
             % Sensitivity to free charge (1 x N)

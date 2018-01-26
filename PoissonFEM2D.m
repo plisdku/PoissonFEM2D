@@ -145,7 +145,7 @@ classdef PoissonFEM2D < handle
             end
         end % getRhsMatrix
         
-        function DM = getRhsMatrixSensitivity(obj)
+        function DM = getRhsMatrixSensitivity(obj, iFaces)
             numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             numGeomNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             DM = cell(2, numGeomNodes);
@@ -154,8 +154,11 @@ classdef PoissonFEM2D < handle
             end
             
             numFaces = obj.tnMesh.hMesh.getNumFaces();
+            if nargin < 2
+                iFaces = 1:numFaces;
+            end
             
-            for ff = 1:numFaces
+            for ff = reshape(iFaces, 1, [])
                 DM_face = obj.getElementChargeMatrixSensitivity(ff);
                 
                 iFieldGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
@@ -191,7 +194,7 @@ classdef PoissonFEM2D < handle
         end % getSystemMatrix
         
         
-        function DM = getSystemMatrixSensitivity(obj)
+        function DM = getSystemMatrixSensitivity(obj, iFaces)
             numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
             
@@ -201,8 +204,11 @@ classdef PoissonFEM2D < handle
             end
             
             numFaces = obj.tnMesh.hMesh.getNumFaces();
+            if nargin < 2
+                iFaces = 1:numFaces;
+            end
             
-            for ff = 1:numFaces
+            for ff = reshape(iFaces, 1, [])
                 DM_face = obj.getElementPotentialMatrixSensitivity(ff);
                 iFieldGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
                 iGeomGlobal = obj.tnMesh.hGeomNodes.getFaceNodes(ff);
