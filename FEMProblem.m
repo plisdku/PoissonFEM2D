@@ -121,6 +121,16 @@ classdef FEMProblem < handle
             [obj.freeCharge, obj.dFreeCharge_dx, obj.dFreeCharge_dy] = obj.poi.evaluateOnNodes(obj.chargeFunc);
         end
         
+        function solveForwardCartesian(obj, xy0, xy1, Nxy)
+            
+            obj.solve();
+            
+            obj.interpolationOperator = obj.poi.tnMesh.getRasterInterpolationOperator(xy0, xy1, Nxy);
+            
+            obj.uCartesian = reshape(obj.interpolationOperator*obj.u, Nxy);
+            
+        end
+        
         function solveCartesian(obj, xy0, xy1, Nxy)
             obj.solve();
             
@@ -164,8 +174,8 @@ classdef FEMProblem < handle
             iBoundaryFaces = unique(iBoundaryFaces);
             %[boundaryFaces, = find(adjMat(:,boundaryEdges));
             
-            obj.dA = obj.poi.getSystemMatrixSensitivity(iBoundaryFaces);
-            obj.dB = obj.poi.getRhsMatrixSensitivity(iBoundaryFaces);
+            obj.dA = obj.poi.getSystemMatrixSensitivity();
+            obj.dB = obj.poi.getRhsMatrixSensitivity();
             obj.dNM = obj.poi.getNeumannMatrixSensitivity();
             
             % Sensitivity to free charge (1 x N)
