@@ -39,7 +39,7 @@ fem.setFreeCharge(@(p,x,y) 0.0);
 p0 = [0,0,0,0,0,0,0,0]';
 iParamToVary = 3;
 
-deltas = linspace(0.0, 0.15, 3);
+deltas = linspace(0.0, 0.15, 6);
 %deltas = linspace(0.0, 2.5, 10);
 %deltas = deltas(2:end);
 

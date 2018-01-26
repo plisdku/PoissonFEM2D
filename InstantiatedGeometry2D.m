@@ -48,7 +48,7 @@ classdef InstantiatedGeometry2D < handle
         function instantiateMesh(obj, paramVector)
             
             obj.geometry = obj.parameterizedGeometry.evaluateGeometry(paramVector);
-            
+            %obj.plotGeometry();
             if ~isempty(paramVector)
                 [obj.dvx_dp, obj.dvy_dp] = obj.parameterizedGeometry.evaluateGeometryJacobian(paramVector);
             else
@@ -253,7 +253,9 @@ classdef InstantiatedGeometry2D < handle
             cmd = sprintf('%s -2 fromMatlab.geo > gmshOut.txt', gmshPath);
             %[status, result] = unix('/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt');
             [status, result] = unix(cmd);
-
+            if status
+                error(result);
+            end
             [mshFaceVertices, mshEdgeVertices, mshVerts, mshEdgeContour, mshEdgeLine] = readMSH('fromMatlab.msh');
             
             obj.meshStruct = struct('faces', mshFaceVertices,...
@@ -275,6 +277,12 @@ classdef InstantiatedGeometry2D < handle
             end
             
             patch('Faces', obj.meshStruct.faces, 'Vertices', obj.meshStruct.vertices, varargin{:});
+        end
+        
+        function plotGeometry(obj)
+            geometry = obj.geometry();
+            plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
+                [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'color', [0.8 0.8 0.8], 'linewidth', 2)
         end
         
     end
