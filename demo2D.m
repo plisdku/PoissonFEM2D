@@ -16,7 +16,8 @@ N_geom = 2;
 N_quad = N_field + isAxisymmetric; % there is a reason for this
 
 p0 = [0,0,0,0,0,0,0,0]';
-s = 2; % mesh scale
+%s = 2; % mesh scale
+s = 2e-1;
 
 geom2d = ParameterizedGeometry2D();
 geom2d.addContour(@(p) [-Lx, 0, Lx, Lx, 0, -Lx], @(p) [0, 0, 0, Ly, Ly, Ly], s*[0.5, 4, 0.5, 4, 4, 4], 1, 1:6);
@@ -39,7 +40,9 @@ fem.setFreeCharge(@(p,x,y) 0.0);
 p0 = [0,0,0,0,0,0,0,0]';
 iParamToVary = 3;
 
-deltas = linspace(0.0, 0.15, 6);
+%deltas = linspace(0.0, 0.15, 6);
+
+deltas = linspace(0.0, 0.015, 3);
 %deltas = linspace(0.0, 2.5, 10);
 %deltas = deltas(2:end);
 
@@ -62,9 +65,14 @@ for nn = 1:length(deltas)
         [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.instantiateProblem(p);
     end
     xyGeomNodes = femProblem.poi.tnMesh.xyNodes;
+    geometry = fem.instantiatedGeom.geometry;
     
     measBox = [-1, 1, 0, 2]; %[-0.5, -0.5, 0.5, 0.5];
-    measNxy = [20, 20];
+    %measNxy = [20, 20];
+    measNxy = [100, 100];
+    
+    %measBox = [-5, 0, 5, 0.4];
+    %measNxy = [2, 2];
     
     objFun = @(u_Cartesian) sum(u_Cartesian(:));
     DobjFun = @(u_Cartesian) ones(size(u_Cartesian));
@@ -72,6 +80,7 @@ for nn = 1:length(deltas)
     fprintf('Forward solution... ');
     femProblem.solveCartesian(measBox(1:2), measBox(3:4), measNxy);
     F = objFun(femProblem.uCartesian);
+    
     
     fprintf('Adjoint solution... ');
     %femProblem.solveAdjoint(DobjFun, DoutI);
@@ -85,9 +94,19 @@ for nn = 1:length(deltas)
     Fs(nn) = F; %femProblem.F;
     DFs(nn) = dFdp(iParamToVary);
     
+    % Create some fake trajectories
+    numT = 100;
+    numParticles = 10;
+    [xTraj, yTraj] = fakeTrajectories(-Lx, 0, Lx, 1, numT, numParticles);
+    yTraj = abs(yTraj); % implement mirroring
+    
+    % Find the splat time of EACH trajectory
+    splatTimeMatrix = calculateSplat(xTraj, yTraj, geometry.vertices, geometry.contourVertexIndices);
+    [idxSplatTraj,~,idxSplatTime] = find(splatTimeMatrix);
+    % idxSplatTraj = indices of trajectories that splatted
+    % idxSplatTime = timesteps of first splatq
+    
     figure(1); clf
-    %xCoarse = linspace(-3, 3, 200);
-    %yCoarse = linspace(-3, 3, 200);
     xCoarse = linspace(-Lx, Lx, 200);
     yCoarse = linspace(0, Ly, 200);
     u = femProblem.poi.tnMesh.rasterizeField(femProblem.u, xCoarse, yCoarse);
@@ -95,18 +114,31 @@ for nn = 1:length(deltas)
     colormap orangecrush
     hold on
     femProblem.poi.tnMesh.plotMesh();
-    
-    geometry = fem.instantiatedGeom.geometry;
+    ax = axis();
     plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
         [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'color', [0.8 0.8 0.8], 'linewidth', 2)
     
-    %id = femProblem.iDirichlet;
-    id = ':';
+    % Plot geometry
+    %id = ':';
+    id = find(fem.instantiatedGeom.getGeomNodeLines);
     quiver(xyGeomNodes(id,1), xyGeomNodes(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'w-', 'linewidth', 2)
     quiver(xyGeomNodes(id,1), xyGeomNodes(id,2), femProblem.dF_dxy(id,1), femProblem.dF_dxy(id,2), 'g-', 'linewidth', 1)
     plot(measBox([1,3,3,1,1]), measBox([2,2,4,4,2]), 'w--');
-    axis xy image
+    axis(ax);
     title(sprintf('Iteration %i', nn));
+    
+    % Plot trajectories and splats
+    %plot(xTraj, yTraj, 'w-');
+    for pp = 1:size(xTraj,2)
+        if splatTimeMatrix(pp) ~= 0
+            plot(xTraj(1:splatTimeMatrix(pp),pp), yTraj(1:splatTimeMatrix(pp),pp), 'w-');
+        else
+            plot(xTraj(:,pp), yTraj(:,pp), 'w-');
+        end
+    end
+    ii = sub2ind(size(xTraj), idxSplatTime, idxSplatTraj);
+    plot(xTraj(ii), yTraj(ii), 'ro', 'markersize', 5);
+    
     
     figure(2); clf
     subplot(2,1,1);
@@ -116,11 +148,11 @@ for nn = 1:length(deltas)
     if nn >= 2
         df_meas = gradient(Fs(1:nn), deltas(1:nn));
         plot(ps(1:nn), df_meas, 'o-');
-        %ylim(yl);
+        %ylim(yl);e
     end
     xlabel('p')
     ylabel('gradient')
-    legend('Adjoint', 'Calculated');
+    legend('Adjoint', 'Calculated', 'location', 'best');
 
     subplot(2,1,2);
     plot(ps(1:nn), Fs(1:nn), 'o-');
