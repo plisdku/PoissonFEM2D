@@ -1,6 +1,6 @@
 function path = getGmshPath()
 
-
- path = '/Applications/Gmsh.app/Contents/MacOS/gmsh';
+  path = 'env -u LD_LIBRARY_PATH /usr/bin/gmsh';
+% path = '/Applications/Gmsh.app/Contents/MacOS/gmsh';
 
 end 
