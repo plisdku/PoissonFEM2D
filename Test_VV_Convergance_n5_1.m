@@ -84,8 +84,8 @@ femProblem.solveCartesian(measBox(1:2), measBox(3:4), [200 80]);
 
 
 %Nt_vec = [100 200 400 800];
-Nx_vec = [50 100 150 200 300 400 800 1600 3200];
-Ny_vec = [20 40 60 80 120 160 320 640 1280]*5;
+%Nx_vec = [50 100 150 200 300 400 800 1600 3200];
+%Ny_vec = [20 40 60 80 120 160 320 640 1280]*5;
 
 % Nt_vec = 200;
  Nx_vec = 350;
@@ -253,7 +253,7 @@ for i = 1:max_i
         femProblem.poi.tnMesh.plotMesh();
 
         for ii = 1:size(xv_matrix,2)
-            plot(xv_matrix(ix_x,ii),xv_matrix(ix_y,ii),'o','Color','w', 'LineWidth', 1)
+            plot(xv_matrix(ix_x,ii),xv_matrix(ix_y,ii),'-','Color','w', 'LineWidth', 1)
             plot(xv_matrix(ix_x(1),ii),xv_matrix(ix_y(1),ii),'rx')
         end
         colormap orangecrush
@@ -265,33 +265,33 @@ Nt_fin = size(xv_fin,1)./6;
 x_fin = xv_fin(ix_x_fin(end),1);
 y_fin = xv_fin(ix_y_fin(end),1);
 %%
-delta_pos = zeros(max_i);
-figure(300)
-clf
-imagesc(x_grid,r_grid,E_r(:,:,2)')
-axis xy
-axis square
-hold on 
-for ii=1:nParticle
-
-        xv_c = xv_cell{ii};
-        Nt_c = size(xv_c,1)./6;
-        [ix_x_c, ix_y_c, ~] = get_Index3D(Nt_c);
-        x_c = xv_c(ix_x_c(end),1);
-        y_c = xv_c(ix_y_c(end),1);
-        
-        delta_pos(ii) = sqrt( (x_fin-x_c).^2 + (abs(y_fin) - abs(y_c)).^2 );        
-        plot(xv_c(ix_x,ii),xv_c(ix_y,ii), 'LineWidth', 1)
-end
+% delta_pos = zeros(max_i);
+% figure(300)
+% clf
+% imagesc(x_grid,r_grid,E_r(:,:,2)')
+% axis xy
+% axis square
+% hold on 
+% for ii=1:nParticle
+% 
+%         xv_c = xv_cell{ii};
+%         Nt_c = size(xv_c,1)./6;
+%         [ix_x_c, ix_y_c, ~] = get_Index3D(Nt_c);
+%         x_c = xv_c(ix_x_c(end),1);
+%         y_c = xv_c(ix_y_c(end),1);
+%         
+%         delta_pos(ii) = sqrt( (x_fin-x_c).^2 + (abs(y_fin) - abs(y_c)).^2 );        
+%         plot(xv_c(ix_x,ii),xv_c(ix_y,ii), 'LineWidth', 1)
+% end
 %legend(sprintf('%i',Ny_vec(1)),sprintf('%i',Ny_vec(2)),sprintf('%i',Ny_vec(3)),sprintf('%i',Ny_vec(4)),sprintf('%i',Ny_vec(5)),sprintf('%i',Ny_vec(6)),sprintf('%i',Ny_vec(7)),sprintf('%i',Ny_vec(8)))  %i %i %i %i %i %i %i',Nx_vec(1),Nx_vec(2),Nx_vec(3),Nx_vec(4),Nx_vec(5),Nx_vec(6),Nx_vec(7),Nx_vec(8)))
 %%
-figure(401)
-clf
-loglog(Ny_vec,delta_pos,'k')
-xlabel('Nx')
-ylabel('\Delta End. Pos')
-hold on
-% loglog(Nx_vec,10e-6*Nx_vec.^1)
+% figure(401)
+% clf
+% loglog(Ny_vec,delta_pos,'k')
+% xlabel('Nx')
+% ylabel('\Delta End. Pos')
+% hold on
+% % loglog(Nx_vec,10e-6*Nx_vec.^1)
 % loglog(Nx_vec,10e-8*Nx_vec.^2)
 % loglog(Nx_vec,10e-10*Nx_vec.^3)
 
