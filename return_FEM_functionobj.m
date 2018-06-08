@@ -12,8 +12,8 @@ function [F, dFdp] = return_FEM_functionobj(fem, p, Lx, Ly)
     
     xyGeomNodes = femProblem.poi.tnMesh.xyNodes;
     
-    measBox = [-190e-3, 0, 55e-3, 0.7e-3]; 
-    measNxy = [250, 600];
+    measBox = [-55e-3, 0, 55e-3, 1e-3]; 
+    measNxy = [350, 18000];
     
     fprintf('Forward solution... ');
     xCoarse = linspace(-Lx, Lx, 200);
@@ -21,7 +21,7 @@ function [F, dFdp] = return_FEM_functionobj(fem, p, Lx, Ly)
     femProblem.solveCartesian(measBox(1:2), measBox(3:4), measNxy);
     fprintf('Solved Forward ')
     %[F, DF, xv, x_p, y_p, Nt] = ElectronSetupdemo2D_new(femProblem.uCartesian, xCoarse, yCoarse, measBox, measNxy); 
-    [VV, Nt] = ElectronSetupdemo2DobjVV(femProblem.uCartesian, measBox, measNxy);
+    [VV] = ElectronSetupdemo2DobjVV(femProblem.uCartesian, measBox, measNxy);
     
      fprintf('Adjoint solution... ');
 
@@ -45,8 +45,7 @@ function [F, dFdp] = return_FEM_functionobj(fem, p, Lx, Ly)
     plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
         [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'color', [0.8 0.8 0.8], 'linewidth', 2)
     
-    [ix_x, ix_y, ix_z, ~] =...
-        get_Index3D(Nt);
+   
     for i = 1:length(VV.ParticleArray)
     plot(VV.ParticleArray(i).xv(ix_x),VV.ParticleArray(i).xv(ix_y),'w', 'LineWidth', 1)
     plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')

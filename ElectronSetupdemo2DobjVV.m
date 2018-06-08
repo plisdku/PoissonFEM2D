@@ -217,8 +217,8 @@ ts = linspace(0, end_time, Nt);
 %nParticle = size(xv0,2);
 
 
-hit_objective = @(x_v) hitObjective3D_wrap(...
-            x_v, x_p, y_p, z_p, vx_p, vy_p, vz_p, obj_weights);
+%hit_objective = @(x_v) hitObjective3D_wrap(...
+%            x_v, x_p, y_p, z_p, vx_p, vy_p, vz_p, obj_weights);
 % hit_objective = @(x_v) hitObjective3D_wrap(...
 %             x_v, x_p, y_p, z_p, vx_p, vy_p, vz_p, obj_weights);
 %V_Comsol = zeros(Nx, Ny, Nz, 3);
