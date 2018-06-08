@@ -1109,10 +1109,12 @@ classdef TriNodalMesh < handle
             numNodes = obj.hFieldNodes.getNumNodes();
             numFaces = obj.hMesh.getNumFaces();
             
-            outI = sparse(numPts, numNodes);
+            %outI = sparse(numPts, numNodes);
             
             [iEnclosingFaces, rr, ss] = obj.rasterize(corner0, corner1, Nxy);
-            
+            iPoints = [];
+            iGlobals = [];
+            Ms = [];
             for ff = 1:numFaces
                 iPoint = find(iEnclosingFaces == ff);
                 
@@ -1123,9 +1125,16 @@ classdef TriNodalMesh < handle
                 M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
                 iGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 
-                outI(iPoint, iGlobal) = M;
+                [repPoints, repGlobals]= ndgrid(iPoint, iGlobal);
+                iPoints = [iPoints; repPoints(:)];
+                iGlobals = [iGlobals; repGlobals(:)];
+                Ms = [Ms; M(:)];
+                
+                %outI(iPoint, iGlobal) = M;
                 
             end
+            
+            outI = sparse(iPoints, iGlobals, Ms, numPts, numNodes);
             
         end
         
@@ -1136,14 +1145,16 @@ classdef TriNodalMesh < handle
             numGeomNodes = obj.hFieldNodes.getNumNodes();
             numFaces = obj.hMesh.getNumFaces();
             
-            outI = sparse(numPts, numFieldNodes);
+            %outI = sparse(numPts, numFieldNodes);
             DoutI = cell(2, numGeomNodes);
             for nn = 1:numel(DoutI)
                 DoutI{nn} = sparse(numPts, numFieldNodes);
             end
             
             [iEnclosingFaces, rr, ss] = obj.rasterize(corner0, corner1, Nxy);
-            
+            iPoints = [];
+            iFieldGlobals = [];
+            Ms = [];
             for ff = 1:numFaces
                 iPoint = find(iEnclosingFaces == ff);
                 
@@ -1172,11 +1183,14 @@ classdef TriNodalMesh < handle
                             DoutI{kk,iGeomGlobal(mm)}(iPoint,iFieldGlobal) + DM(:,:,kk,mm);
                     end
                 end
-                
-                outI(iPoint, iFieldGlobal) = M;
+                [repPoints, repFieldGlobals]= ndgrid(iPoint, iFieldGlobal);
+                iPoints = [iPoints; repPoints(:)];
+                iFieldGlobals = [iFieldGlobals; repFieldGlobals(:)];
+                Ms = [Ms; M(:)];
+                %outI(iPoint, iFieldGlobal) = M;
                 
             end
-            
+            outI = sparse(iPoints, iFieldGlobals, Ms, numPts, numFieldNodes);
         end
         
         function pixels = rasterizeField(obj, fieldValues, xs, ys)
