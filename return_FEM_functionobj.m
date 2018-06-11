@@ -12,16 +12,21 @@ function [F, dFdp] = return_FEM_functionobj(fem, p, Lx, Ly)
     
     xyGeomNodes = femProblem.poi.tnMesh.xyNodes;
     
-    measBox = [-190e-3, 0, 55e-3, 0.7e-3]; 
-    measNxy = [250, 600];
+    measBox = [-55e-3, 0, 55e-3, 1e-3];
+    measNxy = [350, 18000];
     
     fprintf('Forward solution... ');
     xCoarse = linspace(-Lx, Lx, 200);
     yCoarse = linspace(0, Ly, 200);
     femProblem.solveCartesian(measBox(1:2), measBox(3:4), measNxy);
     fprintf('Solved Forward ')
+    
+    u_cartesian = femProblem.poi.tnMesh.rasterizeField(femProblem.u,...
+        linspace(measBox(1),measBox(3),measNxy(1)), ...
+        linspace(measBox(2),measBox(4),measNxy(2)));
     %[F, DF, xv, x_p, y_p, Nt] = ElectronSetupdemo2D_new(femProblem.uCartesian, xCoarse, yCoarse, measBox, measNxy); 
-    [VV, Nt] = ElectronSetupdemo2DobjVV(femProblem.uCartesian, measBox, measNxy);
+        [particles, hit_objective] = SetupParticles_spottest();
+        [VV] = ElectronSetup_obj(u_cartesian, measBox, measNxy, particles, hit_objective); 
     
      fprintf('Adjoint solution... ');
 
@@ -45,11 +50,10 @@ function [F, dFdp] = return_FEM_functionobj(fem, p, Lx, Ly)
     plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
         [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'color', [0.8 0.8 0.8], 'linewidth', 2)
     
-    [ix_x, ix_y, ix_z, ~] =...
-        get_Index3D(Nt);
+   
     for i = 1:length(VV.ParticleArray)
-    plot(VV.ParticleArray(i).xv(ix_x),VV.ParticleArray(i).xv(ix_y),'w', 'LineWidth', 1)
-    plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
+    plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'w', 'LineWidth', 1)
+    %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
     end
     %plot(x_p,y_p,'bx')
 %     xlim([-Lx Lx])

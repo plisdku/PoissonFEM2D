@@ -7,13 +7,13 @@ function [particles, hit_objective] = SetupParticles_spottest()
     E_center = 30*1e3*elementary_charge;
     v_center = sqrt(2*E_center / ion_mass);
 
-    Nr = 100;
+    Nr = 50;
     %angle = linspace(-2.5e-3,2.5e-3,Nr);
 
-    y_vec = linspace(0e-6,5e-6,Nr);
+    y_vec = linspace(-0.2e-3,0.2e-3,Nr);
     x_pos = -173.5e-3;
     
-    velocities = v_center;
+    %velocities = v_center;
     
     %[xx, yy, angles, vv] = ndgrid(x_pos, y_vec, angle, velocities);
 
@@ -37,7 +37,7 @@ function [particles, hit_objective] = SetupParticles_spottest()
     end
     
     %%
-     x_p = 52.5e-3;
+     x_p = 39.5e-3;
     y_p  = 0;
     z_p  = 0;
     vx_p = 1e-3;

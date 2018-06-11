@@ -257,7 +257,8 @@ classdef PoissonFEM2D < handle
             
             % Sensitivity of the function on field nodes to changing
             % the geometry nodes
-            numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
+            
+            %numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
             %df_dxg = sparse(numNodes, numGeomNodes);
             %df_dyg = sparse(numNodes, numGeomNodes);
             
@@ -267,12 +268,12 @@ classdef PoissonFEM2D < handle
             
             dxdx = obj.tnMesh.getNodeCoordinateSensitivities();
             
-            df_dxg = diag(dfdxy(:,1)) * dxdx;
-            df_dyg = diag(dfdxy(:,2)) * dxdx;
+            df_dxg = spdiags(dfdxy(:,1),0,size(dfdxy(:,1),1),size(dfdxy(:,1),1)) * dxdx;
+            df_dyg = spdiags(dfdxy(:,1),0,size(dfdxy(:,2),1),size(dfdxy(:,2),1)) * dxdx; %diag(dfdxy(:,2)) * dxdx;
             
             
             
-        end % evaluateOnNodes
+        end % evaluateOnNodess
         
         function [f, dfdv] = oldEvaluateOnNodes(obj, func)
             % [f, dfdv] = evaluateOnNodes(func)

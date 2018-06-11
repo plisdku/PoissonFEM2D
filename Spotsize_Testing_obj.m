@@ -66,7 +66,7 @@ femProblem.solveCartesian(measBox(1:2), measBox(3:4), [200 80]);
 
 
 
- Nx_vec = 400;
+ Nx_vec = 350;
  Ny_vec = 18000;
 
 
@@ -97,7 +97,7 @@ u = femProblem.poi.tnMesh.rasterizeField(femProblem.u, xCoarse, yCoarse);
         v_spread = sqrt(2*delta_E / ion_mass);
 
 
-        [particles, hit_objective] = SetupParticles_gradient();
+        [particles, hit_objective] = SetupParticles_spottest();
         [VV] = ElectronSetup_obj(u_cartesian, measBox, measNxy, particles, hit_objective); 
         
         figure(100); clf
@@ -125,7 +125,7 @@ u = femProblem.poi.tnMesh.rasterizeField(femProblem.u, xCoarse, yCoarse);
         axis(ax)
        
         
-        figure(111+i)
+        figure(111)
         clf
         imagesc(VV.x_grid,VV.r_grid,abs(VV.Er(:,:,2))')
         axis xy
