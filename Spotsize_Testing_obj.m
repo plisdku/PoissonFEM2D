@@ -12,7 +12,7 @@ isAxisymmetric = 1;
 
 %%
 
-N_field = 5;
+N_field = 6;
 N_geom = 2;
 N_quad = N_field + isAxisymmetric; % there is a reason for this
 
@@ -30,7 +30,7 @@ L1 = 5e-3;
 e_d = 7.5e-3;
 Wd = 43e-3;
 
-        geom2d.addContour(@(p) [-Lx-Lx_outer, -Lx+e_d+Wd, 0,-Lx+e_d+Wd+l1+L1+l2+L1+l3, Lx+Lx_outer, Lx+Lx_outer, 0, -Lx-Lx_outer], @(p) [0, 0, 0, 0, 0, Ly, Ly, Ly], s*[4.5, ratio, ratio, ratio, 4.5, 9, 9, 9], 1, 1:8);
+        geom2d.addContour(@(p) [-Lx-Lx_outer, -Lx+e_d+Wd, 0,-Lx+e_d+Wd+l1+L1+l2+L1+l3, Lx+Lx_outer, Lx+Lx_outer, 0, -Lx-Lx_outer], @(p) [0, 0, 0, 0, 0, Ly, Ly, Ly], s*[5, 0.6*ratio, 0.6*ratio, 0.6*ratio, 5, 15, 15, 15], 1, 1:8);
         geom2d.addContour(@(p) [-Lx+e_d+Wd, -Lx+e_d+Wd+l1, -Lx+e_d+Wd+l1, -Lx+e_d+Wd], @(p) [D1, D1, Ly-d, Ly-d], s*ratio*[1, 1, 2, 2], 2, 1:4);
         geom2d.addContour(@(p) [-Lx+e_d+Wd+l1+L1, -Lx+e_d+Wd+l1+L1+l2, -Lx+e_d+Wd+l1+L1+l2, -Lx+e_d+Wd+l1+L1], @(p) [D1, D1, Ly-d, Ly-d], s*ratio*[1, 1, 2, 2], 3, 1:4);
         geom2d.addContour(@(p) [-Lx+e_d+Wd+l1+L1+l2+L1, -Lx+e_d+Wd+l1+L1+l2+L1+l3, -Lx+e_d+Wd+l1+L1+l2+L1+l3, -Lx+e_d+Wd+l1+L1+l2+L1], @(p) [D1, D1, Ly-d, Ly-d], s*ratio*[1, 1, 2, 2], 4, 1:4);
@@ -66,7 +66,9 @@ femProblem.solveCartesian(measBox(1:2), measBox(3:4), [200 80]);
 
 
 
+
  Nx_vec = 350;
+
  Ny_vec = 18000;
 
 
@@ -133,7 +135,7 @@ u = femProblem.poi.tnMesh.rasterizeField(femProblem.u, xCoarse, yCoarse);
         hold on 
         for ii = 1:length(VV.ParticleArray)
             plot(VV.ParticleArray(ii).xx,VV.ParticleArray(ii).yy,'w', 'LineWidth', 1)
-            plot(VV.ParticleArray(ii).xx,VV.ParticleArray(ii).yy,'rx')
+           % plot(VV.ParticleArray(ii).xx,VV.ParticleArray(ii).yy,'rx')
         end
 
         figure(1510)
@@ -149,4 +151,4 @@ u = femProblem.poi.tnMesh.rasterizeField(femProblem.u, xCoarse, yCoarse);
         end
         colormap orangecrush
         
-        
+        toc

@@ -269,7 +269,8 @@ classdef PoissonFEM2D < handle
             dxdx = obj.tnMesh.getNodeCoordinateSensitivities();
             
             df_dxg = spdiags(dfdxy(:,1),0,size(dfdxy(:,1),1),size(dfdxy(:,1),1)) * dxdx;
-            df_dyg = spdiags(dfdxy(:,1),0,size(dfdxy(:,2),1),size(dfdxy(:,2),1)) * dxdx; %diag(dfdxy(:,2)) * dxdx;
+
+            df_dyg = spdiags(dfdxy(:,2),0,size(dfdxy(:,2),1),size(dfdxy(:,2),1)) * dxdx;
             
             
             

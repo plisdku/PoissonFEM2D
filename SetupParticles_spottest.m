@@ -10,7 +10,11 @@ function [particles, hit_objective] = SetupParticles_spottest()
     Nr = 50;
     %angle = linspace(-2.5e-3,2.5e-3,Nr);
 
+
     y_vec = linspace(-0.2e-3,0.2e-3,Nr);
+
+   % y_vec = linspace(-0.4e-3,0.4e-3,Nr);
+
     x_pos = -173.5e-3;
     
     %velocities = v_center;

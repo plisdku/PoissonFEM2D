@@ -40,15 +40,11 @@ Wd2 = 164e-3;
 
 fem = FEMInterface(geom2d, N_field, N_geom, N_quad, isAxisymmetric);
 fem.setNeumann(1, @(p,x,y) 0.0);
-% fem.setDirichlet(2, @(p,x,y) 0.0 + x_old(1) + p(17));
-% fem.setDirichlet(3, @(p,x,y) 1.0 + x_old(2) + p(18));
-% fem.setDirichlet(4, @(p,x,y) 1.0 + x_old(3) + p(19));
-% fem.setDirichlet(5, @(p,x,y) 0.0 + x_old(4) + p(20));
+
 x_voltages = zeros(1,3);
 fem.setDirichlet(2, @(p,x,y) 0 + x_voltages(1) );
 fem.setDirichlet(3, @(p,x,y) Vb + x_voltages(2) );
 fem.setDirichlet(4, @(p,x,y) 0 + x_voltages(3));
-%fem.setDirichlet(5, @(p,x,y) 0.0 + p(4));
 
 fem.setFreeCharge(@(p,x,y) 0.0);
 
@@ -60,14 +56,8 @@ x0 = zeros(1,12)';
 
 fn_handle = @(fem) @(p) return_FEM_functionobj(fem, p, Lx, Ly); 
 minX = ones(1,12)'*(-5e-3);
-% minX(1:16) = minX(1:16)*(-5e-3);
 maxX = ones(1,12)'*(10e-3);
-% maxX(1:16) = maxX(1:16)*(10e-3);
-% 
-% minX(17:20) = minX(17:20)*(-25);
-% maxX(17:20) = maxX(17:20)*25;
-%maxX = ones(1,4)'*25;
-%minX = ones(1,4)'*-25;
+
 
 
 [x2, fval2, iter2] = extremize12(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', @ plotfunc);

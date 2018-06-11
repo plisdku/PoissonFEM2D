@@ -12,7 +12,9 @@ function [F, dFdp] = return_FEM_functionobj(fem, p, Lx, Ly)
     
     xyGeomNodes = femProblem.poi.tnMesh.xyNodes;
     
+
     measBox = [-55e-3, 0, 55e-3, 1e-3];
+
     measNxy = [350, 18000];
     
     fprintf('Forward solution... ');
@@ -21,12 +23,14 @@ function [F, dFdp] = return_FEM_functionobj(fem, p, Lx, Ly)
     femProblem.solveCartesian(measBox(1:2), measBox(3:4), measNxy);
     fprintf('Solved Forward ')
     
-    u_cartesian = femProblem.poi.tnMesh.rasterizeField(femProblem.u,...
-        linspace(measBox(1),measBox(3),measNxy(1)), ...
-        linspace(measBox(2),measBox(4),measNxy(2)));
+  %  u_cartesian = femProblem.poi.tnMesh.rasterizeField(femProblem.u,...
+  %      linspace(measBox(1),measBox(3),measNxy(1)), ...
+  %      linspace(measBox(2),measBox(4),measNxy(2)));
     %[F, DF, xv, x_p, y_p, Nt] = ElectronSetupdemo2D_new(femProblem.uCartesian, xCoarse, yCoarse, measBox, measNxy); 
         [particles, hit_objective] = SetupParticles_spottest();
-        [VV] = ElectronSetup_obj(u_cartesian, measBox, measNxy, particles, hit_objective); 
+       [VV] = ElectronSetup_obj(femProblem.uCartesian, measBox, measNxy, particles, hit_objective); 
+
+  %  [VV] = ElectronSetupdemo2DobjVV(femProblem.uCartesian, measBox, measNxy);
     
      fprintf('Adjoint solution... ');
 
