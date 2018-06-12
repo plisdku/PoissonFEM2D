@@ -50,7 +50,8 @@ xy = tnMesh.getFaceQuadNodeCoordinates(1);
 rsQuad = tnMesh.hQuadNodes.basis.getNodes();
 dyQuad_dyGeom = tnMesh.hGeomNodes.basis.interpolationMatrix(rsQuad(:,1), rsQuad(:,2));
 
-iGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
+iGlobal = tnMesh.hGeomNodes.getFaceNodes(1); % Global indices of face nodes
+
 % Iterate over geometry nodes, perturb, test
 for mm = 1:tnMesh.hGeomNodes.getNumNodes()
     for dirIdx = 1:2
@@ -195,6 +196,8 @@ iGlobal = tnMesh.hGeomNodes.getFaceNodes(1);
 for mm = 1:tnMesh.hGeomNodes.getNumNodes()
     for dirIdx = 1:2
         
+        fprintf('mm = %i, dirIdx = %i\n', mm, dirIdx);
+        
         [Dx2, Dy2] = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getFaceGradientMatrices(1);
         DDx_meas = (Dx2 - Dx)/delta;
         DDy_meas = (Dy2 - Dy)/delta;
@@ -202,14 +205,21 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
         DDx_calc = DDx(:,:,dirIdx,mm);
         DDy_calc = DDy(:,:,dirIdx,mm);
         
+        disp(DDx_meas)
+        disp(DDx_calc)
+        disp(DDy_meas)
+        disp(DDy_calc)
+        
         [same, relErr, normDiff, normExact] = compareNorms(DDx_calc, DDx_meas);
         if ~same
             fprintf('DDx error %0.4e out of %0.4e ***\n', normDiff, normExact);
+            error('error');
         end
         
         [same, relErr, normDiff, normExact] = compareNorms(DDy_calc, DDy_meas);
         if ~same
             fprintf('DDy error %0.4e out of %0.4e ***\n', normDiff, normExact);
+            error('error');
         end
     end
 end
