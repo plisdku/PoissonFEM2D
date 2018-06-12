@@ -24,7 +24,7 @@ xx = [-1, rowVec(sort(abscissae)), 1];
 ww = 0*xx;
 
 for nn = 2:nPoints-1
-    ww(nn) = 2./(nPoints*(nPoints-1)*polyval(l(end,:), xx(nn))^2);
+    ww(nn) = 2./(nPoints*(nPoints-1)*paulyval(l(end,:), xx(nn))^2);
 end
 
 ww([1 end]) = 1 - 0.5*sum(ww);

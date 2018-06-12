@@ -1,4 +1,4 @@
-function [xBest, fBest, iter, xHist, fHist, DfHist] = extremize(fn, x0, varargin)
+function [xBest, fBest, iter, xHist, fHist, DfHist] = extremize12(fn, x0, varargin)
 % extremize    minimize or maximize a function
 %
 % [x, fval, iter] = extremize(fun, x0, named parameters)

@@ -154,7 +154,10 @@ classdef NodalTopology < handle
         function iNodes = getEdgeInteriorNodes(obj, iEdge, varargin)
             % getEdgeInteriorNodes(iEdge)
             % getEdgeInteriorNodes(iEdge, orientation)
-            assert(numel(iEdge) == 1, 'Only one edge at a time');
+            %assert(numel(iEdge) == 1, 'Only one edge at a time');
+            if numel(iEdge) ~=1
+                error('Only one edge at a time')
+            end
             iNodes = obj.iEdgeNode0 + (iEdge-1)*obj.numInteriorNodesPerEdge + ...
                 (1:obj.numInteriorNodesPerEdge);
             

@@ -234,12 +234,17 @@ classdef TriNodalMesh < handle
             
             numFieldNodes = obj.hFieldNodes.getNumNodes();
             numGeomNodes = obj.hGeomNodes.getNumNodes();
-            dxdx = sparse(numFieldNodes, numGeomNodes);
+            %dxdx = sparse(numFieldNodes, numGeomNodes);
             %dydy = sparse(numFieldNodes, numGeomNodes);
             
             % Section 1/3: Vertices
             numVertices = obj.hMesh.getNumVertices();
-            dxdx(1:numVertices, 1:numVertices) = speye(numVertices);
+            %dxdx(1:numVertices, 1:numVertices) = speye(numVertices);
+            %[iU, iV] = ndgrid(1:numVerticies, 1:numVertices);
+            iU = (1:numVertices)';
+            iV = (1:numVertices)';
+            Ms = ones(numVertices,1);
+            %Ms = Ms(:);
             %dydy(1:numVertices, 1:numVertices) = speye(numVertices);
             
             % Section 2/3: Edge-centers
@@ -249,7 +254,12 @@ classdef TriNodalMesh < handle
                 iFieldGlobal = obj.hFieldNodes.getEdgeInteriorNodes(iEdge);
                 iGeomGlobal = obj.hGeomNodes.getEdgeNodes(iEdge);
                 
-                dxdx(iFieldGlobal, iGeomGlobal) = M;
+                [repField, repGeom] = ndgrid(iFieldGlobal, iGeomGlobal);
+                iU = [iU; repField(:)];
+                iV = [iV; repGeom(:)];
+                Ms = [Ms; M(:)];
+                
+                %dxdx(iFieldGlobal, iGeomGlobal) = M;
                 %dydy(iFieldGlobal, iGeomGlobal) = M;
             end
             
@@ -260,9 +270,15 @@ classdef TriNodalMesh < handle
                 iFieldGlobal = obj.hFieldNodes.getFaceInteriorNodes(iFace);
                 iGeomGlobal = obj.hGeomNodes.getFaceNodes(iFace);
                 
-                dxdx(iFieldGlobal, iGeomGlobal) = M;
+                [repField, repGeom] = ndgrid(iFieldGlobal, iGeomGlobal);
+                iU = [iU; repField(:)];
+                iV = [iV; repGeom(:)];
+                Ms = [Ms; M(:)];
+                %dxdx(iFieldGlobal, iGeomGlobal) = M;
                 %dydy(iFieldGlobal, iGeomGlobal) = M;
             end
+            
+            dxdx = sparse(iU,iV,Ms,numFieldNodes, numGeomNodes);
         end
         
         function xy = getBoundaryNodeCoordinates(obj)
