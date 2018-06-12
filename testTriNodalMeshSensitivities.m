@@ -50,6 +50,8 @@ xy = tnMesh.getFaceQuadNodeCoordinates(1);
 rsQuad = tnMesh.hQuadNodes.basis.getNodes();
 dyQuad_dyGeom = tnMesh.hGeomNodes.basis.interpolationMatrix(rsQuad(:,1), rsQuad(:,2));
 
+iGlobal = tnMesh.hGeomNodes.getFaceNodes(1); % Global indices of face nodes
+
 % Iterate over geometry nodes, perturb, test
 for mm = 1:tnMesh.hGeomNodes.getNumNodes()
     for dirIdx = 1:2
