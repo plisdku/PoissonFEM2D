@@ -68,4 +68,9 @@ for cc = 1:length(contourLines)
     fprintf(fh, '%i};\n', contourLines{cc}(end));
 end
 
+try
 fclose(fh);
+catch
+    warning('Closing failed')
+end
+end

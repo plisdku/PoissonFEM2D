@@ -115,4 +115,10 @@ while false == done
     end
 end
 
-fclose(fh);
+try
+    fclose(fh);
+catch
+    warning('Error with fclose occured randomly. Great work, Matlab!')
+end
+
+end
