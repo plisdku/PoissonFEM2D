@@ -27,7 +27,7 @@ function [F, dFdp] = return_FEM_functionobj(fem, p, Lx, Ly)
   %      linspace(measBox(1),measBox(3),measNxy(1)), ...
   %      linspace(measBox(2),measBox(4),measNxy(2)));
     %[F, DF, xv, x_p, y_p, Nt] = ElectronSetupdemo2D_new(femProblem.uCartesian, xCoarse, yCoarse, measBox, measNxy); 
-        [particles, hit_objective] = SetupParticles_spottest();
+        [particles, hit_objective] = SetupParticles_smalldistance();
        [VV] = ElectronSetup_obj(femProblem.uCartesian, measBox, measNxy, particles, hit_objective); 
 
   %  [VV] = ElectronSetupdemo2DobjVV(femProblem.uCartesian, measBox, measNxy);

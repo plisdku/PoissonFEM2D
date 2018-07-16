@@ -72,7 +72,7 @@ classdef ParameterizedGeometry2D < handle
         end
         
         function g = evaluateGeometry(obj, p)
-            
+
             col = @(A) reshape(A, [], 1);
             
             outContourVertexIndices = {};
@@ -86,20 +86,29 @@ classdef ParameterizedGeometry2D < handle
             contourLengths = zeros(size(obj.contours));
             
             for cc = 1:length(obj.contours)
+                
                 x = obj.contours(cc).xFunc(p); %local
                 y = obj.contours(cc).yFunc(p); %local
+                
+                if length(x) ~= length(y)
+                    error('Contour %i: Length of x Vector (%i) and y Vector (%i) [Countour Points Coordinates] is not the same', cc, length(x), length(y))
+                end
+                
                 contourLength = length(x); %local
                 numLineLabels = length(obj.contours(cc).lineLabels);
                 
                 if numLineLabels ~= contourLength
-                    error(sprintf('Contour %i has %i line labels for %i lines\n', cc, numLineLabels, contourLength));
+                    error('Contour %i has %i line labels for %i lines\n', cc, numLineLabels, contourLength);
                 end
+                
                 
                 contourLengths(cc) = contourLength;
                 meshSize = obj.contours(cc).meshSize; %local
                 
                 if length(meshSize) == 1
                     meshSize = repmat(meshSize, length(x), 1);
+                elseif length(meshSize) ~= contourLength
+                    error('Contour %i: Mesh Vector has length %i for %i lines', cc, length(meshSize), contourLength)
                 end
                 
                 %outContourVertices{cc} = [col(x), col(y)];

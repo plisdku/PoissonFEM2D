@@ -1,4 +1,4 @@
-function [xBest, fBest, iter, xHist, fHist, DfHist] = extremize(fn, x0, varargin)
+function [xBest, fBest, iter, xHist, fHist, DfHist, t_iter] = extremize12(fn, x0, varargin)
 % extremize    minimize or maximize a function
 %
 % [x, fval, iter] = extremize(fun, x0, named parameters)
@@ -79,9 +79,11 @@ function [xBest, fBest, iter, xHist, fHist, DfHist] = extremize(fn, x0, varargin
         numTries = 0;
 %         while ~succeeded
 %             try
+                tic 
                 numTries = numTries + 1;
                 [f_eval, Df_eval] = fn(x);
                 succeeded = true;
+                t_iter(numTries) = toc;
 %             catch anException
 %                 if iter > 1 && numTries < 5
 %                     warning('Failed to evaluate objective function.  Step back.');
@@ -104,7 +106,7 @@ function [xBest, fBest, iter, xHist, fHist, DfHist] = extremize(fn, x0, varargin
             fBest = f;
         end
         
-        X.Callback(xHist, fHist, DfHist);
+        X.Callback(xHist, fHist, DfHist, size(x0,1));
         
         % Check if we've reached the goal value.
         if (fSign < 0 && f_eval > X.GoalF) || ...

@@ -99,7 +99,7 @@ u = femProblem.poi.tnMesh.rasterizeField(femProblem.u, xCoarse, yCoarse);
         v_spread = sqrt(2*delta_E / ion_mass);
 
 
-        [particles, hit_objective] = SetupParticles_spottest();
+        [particles, hit_objective] = SetupParticles_spottest2p();
         [VV] = ElectronSetup_obj(u_cartesian, measBox, measNxy, particles, hit_objective); 
         
         figure(100); clf

@@ -247,15 +247,44 @@ classdef InstantiatedGeometry2D < handle
             for cc = 1:length(obj.geometry.contourVertexIndices)
                 contourVertices{cc} = obj.geometry.vertices(obj.geometry.contourVertexIndices{cc},:);
             end
-            
-            writeGEO('fromMatlab.geo', contourVertices, obj.geometry.contourMeshSizes);
-            gmshPath = getGmshPath();
-            cmd = sprintf('%s -2 fromMatlab.geo > gmshOut.txt', gmshPath);
-            %[status, result] = unix('/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt');
-            [status, result] = unix(cmd);
-            if status
-                error(result);
+            i_error = 0;
+            while(1)
+                try
+                    writeGEO('fromMatlab.geo', contourVertices, obj.geometry.contourMeshSizes);
+                    gmshPath = getGmshPath();
+                    cmd = sprintf('%s -2 fromMatlab.geo > gmshOut.txt', gmshPath);
+                    %[status, result] = unix('/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt');
+                    [status, result] = unix(cmd);
+                    %if status
+                    %    contourMeshSizes = obj.geometry.contourMeshSizes;
+                    %    save('GmshWritingErrorData','contourVertices', 'contourMeshSizes')
+                        
+                    %    warning('An error occured while WRITING the gmsh file')
+                    %    warning('please refer to file GmshwritingErrorData.m for the data causing this error')
+                    while status  
+                        warning(result);
+                        writeGEO('fromMatlab.geo', contourVertices, obj.geometry.contourMeshSizes);
+                        [status, result] = unix(cmd);                        
+                    end
+                        
+                    %end
+                    break
+                catch e
+                    pause(0.5)
+                    fprintf('%s \n', e.identifier)
+                    warning('Matlab fopen error occured, cleaning up...')
+                    if exist('fromMatlab.geo','file') == 2
+                        delete fromMatlab.geo
+                    end
+                    pause(0.2)
+                    i_error = i_error + 1;
+                    if i_error > 20
+                        keyboard
+                    end
+                end
+                
             end
+            
             [mshFaceVertices, mshEdgeVertices, mshVerts, mshEdgeContour, mshEdgeLine] = readMSH('fromMatlab.msh');
             
             obj.meshStruct = struct('faces', mshFaceVertices,...

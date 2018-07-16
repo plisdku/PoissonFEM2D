@@ -24,6 +24,7 @@ contourLines = {};
 for cc = 1:length(contours)
     points = contours{cc};
     numPoints = size(points, 1);
+
     
     iPointsInContour = pointIdx + (1:numPoints) - 1;
     iLinesInContour = lineIdx + (1:numPoints) - 1;
@@ -33,6 +34,15 @@ for cc = 1:length(contours)
     for pp = 1:numPoints
         fprintf(fh, 'Point(%i) = {%0.9g, %0.9g, 0.0, %0.9g};\n', pointIdx, points(pp,1), points(pp,2), meshSizes{cc}(pp));
         pointIdx = pointIdx + 1;
+        if pointIdx > 1856
+            
+            fprintf('Point(%i) = {%0.9g, %0.9g, 0.0, %0.9g};\n', pointIdx, points(pp,1), points(pp,2), meshSizes{cc}(pp));
+
+        end
+        if pointIdx == 1857
+            disp('at error')
+            %break
+        end
     end
     
     for ll = 1:numPoints
