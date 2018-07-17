@@ -39,10 +39,7 @@ for cc = 1:length(contours)
             fprintf('Point(%i) = {%0.9g, %0.9g, 0.0, %0.9g};\n', pointIdx, points(pp,1), points(pp,2), meshSizes{cc}(pp));
 
         end
-        if pointIdx == 1857
-            disp('at error')
-            %break
-        end
+
     end
     
     for ll = 1:numPoints
