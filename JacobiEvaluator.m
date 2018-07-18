@@ -31,12 +31,12 @@ classdef JacobiEvaluator
         function y = evaluate(obj, nn, ii, jj, x)
             coeffs = obj.coefficientArray(nn+1,end-nn:end,ii+1,jj+1); % if I strip the leading zeros
             %coeffs = obj.coefficientArray(nn+1,:,ii+1,jj+1); % if I keep the leading zeros            
-            y = polyval(coeffs, x);
+            y = paulyval(coeffs, x);
         end
         
         function dydx = evaluateDerivative(obj, nn, ii, jj, x)
             coeffs = obj.derivCoefficientArray(nn+1,end-nn+1:end,ii+1,jj+1); % strip the leading zeros
-            dydx = polyval(coeffs, x);
+            dydx = paulyval(coeffs, x);
         end
     end
     

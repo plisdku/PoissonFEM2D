@@ -132,17 +132,31 @@ classdef PoissonFEM2D < handle
         
         function M = getRhsMatrix(obj)
             numNodes = obj.tnMesh.hFieldNodes.getNumNodes();
-            M = sparse(numNodes, numNodes);
+           % M = sparse(numNodes, numNodes);
             
             numFaces = obj.tnMesh.hMesh.getNumFaces();
+            
+            iGlobals1 = [];
+            iGlobals2 = [];
+            faceMatrices = [];
             
             for ff = 1:numFaces
                 faceMatrix = obj.getElementChargeMatrix(ff);
                 
                 iGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
                 
-                M(iGlobal, iGlobal) = M(iGlobal,iGlobal) + faceMatrix;
+                [repGlobals1, repGlobals2] = ndgrid(iGlobal, iGlobal); 
+                iGlobals1 = [iGlobals1; repGlobals1(:)];
+                iGlobals2 = [iGlobals2; repGlobals2(:)];
+                faceMatrices = [faceMatrices; faceMatrix(:)];
+                %iGlobals2 = 
+               % M(iGlobal, iGlobal) = M(iGlobal,iGlobal) + faceMatrix;
             end
+            
+            
+            M = sparse(iGlobals1, iGlobals2, faceMatrices, numNodes, numNodes);
+            
+            
         end % getRhsMatrix
         
         function DM = getRhsMatrixSensitivity(obj, iFaces)
@@ -179,7 +193,10 @@ classdef PoissonFEM2D < handle
             
             numNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             
-            M = sparse(numNodes, numNodes);
+           % M = sparse(numNodes, numNodes);
+            iGlobals1 = [];
+            iGlobals2 = [];
+            facePotentials = [];
             
             numFaces = obj.tnMesh.hMesh.getNumFaces();
             
@@ -188,9 +205,15 @@ classdef PoissonFEM2D < handle
                 facePotentialM = obj.getElementPotentialMatrix(ff);
                 
                 iGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
-                M(iGlobal,iGlobal) = M(iGlobal, iGlobal) + facePotentialM;
+                [repGlobals1, repGlobals2] = ndgrid(iGlobal, iGlobal); 
+                iGlobals1 = [iGlobals1; repGlobals1(:)];
+                iGlobals2 = [iGlobals2; repGlobals2(:)];
+                facePotentials = [facePotentials; facePotentialM(:)];
+                %M(iGlobal,iGlobal) = M(iGlobal, iGlobal) + facePotentialM;
                 
             end
+            
+            M = sparse(iGlobals1, iGlobals2, facePotentials, numNodes, numNodes);
         end % getSystemMatrix
         
         
