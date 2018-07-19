@@ -220,11 +220,14 @@ classdef PoissonFEM2D < handle
         function DM = getSystemMatrixSensitivity(obj, iFaces)
             numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
-            
-            DM = cell(2, numGeomNodes);
-            for nn = 1:numel(DM)
-                DM{nn} = sparse(numFieldNodes, numFieldNodes);
-            end
+             
+%             DM = cell(2, numGeomNodes);
+%             for nn = 1:numel(DM)
+%                 DM{nn} = sparse(numFieldNodes, numFieldNodes);
+%             end
+
+            DM{2,numGeomNodes} = sparse(numFieldNodes, numFieldNodes);
+            DM(:) = {sparse(numFieldNodes, numFieldNodes)};
             
             numFaces = obj.tnMesh.hMesh.getNumFaces();
             if nargin < 2
@@ -236,6 +239,7 @@ classdef PoissonFEM2D < handle
                 iFieldGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
                 iGeomGlobal = obj.tnMesh.hGeomNodes.getFaceNodes(ff);
                 
+                
                 for mm = 1:length(iGeomGlobal)
                     for kk = 1:2
                         DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
@@ -243,6 +247,59 @@ classdef PoissonFEM2D < handle
                     end
                 end
             end
+          
+            
+%             tic
+%             numFaces = obj.tnMesh.hMesh.getNumFaces();
+%             if nargin < 2
+%                 iFaces = 1:numFaces;
+%             end
+%             iFieldGlobals = [];
+%             iGeomGlobals = [];
+%             DM_faces{2, length(iGeomGlobal)} = [];
+%             disp('done initialisation')
+%             tic
+%             toc
+%             for ff = reshape(iFaces, 1, [])
+%                 
+%                 [iFeldGlobalrep, iGeomGlobalrep] = ndgrid(obj.tnMesh.hFieldNodes.getFaceNodes(ff), obj.tnMesh.hGeomNodes.getFaceNodes(ff));
+% 
+%                 %iFieldGlobals = [iFieldGlobals; iFeldGlobalrep(:)];
+%                 %iGeomGlobals = [iGeomGlobals; iGeomGlobalrep(:)];
+%                 keyboard
+%                 DM_face = obj.getElementPotentialMatrixSensitivity(ff);
+%                 %toc
+%                 %disp('done getting indexes (ff)')
+%                 %disp(ff)
+%                 for mm = 1:length(iGeomGlobal)
+%                     %DM_faces{1,mm} = [DM_faces{1,mm}; reshape(DM_face(:,:,1,mm),[],1)];
+%                     %DM_faces{2,mm} = [DM_faces{2,mm}; reshape(DM_face(:,:,2,mm),[],1)];
+%                     %iFieldGlobals = [iFieldGlobals; iFeldGlobalrep(:)];
+%                     %iGeomGlobals = [iGeomGlobals; iGeomGlobalrep(:)];
+%                     
+%                     %toc
+%                     %disp('done creating one round of values')
+%                     %disp(mm)
+%                 end 
+% 
+%             end
+%             toc
+%             DM{2,numGeomNodes} = sparse(numFieldNodes, numFieldNodes);
+%             toc
+%             disp('done init DM')
+%             for mm = 1:length(iGeomGlobal)
+%                 DM{1,mm} = sparse(iFieldGlobals, iGeomGlobals, DM_faces{1,mm}, numFieldNodes, numFieldNodes);
+%                 DM{2,mm} = sparse(iFieldGlobals, iGeomGlobals, DM_faces{2,mm}, numFieldNodes, numFieldNodes);
+%                 toc
+%                 disp('done replacing one matrix')
+%                 disp(mm)
+%             end 
+%             
+%             toc
+%             
+            
+            
+            
             
         end % getSystemMatrixSensitivity
         

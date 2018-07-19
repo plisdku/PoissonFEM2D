@@ -53,27 +53,9 @@ classdef NodalTopology < handle
         % ---- NODE ACCESSORS
         
         function iNodes = getFaceNodes(obj, iFace)
-            % getFaceNodes(iFace)   Get node indices for all nodes in a face.
-            tic
-            iVertexNodes = obj.getVertexNodes(obj.hMesh.faceVertices(iFace,:));
-            iEdgeNodes1 = obj.getFaceEdgeInteriorNodes(iFace, 1);
-            iEdgeNodes2 = obj.getFaceEdgeInteriorNodes(iFace, 2);
-            iEdgeNodes3 = obj.getFaceEdgeInteriorNodes(iFace, 3);
-            iFaceNodes = obj.getFaceInteriorNodes(iFace);
-            
-            % Now we somehow need to slam them together in the right order.
+            % getFaceNodes(iFace)   Get node indices for all nodes in a face.       
             
             iNodes = zeros(obj.basis.numNodes, 1);
-            iNodes(obj.basis.iVertices) = iVertexNodes;
-            iNodes(obj.basis.iEdges(1,:)) = iEdgeNodes1;
-            iNodes(obj.basis.iEdges(2,:)) = iEdgeNodes2;
-            iNodes(obj.basis.iEdges(3,:)) = iEdgeNodes3;
-            iNodes(obj.basis.iCenter) = iFaceNodes;
-            toc
-            
-            %% difference starts here 
-            tic
-            iNodes2 = zeros(obj.basis.numNodes, 1);
             iNodes_idx = [obj.basis.iVertices, ...
                 obj.basis.iEdges(1,:), ...
                 obj.basis.iEdges(2,:), ...
@@ -85,8 +67,8 @@ classdef NodalTopology < handle
                 obj.getFaceEdgeInteriorNodes(iFace, 2),...
                 obj.getFaceEdgeInteriorNodes(iFace, 3),...
                 obj.getFaceInteriorNodes(iFace)];
-            iNodes2(iNodes_idx) = iNodes_val;
-            toc
+            iNodes(iNodes_idx) = iNodes_val;
+           
             
         end
         
