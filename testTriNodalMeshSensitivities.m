@@ -45,24 +45,26 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
 end
 
 %% Quad coordinate sensitivity
-% 
-% xy = tnMesh.getFaceQuadNodeCoordinates(1);
-% rsQuad = tnMesh.hQuadNodes.basis.getNodes();
-% dyQuad_dyGeom = tnMesh.hGeomNodes.basis.interpolationMatrix(rsQuad(:,1), rsQuad(:,2));
-% 
-% % Iterate over geometry nodes, perturb, test
-% for mm = 1:tnMesh.hGeomNodes.getNumNodes()
-%     for dirIdx = 1:2
-%         xy2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getFaceQuadNodeCoordinates(1);
-%         Dxy_meas = (xy2-xy)/delta;
-%         Dxy_calc = dyQuad_dyGeom(:,mm) * (dirIdx == [1,2]);
-%         
-%         [same, relErr, normDiff, normExact] = compareNorms(Dxy_calc, Dxy_meas);
-%         if ~same
-%             fprintf('DJ error %0.4e out of %0.4e ***\n', normDiff, normExact)
-%         end
-%     end
-% end
+
+xy = tnMesh.getFaceQuadNodeCoordinates(1);
+rsQuad = tnMesh.hQuadNodes.basis.getNodes();
+dyQuad_dyGeom = tnMesh.hGeomNodes.basis.interpolationMatrix(rsQuad(:,1), rsQuad(:,2));
+
+iGlobal = tnMesh.hGeomNodes.getFaceNodes(1); % Global indices of face nodes
+
+% Iterate over geometry nodes, perturb, test
+for mm = 1:tnMesh.hGeomNodes.getNumNodes()
+    for dirIdx = 1:2
+        xy2 = tnMesh.perturbed(iGlobal(mm), dirIdx, delta).getFaceQuadNodeCoordinates(1);
+        Dxy_meas = (xy2-xy)/delta;
+        Dxy_calc = dyQuad_dyGeom(:,mm) * (dirIdx == [1,2]);
+        
+        [same, relErr, normDiff, normExact] = compareNorms(Dxy_calc, Dxy_meas);
+        if ~same
+            fprintf('DJ error %0.4e out of %0.4e ***\n', normDiff, normExact)
+        end
+    end
+end
 
 %% Jacobian sensitivity
 
