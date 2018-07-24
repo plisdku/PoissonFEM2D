@@ -115,7 +115,9 @@ classdef FEMInterface < handle
         
         function [femp, dDirichlet_dp, dnx_dp, dny_dp] = instantiateProblem(obj, p)
             obj.instantiatedGeom.instantiateMesh(p);
+            
             [femp, dDirichlet_dp, dnx_dp, dny_dp] = obj.assembleProblemWithMesh(p);
+     
         end
         
         function [femp, dDirichlet_dp, dnx_dp, dny_dp] = adjustProblem(obj, p)
@@ -133,7 +135,9 @@ classdef FEMInterface < handle
             
             % Assemble the FEM problem
             poi = PoissonFEM2D(obj.instantiatedGeom.tnMesh);
+            
             femp = FEMProblem(poi);
+           
             
             femp.setDirichlet(iDirichlet, dirichletVals);
             femp.setNeumann(iNeumann, neumannVals);

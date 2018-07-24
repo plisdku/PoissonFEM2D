@@ -10,6 +10,7 @@ classdef FEMProblem < handle
         dirichletFunc % unused
         neumannFunc % unused
         chargeFunc % USED (damn)
+        moveableFunc
         
         u;
         v;
@@ -37,12 +38,14 @@ classdef FEMProblem < handle
         dF_dNeumann;
         dF_dxy;
         
+        timer_variable 
+        
     end
     
     
     methods
         
-        function obj = FEMProblem(poissonFEM)
+        function obj = FEMProblem(poissonFEM, varargin)
             obj.poi = poissonFEM;
             
             numNodes = obj.poi.tnMesh.hFieldNodes.getNumNodes();
@@ -50,6 +53,10 @@ classdef FEMProblem < handle
             obj.iDirichlet = [];
             obj.iNeumann = [];
             obj.iCenter = 1:numNodes;
+            
+            if nargin == 2
+                obj.dirichletFunc = varargin{1};
+            end
         end
         
         function other = copyModel(obj)
@@ -157,7 +164,10 @@ classdef FEMProblem < handle
             
             % Solve for the adjoint variable
             
+            t_adjoint = tic; 
             v_center = A_center' \ Df_center';
+            obj.timer_variable(1) = toc(t_adjoint); 
+            
             obj.v = 0*obj.u;
             obj.v(obj.iCenter) = v_center;
             
@@ -200,30 +210,125 @@ classdef FEMProblem < handle
             u0_dirichlet_sp = sparse(obj.u0_dirichlet);
             en_neumann_sp = sparse(obj.en_neumann);
             freeCharge_sp = sparse(obj.freeCharge);
-            dFreecharge_dx_sp = obj.dFreeCharge_dx;
-            dFreecharge_dy_sp = obj.dFreeCharge_dy;
+            dFreecharge_dx_sp = sparse(obj.dFreeCharge_dx);
+            dFreecharge_dy_sp = sparse(obj.dFreeCharge_dy);
             
+%             for mm = 1:numGeomNodes
+%                 
+%                 wx = -obj.dA{1,mm}(obj.iCenter, obj.iCenter)*u_sp(obj.iCenter)...
+%                     -obj.dA{1,mm}(obj.iCenter, obj.iDirichlet)*u0_dirichlet_sp...
+%                     + obj.dNM{1,mm}(obj.iCenter, obj.iNeumann)*en_neumann_sp...
+%                     + obj.dB{1,mm}(obj.iCenter,:)*freeCharge_sp...
+%                     + obj.B(obj.iCenter,:)*dFreecharge_dx_sp(:,mm);
+%                 
+%                 wy = -obj.dA{2,mm}(obj.iCenter, obj.iCenter)*u_sp(obj.iCenter)...
+%                     -obj.dA{2,mm}(obj.iCenter, obj.iDirichlet)*u0_dirichlet_sp...
+%                     + obj.dNM{2,mm}(obj.iCenter, obj.iNeumann)*en_neumann_sp...
+%                     + obj.dB{2,mm}(obj.iCenter,:)*freeCharge_sp...
+%                     + obj.B(obj.iCenter,:)*dFreecharge_dy_sp(:,mm);
+%                 
+%                 obj.dF_dxy(:,1) = v_center'*wx + (dF_du_rowVector * obj.dInterpolationOperator{1,mm}) * u_sp;
+%                 obj.dF_dxy(:,2) = v_center'*wy + (dF_du_rowVector * obj.dInterpolationOperator{2,mm}) * u_sp;
+%                 
+%             end 
+            
+%             
+%             dA1 = {obj.dA{1,:}};
+%             dA1b = {obj.dA{1,:}(iCenterl, iCenterl)};
+%             dA2 = {obj.dA{2,:}};
+%             
+%             dNM1 = {obj.dNM{1,:}};
+%             dNM2 = {obj.dNM{2,:}};
+%             
+%             dB1 = {obj.dB{1,:}};
+%             dB2 = {obj.dB{2,:}};
+%             
+%             Bl1 = obj.B;
+%             Bl2 = obj.B;
+%             
+            
+            iCenterl = obj.iCenter;
+            iDirichletl = obj.iDirichlet;
+            iNeumannl = obj.iNeumann;
+            
+            dACC2{numGeomNodes} = obj.dA{2,numGeomNodes}(iCenterl, iCenterl);
+            dACD2{numGeomNodes} = obj.dA{2,numGeomNodes}(iCenterl, iDirichletl);
+            dNMCN2{numGeomNodes} = obj.dNM{2,numGeomNodes}(iCenterl,iNeumannl);
+            dBC2{numGeomNodes} = obj.dB{2,numGeomNodes}(iCenterl, :);
+            
+            dACC1{numGeomNodes} = obj.dA{1,numGeomNodes}(iCenterl, iCenterl);
+            dACD1{numGeomNodes} = obj.dA{1,numGeomNodes}(iCenterl, iDirichletl);
+            dNMCN1{numGeomNodes} = obj.dNM{1,numGeomNodes}(iCenterl,iNeumannl);
+            dBC1{numGeomNodes} = obj.dB{1,numGeomNodes}(iCenterl, :);
             
             for mm = 1:numGeomNodes
                 
-                wx = -obj.dA{1,mm}(obj.iCenter, obj.iCenter)*u_sp(obj.iCenter)...
-                    - obj.dA{1,mm}(obj.iCenter, obj.iDirichlet)*u0_dirichlet_sp ...
-                    + obj.dNM{1,mm}(obj.iCenter, obj.iNeumann)*en_neumann_sp ...
-                    + obj.dB{1,mm}(obj.iCenter, :)*freeCharge_sp ...
-                    + obj.B(obj.iCenter,:)*dFreecharge_dx_sp(:,mm);
-                
-                wy = -obj.dA{2,mm}(obj.iCenter, obj.iCenter)*u_sp(obj.iCenter)...
-                    - obj.dA{2,mm}(obj.iCenter, obj.iDirichlet)*u0_dirichlet_sp ...
-                    + obj.dNM{2,mm}(obj.iCenter, obj.iNeumann)*en_neumann_sp ...
-                    + obj.dB{2,mm}(obj.iCenter, :)*freeCharge_sp ...
-                    + obj.B(obj.iCenter,:)*dFreecharge_dy_sp(:,mm);
-                
-                dFdx = v_center'*wx + (dF_du_rowVector * obj.dInterpolationOperator{1,mm}) * u_sp;
-                dFdy = v_center'*wy + (dF_du_rowVector * obj.dInterpolationOperator{2,mm}) * u_sp;
-                
-                obj.dF_dxy(mm,1) = dFdx;
-                obj.dF_dxy(mm,2) = dFdy;
+                dACC2{mm} = obj.dA{2,mm}(iCenterl, iCenterl);
+                dACD2{mm} = obj.dA{2,mm}(iCenterl, iDirichletl);
+                dNMCN2{mm} = obj.dNM{2,mm}(iCenterl,iNeumannl);
+                dBC2{mm} = obj.dB{2,mm}(iCenterl, :);
+
+                dACC1{mm} = obj.dA{1,mm}(iCenterl, iCenterl);
+                dACD1{mm} = obj.dA{1,mm}(iCenterl, iDirichletl);
+                dNMCN1{mm} = obj.dNM{1,mm}(iCenterl,iNeumannl);
+                dBC1{mm} = obj.dB{1,mm}(iCenterl, :);
+            
             end
+            
+            Bl1 = obj.B(iCenterl,:);
+            %Bl2 = obj.B;
+            
+
+            
+            dInterpolationOperator1 = {obj.dInterpolationOperator{1,:}};
+            dInterpolationOperator2 = {obj.dInterpolationOperator{2,:}};
+            
+            
+            dFdxl = zeros(numGeomNodes,1);
+            dFdyl = zeros(numGeomNodes,1);
+            
+            parfor mm = 1:numGeomNodes
+                
+                u_sp_mm = u_sp;
+                
+                wx = -dACC1{mm}*u_sp_mm(iCenterl)...
+                    - dACD1{mm}*u0_dirichlet_sp ...
+                    + dNMCN1{mm}*en_neumann_sp ...
+                    + dBC1{mm}*freeCharge_sp ...
+                    + Bl1*dFreecharge_dx_sp(:,mm);
+                
+                wy = -dACC2{mm}*u_sp_mm(iCenterl)...
+                    - dACD2{mm}*u0_dirichlet_sp ...
+                    + dNMCN2{mm}*en_neumann_sp ...
+                    + dBC2{mm}*freeCharge_sp ...
+                    + Bl1*dFreecharge_dy_sp(:,mm);
+                
+                dFdxl(mm,1) = v_center'*wx + (dF_du_rowVector * dInterpolationOperator1{mm}) * u_sp_mm;
+                dFdyl(mm,1) = v_center'*wy + (dF_du_rowVector * dInterpolationOperator2{mm}) * u_sp_mm;  
+                
+
+%                 u_sp_mm = u_sp;
+%                 
+%                 wx = -dA1{mm}(iCenterl, iCenterl)*u_sp_mm(iCenterl)...
+%                     - dA1{mm}(iCenterl, iDirichletl)*u0_dirichlet_sp ...
+%                     + dNM1{mm}(iCenterl, iNeumannl)*en_neumann_sp ...
+%                     + dB1{mm}(iCenterl, :)*freeCharge_sp ...
+%                     + Bl1*dFreecharge_dx_sp(:,mm);
+%                 
+%                 wy = -dA2{mm}(iCenterl, iCenterl)*u_sp_mm(iCenterl)...
+%                     - dA2{mm}(iCenterl, iDirichletl)*u0_dirichlet_sp ...
+%                     + dNM2{mm}(iCenterl, iNeumannl)*en_neumann_sp ...
+%                     + dB2{mm}(iCenterl, :)*freeCharge_sp ...
+%                     + Bl1*dFreecharge_dy_sp(:,mm);
+%                 
+%                 dFdxl(mm,1) = v_center'*wx + (dF_du_rowVector * dInterpolationOperator1{mm}) * u_sp_mm;
+%                 dFdyl(mm,1) = v_center'*wy + (dF_du_rowVector * dInterpolationOperator2{mm}) * u_sp_mm;
+                
+                
+            end
+            
+            obj.dF_dxy(:,1) = dFdxl;
+            obj.dF_dxy(:,2) = dFdyl;
             
         end
         
