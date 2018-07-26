@@ -1,7 +1,7 @@
 classdef FEMProblem < handle
     
     properties
-        poi%@PoissonFEM2D;
+        poi@PoissonFEM2D;
         
         iDirichlet
         iNeumann
@@ -60,7 +60,7 @@ classdef FEMProblem < handle
         end
         
         function other = copyModel(obj)
-            other = PoissonFEM2D.FEMProblem(obj.poi.copy());
+            other = FEMProblem(obj.poi.copy());
             other.iDirichlet = obj.iDirichlet;
             other.iNeumann = obj.iNeumann;
             other.iCenter = obj.iCenter;
@@ -147,7 +147,7 @@ classdef FEMProblem < handle
             obj.uCartesian = reshape(obj.interpolationOperator*obj.u, Nxy);
         end
         
-        function solveAdjointCartesian(obj, dF_du_cartesian)
+        function solveAdjointCartesian(obj, dF_du_cartesian, varargin)
             
             dF_du_rowVector = sparse(reshape(dF_du_cartesian, 1, []));
             
@@ -176,17 +176,28 @@ classdef FEMProblem < handle
             
             % Get all faces that have a boundary vertex.
             % This is more faces than just those that have a boundary edge.
-            [boundaryEdges, ~] = obj.poi.tnMesh.hMesh.getBoundaryEdges();
-            evMat = obj.poi.tnMesh.hMesh.getEdgeVertexAdjacency();
-            fvMat = obj.poi.tnMesh.hMesh.getFaceVertexAdjacency();
-            feMat = fvMat * evMat';
-            [iBoundaryFaces,~,~] = find(feMat(:,boundaryEdges));
-            iBoundaryFaces = unique(iBoundaryFaces);
+%             [boundaryEdges, ~] = obj.poi.tnMesh.hMesh.getBoundaryEdges();
+%             evMat = obj.poi.tnMesh.hMesh.getEdgeVertexAdjacency();
+%             fvMat = obj.poi.tnMesh.hMesh.getFaceVertexAdjacency();
+%             feMat = fvMat * evMat';
+%             [iBoundaryFaces,~,~] = find(feMat(:,boundaryEdges));
+%             iBoundaryFaces = unique(iBoundaryFaces);
             %[boundaryFaces, = find(adjMat(:,boundaryEdges));
-            
-            obj.dA = obj.poi.getSystemMatrixSensitivity();
-            obj.dB = obj.poi.getRhsMatrixSensitivity();
-            obj.dNM = obj.poi.getNeumannMatrixSensitivity();
+            if nargin == 2
+                obj.dA = obj.poi.getSystemMatrixSensitivity();
+                obj.dB = obj.poi.getRhsMatrixSensitivity();
+                obj.dNM = obj.poi.getNeumannMatrixSensitivity();
+            else
+                 FVAm = obj.poi.tnMesh.hMesh.getFaceVertexAdjacency();
+                [iF,~,~] = find(FVAm(:,varargin{1}));
+                iF = unique(iF);
+                EVAm = obj.poi.tnMesh.hMesh.getEdgeVertexAdjacency();
+                [iE,~,~] = find(EVAm(:,varargin{1}));
+                iE = unique(iE);
+                obj.dA = obj.poi.getSystemMatrixSensitivity(iF);
+                obj.dB = obj.poi.getRhsMatrixSensitivity(iF);
+                obj.dNM = obj.poi.getNeumannMatrixSensitivity(iE);
+            end
             
             % Sensitivity to free charge (1 x N)
             
