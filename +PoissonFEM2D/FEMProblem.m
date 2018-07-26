@@ -1,7 +1,7 @@
 classdef FEMProblem < handle
     
     properties
-        poi@PoissonFEM2D;
+        poi%@PoissonFEM2D;
         
         iDirichlet
         iNeumann

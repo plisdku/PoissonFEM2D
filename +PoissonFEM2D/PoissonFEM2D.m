@@ -1,7 +1,7 @@
 classdef PoissonFEM2D < handle
     
     properties
-        tnMesh@TriNodalMesh
+        tnMesh%@TriNodalMesh
         Dr;  % differentiation matrix on basis element
         Ds;  % differentiation matrix on basis element
         Q;   % quadrature matrix on basis element
