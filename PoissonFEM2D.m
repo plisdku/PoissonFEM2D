@@ -97,7 +97,7 @@ classdef PoissonFEM2D < handle
             
         end % getNeumannMatrix
         
-        function DNM = getNeumannMatrixSensitivity(obj)
+        function DNM = getNeumannMatrixSensitivity(obj, iEdges)
             numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
             
@@ -108,8 +108,13 @@ classdef PoissonFEM2D < handle
             
             [boundaryEdges, orientations] = obj.tnMesh.hMesh.getBoundaryEdges();
             
-            numEdges = length(boundaryEdges);
-            for ii = 1:numEdges
+            if nargin < 2
+                numEdges = length(boundaryEdges);
+                iEdges = 1:numEdges;
+            end
+                
+            
+            for ii = 1:reshape(iEdges, 1, [])
                 ee = boundaryEdges(ii);
                 oo = orientations(ii);
                 
@@ -167,8 +172,9 @@ classdef PoissonFEM2D < handle
                 DM{nn} = sparse(numFieldNodes,numFieldNodes);
             end
             
-            numFaces = obj.tnMesh.hMesh.getNumFaces();
+            
             if nargin < 2
+                numFaces = obj.tnMesh.hMesh.getNumFaces();
                 iFaces = 1:numFaces;
             end
             
@@ -221,6 +227,7 @@ classdef PoissonFEM2D < handle
             numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
              
+           
 %             DM = cell(2, numGeomNodes);
 %             for nn = 1:numel(DM)
 %                 DM{nn} = sparse(numFieldNodes, numFieldNodes);
