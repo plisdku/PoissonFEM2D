@@ -1145,52 +1145,106 @@ classdef TriNodalMesh < handle
             numGeomNodes = obj.hFieldNodes.getNumNodes();
             numFaces = obj.hMesh.getNumFaces();
             
-            %outI = sparse(numPts, numFieldNodes);
             DoutI = cell(2, numGeomNodes);
             for nn = 1:numel(DoutI)
                 DoutI{nn} = sparse(numPts, numFieldNodes);
             end
             
             [iEnclosingFaces, rr, ss] = obj.rasterize(corner0, corner1, Nxy);
+            
             iPoints = [];
             iFieldGlobals = [];
             Ms = [];
+            ffs = [];
+  
+            iPoints_cell = {};
+            iFieldGlobal_cell = {};
+            iGeomGlobal_cell = {};
+            dMdr_cell = {};
+            dMds_cell = {};
+            K_cell = {};
+            I_g_cell = {};
+                 
+            cnt = 0;
+
+            
+            
+            
             for ff = 1:numFaces
+                
                 iPoint = find(iEnclosingFaces == ff);
                 
                 if isempty(iPoint)
                     continue
                 end
                 
-%                 Drs = obj.inverseCoordinateTransformSensitivity_rs(ff, rr(iPoint), ss(iPoint));
-%                 Dr = squish(Drs(1,:,:,:));
-%                 Ds = squish(Drs(2,:,:,:));
-%                 
-%                 M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
-%                 [dMdr, dMds] = obj.hFieldNodes.basis.gradientMatrix(rr(iPoint), ss(iPoint));
-%                 
-%                 DM = multiplyTensors.tfxtf(dMdr, 2, [1], Dr, 3, [1]) + ...
-%                     multiplyTensors.tfxtf(dMds, 2, [1], Ds, 3, [1]);
-                
-                [DM,M] = obj.getFaceInterpolationMatrixSensitivity_rs(ff, rr(iPoint), ss(iPoint));
+                ffs = [ffs ff];
                 
                 iFieldGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 iGeomGlobal = obj.hGeomNodes.getFaceNodes(ff);
                 
-                for mm = 1:length(iGeomGlobal)
-                    for kk = 1:2
-                        DoutI{kk,iGeomGlobal(mm)}(iPoint,iFieldGlobal) = ...
-                            DoutI{kk,iGeomGlobal(mm)}(iPoint,iFieldGlobal) + DM(:,:,kk,mm);
-                    end
-                end
                 [repPoints, repFieldGlobals]= ndgrid(iPoint, iFieldGlobal);
                 iPoints = [iPoints; repPoints(:)];
                 iFieldGlobals = [iFieldGlobals; repFieldGlobals(:)];
-                Ms = [Ms; M(:)];
-                %outI(iPoint, iFieldGlobal) = M;
                 
-            end
+                
+                cnt = cnt + 1;
+                
+                iPoints_cell{cnt} = iPoint;
+                iFieldGlobal_cell{cnt} = iFieldGlobal;
+                iGeomGlobal_cell{cnt} = iGeomGlobal;
+                
+                
+                M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
+                
+                Ms = [Ms; M(:)]; 
+                
+                
+                K_cell{cnt} = obj.getInverseJacobian(ff, rr(iPoint), ss(iPoint));
+                I_g_cell{cnt} = obj.hGeomNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
+               
+                
+                [dMdr_cell{cnt}, dMds_cell{cnt}] = obj.hFieldNodes.basis.gradientMatrix(rr(iPoint), ss(iPoint)); 
+                
+                
+            end 
+            
+            
+             DM_cell = cell(length(ffs),1);
+            
+
+           startS = ticBytes(gcp);
+             parfor j = 1:length(ffs)
+
+               Drs = -multiplyTensors.tfxtf(K_cell{j},3,[3],I_g_cell{j},2,[1]); 
+               Drs = permute(Drs, [1,3,2,4]);
+               Dr = squish(Drs(1,:,:,:), 1); 
+               Ds = squish(Drs(2,:,:,:), 1);
+
+
+                DM_cell{j} = multiplyTensors.tfxtf(dMdr_cell{j}, 2, [1], Dr, 3, [1]) + ...
+                multiplyTensors.tfxtf(dMds_cell{j}, 2, [1], Ds, 3, [1]);
+
+
+             end
+            tocBytes(gcp,startS)
+             
             outI = sparse(iPoints, iFieldGlobals, Ms, numPts, numFieldNodes);
+
+            for ii = 1:length(ffs)
+                for mm = 1:length(iGeomGlobal_cell{ii})
+                    for kk = 1:2
+                        DoutI{kk,iGeomGlobal_cell{ii}(mm)}(iPoints_cell{ii},iFieldGlobal_cell{ii}) = ...
+                             DoutI{kk,iGeomGlobal_cell{ii}(mm)}(iPoints_cell{ii},iFieldGlobal_cell{ii}) + DM_cell{ii}(:,:,kk,mm);
+                    end
+                end
+            end
+               
+            
+     
+            
+            
+            
         end
         
         function pixels = rasterizeField(obj, fieldValues, xs, ys)

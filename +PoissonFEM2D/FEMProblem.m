@@ -297,7 +297,7 @@ classdef FEMProblem < handle
             
             dFdxl = zeros(numGeomNodes,1);
             dFdyl = zeros(numGeomNodes,1);
-            
+            startS2 = ticBytes(gcp);
             parfor mm = 1:numGeomNodes
                 
                 u_sp_mm = u_sp;
@@ -337,6 +337,7 @@ classdef FEMProblem < handle
                 
                 
             end
+            tocBytes(gcp,startS2)
             
             obj.dF_dxy(:,1) = dFdxl;
             obj.dF_dxy(:,2) = dFdyl;

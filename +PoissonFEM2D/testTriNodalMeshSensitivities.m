@@ -1,4 +1,5 @@
 %% Make a test mesh.
+import PoissonFEM2D.*
 
 vertices = [0,0; 1,0; 0,1];
 faces = [1,2,3];

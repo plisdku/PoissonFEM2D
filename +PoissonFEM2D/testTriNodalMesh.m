@@ -1,4 +1,5 @@
 %% Test Jacobians
+import PoissonFEM2D.*
 
 relErr = @(a,b) norm(a-b)/norm(a);
 
