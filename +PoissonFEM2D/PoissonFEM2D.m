@@ -141,9 +141,9 @@ classdef PoissonFEM2D < handle
             
             numFaces = obj.tnMesh.hMesh.getNumFaces();
             
-            iGlobals1 = [];
-            iGlobals2 = [];
-            faceMatrices = [];
+            iGlobals1 = {};%[];
+            iGlobals2 = {};%[];
+            faceMatrices = {};%[];
             
             for ff = 1:numFaces
                 faceMatrix = obj.getElementChargeMatrix(ff);
@@ -151,15 +151,16 @@ classdef PoissonFEM2D < handle
                 iGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
                 
                 [repGlobals1, repGlobals2] = ndgrid(iGlobal, iGlobal); 
-                iGlobals1 = [iGlobals1; repGlobals1(:)];
-                iGlobals2 = [iGlobals2; repGlobals2(:)];
-                faceMatrices = [faceMatrices; faceMatrix(:)];
+                iGlobals1{ff} = repGlobals1(:);%[iGlobals1; repGlobals1(:)];
+                iGlobals2{ff} = repGlobals2(:);%[iGlobals2; repGlobals2(:)];
+                faceMatrices{ff} = faceMatrix(:);%[faceMatrices; faceMatrix(:)];
                 %iGlobals2 = 
                % M(iGlobal, iGlobal) = M(iGlobal,iGlobal) + faceMatrix;
             end
             
             
-            M = sparse(iGlobals1, iGlobals2, faceMatrices, numNodes, numNodes);
+            M = sparse(cell2mat(iGlobals1)',cell2mat(iGlobals2)',...
+                cell2mat(faceMatrices)',numNodes,numNodes);%sparse(iGlobals1, iGlobals2, faceMatrices, numNodes, numNodes);
             
             
         end % getRhsMatrix
@@ -200,9 +201,10 @@ classdef PoissonFEM2D < handle
             numNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             
            % M = sparse(numNodes, numNodes);
-            iGlobals1 = [];
-            iGlobals2 = [];
-            facePotentials = [];
+           
+            iGlobals1 = {};%[];
+            iGlobals2 = {};%[];
+            facePotentials = {};%[];
             
             numFaces = obj.tnMesh.hMesh.getNumFaces();
             
@@ -212,14 +214,16 @@ classdef PoissonFEM2D < handle
                 
                 iGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
                 [repGlobals1, repGlobals2] = ndgrid(iGlobal, iGlobal); 
-                iGlobals1 = [iGlobals1; repGlobals1(:)];
-                iGlobals2 = [iGlobals2; repGlobals2(:)];
-                facePotentials = [facePotentials; facePotentialM(:)];
+                iGlobals1{ff} = repGlobals1(:);%[iGlobals1; repGlobals1(:)];
+                iGlobals2{ff} = repGlobals2(:);%[iGlobals2; repGlobals2(:)];
+                facePotentials{ff} = facePotentialM(:);%[facePotentials; facePotentialM(:)];
                 %M(iGlobal,iGlobal) = M(iGlobal, iGlobal) + facePotentialM;
                 
             end
             
-            M = sparse(iGlobals1, iGlobals2, facePotentials, numNodes, numNodes);
+            M = sparse(cell2mat(iGlobals1)',cell2mat(iGlobals2)',...
+                cell2mat(facePotentials)',numNodes,numNodes);%sparse(iGlobals1, iGlobals2, facePotentials, numNodes, numNodes);
+            
         end % getSystemMatrix
         
         

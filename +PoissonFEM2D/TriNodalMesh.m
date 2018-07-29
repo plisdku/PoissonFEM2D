@@ -1112,9 +1112,15 @@ classdef TriNodalMesh < handle
             %outI = sparse(numPts, numNodes);
             
             [iEnclosingFaces, rr, ss] = obj.rasterize(corner0, corner1, Nxy);
-            iPoints = [];
-            iGlobals = [];
-            Ms = [];
+%             iPoints = [];
+%             iGlobals = [];
+%             Ms = [];
+            
+            iPoints = {};
+            iGlobals = {};
+            Ms = {};
+            
+            cnt = 0;
             for ff = 1:numFaces
                 iPoint = find(iEnclosingFaces == ff);
                 
@@ -1122,19 +1128,21 @@ classdef TriNodalMesh < handle
                     continue
                 end
                 
+                cnt = cnt + 1;
+                
                 M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
                 iGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 
                 [repPoints, repGlobals]= ndgrid(iPoint, iGlobal);
-                iPoints = [iPoints; repPoints(:)];
-                iGlobals = [iGlobals; repGlobals(:)];
-                Ms = [Ms; M(:)];
+                iPoints{cnt} = repPoints(:);%[iPoints; repPoints(:)];
+                iGlobals{cnt} = repGlobals(:);%[iGlobals; repGlobals(:)];
+                Ms{cnt} = M(:);%[Ms; M(:)];
                 
                 %outI(iPoint, iGlobal) = M;
                 
             end
             
-            outI = sparse(iPoints, iGlobals, Ms, numPts, numNodes);
+            outI = sparse(cell2mat(iPoints)', cell2mat(iGlobals)', cell2mat(Ms)', numPts, numNodes);
             
         end
         
@@ -1152,12 +1160,10 @@ classdef TriNodalMesh < handle
             
             [iEnclosingFaces, rr, ss] = obj.rasterize(corner0, corner1, Nxy);
             
-            iPoints = [];
-            iPoints2 = {};
-            iFieldGlobals = [];
-            iFieldGlobals2 = {};
-            Ms = [];
-            Ms2 = {};
+            iPoints = {};
+            iFieldGlobals = {};
+            Ms = {};
+            
             ffs = [];
   
             iPoints_cell = {};
@@ -1188,76 +1194,51 @@ classdef TriNodalMesh < handle
                 iGeomGlobal = obj.hGeomNodes.getFaceNodes(ff);
                 
                 [repPoints, repFieldGlobals]= ndgrid(iPoint, iFieldGlobal);
-                iPoints = [iPoints; repPoints(:)];
-                iPoints2{cnt} = repPoints(:)';
-                iFieldGlobals = [iFieldGlobals; repFieldGlobals(:)];
-                iFieldGlobals2{cnt} = repFieldGlobals(:)';
-                
-                
-               
-                
+                iPoints{cnt} = repPoints(:)';
+                iFieldGlobals{cnt} = repFieldGlobals(:)';
+                                
                 iPoints_cell{cnt} = iPoint;
                 iFieldGlobal_cell{cnt} = iFieldGlobal;
                 iGeomGlobal_cell{cnt} = iGeomGlobal;
-                
-                
-                M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
-                
-                Ms = [Ms; M(:)];
-                Ms2{cnt} = M(:)';
-                
+                                
+                M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));  
+                Ms{cnt} = M(:)';
                 
                 K_cell{cnt} = obj.getInverseJacobian(ff, rr(iPoint), ss(iPoint));
                 I_g_cell{cnt} = obj.hGeomNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
-               
-                
                 [dMdr_cell{cnt}, dMds_cell{cnt}] = obj.hFieldNodes.basis.gradientMatrix(rr(iPoint), ss(iPoint)); 
-                
-                
+                          
             end 
             
+            outI = sparse(cell2mat(iPoints)',cell2mat(iFieldGlobals)',cell2mat(Ms)',numPts,numFieldNodes);
+
+            DM_cell = cell(length(ffs),1);
             
-             DM_cell = cell(length(ffs),1);
-            
+         startS = ticBytes(gcp);
+         parfor j = 1:length(ffs)
 
-           startS = ticBytes(gcp);
-             parfor j = 1:length(ffs)
-
-               Drs = -multiplyTensors.tfxtf(K_cell{j},3,[3],I_g_cell{j},2,[1]); 
-               Drs = permute(Drs, [1,3,2,4]);
-               Dr = squish(Drs(1,:,:,:), 1); 
-               Ds = squish(Drs(2,:,:,:), 1);
+           Drs = -multiplyTensors.tfxtf(K_cell{j},3,[3],I_g_cell{j},2,[1]); 
+           Drs = permute(Drs, [1,3,2,4]);
+           Dr = squish(Drs(1,:,:,:), 1); 
+           Ds = squish(Drs(2,:,:,:), 1);
 
 
-                DM_cell{j} = multiplyTensors.tfxtf(dMdr_cell{j}, 2, [1], Dr, 3, [1]) + ...
-                multiplyTensors.tfxtf(dMds_cell{j}, 2, [1], Ds, 3, [1]);
+            DM_cell{j} = multiplyTensors.tfxtf(dMdr_cell{j}, 2, [1], Dr, 3, [1]) + ...
+            multiplyTensors.tfxtf(dMds_cell{j}, 2, [1], Ds, 3, [1]);
 
 
-             end
-            tocBytes(gcp,startS)
-             
-            outI2 = sparse(cell2mat(iPoints2)',cell2mat(iFieldGlobals2)',cell2mat(Ms2)',numPts,numFieldNodes);
-            outI = sparse(iPoints, iFieldGlobals, Ms, numPts, numFieldNodes);
-            
-            if isequal(outI2,outI)
-                disp('same')
-            else
-                disp('not the same')
-            end
+         end
+         tocBytes(gcp,startS)
 
-            for ii = 1:length(ffs)
-                for mm = 1:length(iGeomGlobal_cell{ii})
-                    for kk = 1:2
-                        DoutI{kk,iGeomGlobal_cell{ii}(mm)}(iPoints_cell{ii},iFieldGlobal_cell{ii}) = ...
-                             DoutI{kk,iGeomGlobal_cell{ii}(mm)}(iPoints_cell{ii},iFieldGlobal_cell{ii}) + DM_cell{ii}(:,:,kk,mm);
-                    end
+        for ii = 1:length(ffs)
+            for mm = 1:length(iGeomGlobal_cell{ii})
+                for kk = 1:2
+                    DoutI{kk,iGeomGlobal_cell{ii}(mm)}(iPoints_cell{ii},iFieldGlobal_cell{ii}) = ...
+                         DoutI{kk,iGeomGlobal_cell{ii}(mm)}(iPoints_cell{ii},iFieldGlobal_cell{ii}) + DM_cell{ii}(:,:,kk,mm);
                 end
             end
-               
-            
-     
-            
-            
+        end
+          
             
         end
         
