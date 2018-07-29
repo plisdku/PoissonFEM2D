@@ -1153,8 +1153,11 @@ classdef TriNodalMesh < handle
             [iEnclosingFaces, rr, ss] = obj.rasterize(corner0, corner1, Nxy);
             
             iPoints = [];
+            iPoints2 = {};
             iFieldGlobals = [];
+            iFieldGlobals2 = {};
             Ms = [];
+            Ms2 = {};
             ffs = [];
   
             iPoints_cell = {};
@@ -1179,16 +1182,19 @@ classdef TriNodalMesh < handle
                 end
                 
                 ffs = [ffs ff];
+                cnt = cnt + 1;
                 
                 iFieldGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 iGeomGlobal = obj.hGeomNodes.getFaceNodes(ff);
                 
                 [repPoints, repFieldGlobals]= ndgrid(iPoint, iFieldGlobal);
                 iPoints = [iPoints; repPoints(:)];
+                iPoints2{cnt} = repPoints(:)';
                 iFieldGlobals = [iFieldGlobals; repFieldGlobals(:)];
+                iFieldGlobals2{cnt} = repFieldGlobals(:)';
                 
                 
-                cnt = cnt + 1;
+               
                 
                 iPoints_cell{cnt} = iPoint;
                 iFieldGlobal_cell{cnt} = iFieldGlobal;
@@ -1197,7 +1203,8 @@ classdef TriNodalMesh < handle
                 
                 M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
                 
-                Ms = [Ms; M(:)]; 
+                Ms = [Ms; M(:)];
+                Ms2{cnt} = M(:)';
                 
                 
                 K_cell{cnt} = obj.getInverseJacobian(ff, rr(iPoint), ss(iPoint));
@@ -1229,7 +1236,14 @@ classdef TriNodalMesh < handle
              end
             tocBytes(gcp,startS)
              
+            outI2 = sparse(cell2mat(iPoints2)',cell2mat(iFieldGlobals2)',cell2mat(Ms2)',numPts,numFieldNodes);
             outI = sparse(iPoints, iFieldGlobals, Ms, numPts, numFieldNodes);
+            
+            if isequal(outI2,outI)
+                disp('same')
+            else
+                disp('not the same')
+            end
 
             for ii = 1:length(ffs)
                 for mm = 1:length(iGeomGlobal_cell{ii})
