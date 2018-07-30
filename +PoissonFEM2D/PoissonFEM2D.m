@@ -151,9 +151,9 @@ classdef PoissonFEM2D < handle
                 iGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
                 
                 [repGlobals1, repGlobals2] = ndgrid(iGlobal, iGlobal); 
-                iGlobals1{ff} = repGlobals1(:);%[iGlobals1; repGlobals1(:)];
-                iGlobals2{ff} = repGlobals2(:);%[iGlobals2; repGlobals2(:)];
-                faceMatrices{ff} = faceMatrix(:);%[faceMatrices; faceMatrix(:)];
+                iGlobals1{ff} = repGlobals1(:)';%[iGlobals1; repGlobals1(:)];
+                iGlobals2{ff} = repGlobals2(:)';%[iGlobals2; repGlobals2(:)];
+                faceMatrices{ff} = faceMatrix(:)';%[faceMatrices; faceMatrix(:)];
                 %iGlobals2 = 
                % M(iGlobal, iGlobal) = M(iGlobal,iGlobal) + faceMatrix;
             end
@@ -214,9 +214,9 @@ classdef PoissonFEM2D < handle
                 
                 iGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
                 [repGlobals1, repGlobals2] = ndgrid(iGlobal, iGlobal); 
-                iGlobals1{ff} = repGlobals1(:);%[iGlobals1; repGlobals1(:)];
-                iGlobals2{ff} = repGlobals2(:);%[iGlobals2; repGlobals2(:)];
-                facePotentials{ff} = facePotentialM(:);%[facePotentials; facePotentialM(:)];
+                iGlobals1{ff} = repGlobals1(:)';%[iGlobals1; repGlobals1(:)];
+                iGlobals2{ff} = repGlobals2(:)';%[iGlobals2; repGlobals2(:)];
+                facePotentials{ff} = facePotentialM(:)';%[facePotentials; facePotentialM(:)];
                 %M(iGlobal,iGlobal) = M(iGlobal, iGlobal) + facePotentialM;
                 
             end

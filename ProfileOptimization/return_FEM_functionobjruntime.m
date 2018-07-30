@@ -92,5 +92,8 @@ tic
     plot(measBox([1,3,3,1,1]), measBox([2,2,4,4,2]), 'w--');
     %axis xy image
     axis(ax)
+    poolobj = gcp('nocreate');
+    delete(poolobj);
+    
 
 end 

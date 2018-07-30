@@ -1134,16 +1134,16 @@ classdef TriNodalMesh < handle
                 iGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 
                 [repPoints, repGlobals]= ndgrid(iPoint, iGlobal);
-                iPoints{cnt} = repPoints(:);%[iPoints; repPoints(:)];
-                iGlobals{cnt} = repGlobals(:);%[iGlobals; repGlobals(:)];
-                Ms{cnt} = M(:);%[Ms; M(:)];
+                iPoints{cnt} = repPoints(:)';%[iPoints; repPoints(:)];
+                iGlobals{cnt} = repGlobals(:)';%[iGlobals; repGlobals(:)];
+                Ms{cnt} = M(:)';%[Ms; M(:)];
                 
                 %outI(iPoint, iGlobal) = M;
                 
             end
             
             outI = sparse(cell2mat(iPoints)', cell2mat(iGlobals)', cell2mat(Ms)', numPts, numNodes);
-            
+
         end
         
         function [DoutI, outI] = getRasterInterpolationOperatorSensitivity(obj, corner0, corner1, Nxy)
@@ -1217,14 +1217,14 @@ classdef TriNodalMesh < handle
          startS = ticBytes(gcp);
          parfor j = 1:length(ffs)
 
-           Drs = -multiplyTensors.tfxtf(K_cell{j},3,[3],I_g_cell{j},2,[1]); 
+           Drs = -mTensorwrap(K_cell{j},3,[3],I_g_cell{j},2,[1]);%-multiplyTensors.tfxtf(K_cell{j},3,[3],I_g_cell{j},2,[1]); 
            Drs = permute(Drs, [1,3,2,4]);
            Dr = squish(Drs(1,:,:,:), 1); 
            Ds = squish(Drs(2,:,:,:), 1);
 
 
-            DM_cell{j} = multiplyTensors.tfxtf(dMdr_cell{j}, 2, [1], Dr, 3, [1]) + ...
-            multiplyTensors.tfxtf(dMds_cell{j}, 2, [1], Ds, 3, [1]);
+            DM_cell{j} = mTensorwrap(dMdr_cell{j}, 2, [1], Dr, 3, [1])+...;%multiplyTensors.tfxtf(dMdr_cell{j}, 2, [1], Dr, 3, [1]) + ...
+            mTensorwrap(dMds_cell{j}, 2, [1], Ds, 3, [1]);%multiplyTensors.tfxtf(dMds_cell{j}, 2, [1], Ds, 3, [1]);
 
 
          end
