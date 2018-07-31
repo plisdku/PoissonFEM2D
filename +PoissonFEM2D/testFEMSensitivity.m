@@ -1,5 +1,5 @@
 %% Test a whole adjoint thing
-
+import PoissonFEM2D.*
 assertClose = @(a,b) assert(norm(a(:)-b(:))/(norm(a(:)) + norm(b(:))) < 1e-5 || norm(a(:) + b(:)) < 1e-50);
 
 %% Set up the mesh

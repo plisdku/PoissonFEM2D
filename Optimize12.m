@@ -1,4 +1,5 @@
 %% Contour points (oriented correctly) and mesh size parameters
+import PoissonFEM2D.*
 close all
 Lx = 60e-3;
 Ly = 15e-3;

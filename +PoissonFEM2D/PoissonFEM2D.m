@@ -97,7 +97,7 @@ classdef PoissonFEM2D < handle
             
         end % getNeumannMatrix
         
-        function DNM = getNeumannMatrixSensitivity(obj, iEdges)
+        function DNM = getNeumannMatrixSensitivity(obj,iEdges)
             numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
             
@@ -110,23 +110,41 @@ classdef PoissonFEM2D < handle
             
             if nargin < 2
                 numEdges = length(boundaryEdges);
-                iEdges = 1:numEdges;
-            end
+                %iEdges = 1:numEdges;
+                for ii = 1:numEdges%reshape(iEdges, 1, [])
+                    ee = boundaryEdges(ii);
+                    oo = orientations(ii);
+
+                    iGeomGlobal = obj.tnMesh.hGeomNodes.getEdgeNodes(ee,oo);
+                    iFieldGlobal = obj.tnMesh.hFieldNodes.getEdgeNodes(ee,oo);
+
+                    DNM_edge = obj.getElementNeumannMatrixSensitivity(ee,oo);
+
+                    for mm = 1:length(iGeomGlobal)
+                        for kk = 1:2
+                            DNM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
+                                DNM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DNM_edge(:,:,kk,mm);
+                        end
+                    end
+                end
+            else
+            %numEdges = length(boundaryEdges);
                 
             
-            for ii = 1:reshape(iEdges, 1, [])
-                ee = boundaryEdges(ii);
-                oo = orientations(ii);
-                
-                iGeomGlobal = obj.tnMesh.hGeomNodes.getEdgeNodes(ee,oo);
-                iFieldGlobal = obj.tnMesh.hFieldNodes.getEdgeNodes(ee,oo);
-                
-                DNM_edge = obj.getElementNeumannMatrixSensitivity(ee,oo);
-                
-                for mm = 1:length(iGeomGlobal)
-                    for kk = 1:2
-                        DNM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
-                            DNM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DNM_edge(:,:,kk,mm);
+                for ii = reshape(iEdges, 1, [])
+                    ee = boundaryEdges(ii);
+                    oo = orientations(ii);
+
+                    iGeomGlobal = obj.tnMesh.hGeomNodes.getEdgeNodes(ee,oo);
+                    iFieldGlobal = obj.tnMesh.hFieldNodes.getEdgeNodes(ee,oo);
+
+                    DNM_edge = obj.getElementNeumannMatrixSensitivity(ee,oo);
+
+                    for mm = 1:length(iGeomGlobal)
+                        for kk = 1:2
+                            DNM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
+                                DNM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DNM_edge(:,:,kk,mm);
+                        end
                     end
                 end
             end

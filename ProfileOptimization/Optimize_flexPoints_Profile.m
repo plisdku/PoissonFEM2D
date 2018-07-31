@@ -44,7 +44,7 @@ L3 = L1;
 r_i = 3e-3;
 r_o = 11e-3;
 
-Ncontour_vec = [30 30 30 30];
+Ncontour_vec = [30 30 30 30]/3;
 
 E2_V1 = [-L2/2, r_i];
 E2_V2 = [L2/2, r_i];
@@ -110,7 +110,7 @@ minX = ones(1,end_p3)'*(-5e-3);
 maxX = ones(1,end_p3)'*(10e-3);
 t1 = tic;
 
-[x, fval, iter, xHist, fHist, DfHist] = extremize12(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', @ plotfunc, 'MaxIter', 1);
+[x, fval, iter, xHist, fHist, DfHist] = extremize12(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', @ plotfunc, 'MaxIter', 25);
 toc(t1)
 save('ShowcaseData' , 'x' , 'fval', 'iter', 'xHist', 'fHist', 'DfHist')
 

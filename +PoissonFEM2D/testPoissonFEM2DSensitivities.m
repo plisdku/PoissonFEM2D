@@ -1,4 +1,5 @@
 %% Make a test mesh.
+import PoissonFEM2D.*
 
 vertices = [0,0; 1,0; 0,1];
 faces = [1,2,3];
@@ -41,7 +42,7 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
         end
     end
 end
-
+disp('Element Potential matrix done')
 %% Element charge matrix
 
 A = poi.getElementChargeMatrix(1);
@@ -95,7 +96,7 @@ DA = poi.getNeumannMatrixSensitivity();
 
 for mm = 1:tnMesh.hGeomNodes.getNumNodes()
     for dirIdx = 1:2
-        A2 = PoissonFEM2D(tnMesh.perturbed(mm, dirIdx, delta)).getNeumannMatrix();
+        A2 = PoissonFEM2D.PoissonFEM2D(tnMesh.perturbed(mm, dirIdx, delta)).getNeumannMatrix();
         DA_meas = (A2-A)/delta;
         DA_calc = DA{dirIdx,mm};
         
@@ -105,6 +106,8 @@ for mm = 1:tnMesh.hGeomNodes.getNumNodes()
         end
     end
 end
+
+disp('done Neumann matrix')
 
 %% Rhs Matrix
 

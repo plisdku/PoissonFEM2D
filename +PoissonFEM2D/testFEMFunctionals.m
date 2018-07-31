@@ -1,4 +1,5 @@
 %% Tests!
+import PoissonFEM2D.*
 
 checkClose = @(a,b) assert(norm(a-b) < 1e-3*norm(a), 'Values are not close');
 checkSmall = @(a) assert(norm(a) < 1e-6, 'Value is not small');
