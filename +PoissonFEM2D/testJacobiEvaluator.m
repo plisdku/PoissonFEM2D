@@ -1,4 +1,5 @@
 %% Test JacobiEvaluator!
+import PoissonFEM2D.*
 
 isClose_tol = @(a,b,tol) norm(a-b) < tol;
 isClose = @(a,b) isClose_tol(a,b,1e-12);
@@ -9,7 +10,7 @@ isClose = @(a,b) isClose_tol(a,b,1e-12);
 % purposes.  (Someday project: learn how to calculate the coefficients more
 % accurately.)
 
-jac = JacobiEvaluator(5);
+jac = PoissonFEM2D.JacobiEvaluator(5);
 
 ll = support.legendrePolynomialsNormalized(5);
 jj = jac.coefficientArray(1:5, :, 1, 1);

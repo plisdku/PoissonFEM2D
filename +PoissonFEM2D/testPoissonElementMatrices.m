@@ -1,4 +1,5 @@
 %% Element matrix tests
+import PoissonFEM2D.*
 
 faces = [1 2 3];
 vertices = [0,0; 1,0; 0,1];
@@ -8,11 +9,11 @@ N_field = 4;
 N_geom = 2;
 N_quad = 4;
 
-lng = LinearNodalGeometry(faces, vertices, N_geom);
+lng = PoissonFEM2D.LinearNodalGeometry(faces, vertices, N_geom);
 xyNodes = lng.getNodeCoordinates();
 
-tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
-poi = PoissonFEM2D(tnMesh);
+tnMesh = PoissonFEM2D.TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
+poi = PoissonFEM2D.PoissonFEM2D(tnMesh);
 
 xy = poi.tnMesh.getNodeCoordinates();
 

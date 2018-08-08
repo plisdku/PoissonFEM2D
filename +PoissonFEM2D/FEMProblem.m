@@ -241,23 +241,9 @@ classdef FEMProblem < handle
 %                 obj.dF_dxy(:,1) = v_center'*wx + (dF_du_rowVector * obj.dInterpolationOperator{1,mm}) * u_sp;
 %                 obj.dF_dxy(:,2) = v_center'*wy + (dF_du_rowVector * obj.dInterpolationOperator{2,mm}) * u_sp;
 %                 
-%             end 
-            
-%             
-%             dA1 = {obj.dA{1,:}};
-%             dA1b = {obj.dA{1,:}(iCenterl, iCenterl)};
-%             dA2 = {obj.dA{2,:}};
-%             
-%             dNM1 = {obj.dNM{1,:}};
-%             dNM2 = {obj.dNM{2,:}};
-%             
-%             dB1 = {obj.dB{1,:}};
-%             dB2 = {obj.dB{2,:}};
-%             
-%             Bl1 = obj.B;
-%             Bl2 = obj.B;
-%             
-            
+%             end              
+
+%    Version if parfor should be used:         
             iCenterl = obj.iCenter;
             iDirichletl = obj.iDirichlet;
             iNeumannl = obj.iNeumann;
@@ -287,7 +273,7 @@ classdef FEMProblem < handle
             end
             
             Bl1 = obj.B(iCenterl,:);
-            %Bl2 = obj.B;
+
             
 
             
@@ -297,7 +283,6 @@ classdef FEMProblem < handle
             
             dFdxl = zeros(numGeomNodes,1);
             dFdyl = zeros(numGeomNodes,1);
-            startS2 = ticBytes(gcp);
             for mm = 1:numGeomNodes
                 
                 u_sp_mm = u_sp;
@@ -317,27 +302,9 @@ classdef FEMProblem < handle
                 dFdxl(mm,1) = v_center'*wx + (dF_du_rowVector * dInterpolationOperator1{mm}) * u_sp_mm;
                 dFdyl(mm,1) = v_center'*wy + (dF_du_rowVector * dInterpolationOperator2{mm}) * u_sp_mm;  
                 
-
-%                 u_sp_mm = u_sp;
-%                 
-%                 wx = -dA1{mm}(iCenterl, iCenterl)*u_sp_mm(iCenterl)...
-%                     - dA1{mm}(iCenterl, iDirichletl)*u0_dirichlet_sp ...
-%                     + dNM1{mm}(iCenterl, iNeumannl)*en_neumann_sp ...
-%                     + dB1{mm}(iCenterl, :)*freeCharge_sp ...
-%                     + Bl1*dFreecharge_dx_sp(:,mm);
-%                 
-%                 wy = -dA2{mm}(iCenterl, iCenterl)*u_sp_mm(iCenterl)...
-%                     - dA2{mm}(iCenterl, iDirichletl)*u0_dirichlet_sp ...
-%                     + dNM2{mm}(iCenterl, iNeumannl)*en_neumann_sp ...
-%                     + dB2{mm}(iCenterl, :)*freeCharge_sp ...
-%                     + Bl1*dFreecharge_dy_sp(:,mm);
-%                 
-%                 dFdxl(mm,1) = v_center'*wx + (dF_du_rowVector * dInterpolationOperator1{mm}) * u_sp_mm;
-%                 dFdyl(mm,1) = v_center'*wy + (dF_du_rowVector * dInterpolationOperator2{mm}) * u_sp_mm;
                 
                 
             end
-            tocBytes(gcp,startS2)
             
             obj.dF_dxy(:,1) = dFdxl;
             obj.dF_dxy(:,2) = dFdyl;

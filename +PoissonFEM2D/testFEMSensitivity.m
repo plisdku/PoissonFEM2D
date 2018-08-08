@@ -24,11 +24,11 @@ N_field = 4;
 N_geom = 2;
 N_quad = N_field;
 
-lng = LinearNodalGeometry(domainF, domainV, N_geom);
+lng = PoissonFEM2D.LinearNodalGeometry(domainF, domainV, N_geom);
 xyNodes = lng.getNodeCoordinates();
 
-tnMesh = TriNodalMesh(domainF, xyNodes, N_field, N_geom, N_quad);
-poi = PoissonFEM2D(tnMesh);
+tnMesh = PoissonFEM2D.TriNodalMesh(domainF, xyNodes, N_field, N_geom, N_quad);
+poi = PoissonFEM2D.PoissonFEM2D(tnMesh);
 
 dirichletPredicate = @(x,y) norm(x-0.5) < 0.25 && norm(y-0.5) < 0.25;
 

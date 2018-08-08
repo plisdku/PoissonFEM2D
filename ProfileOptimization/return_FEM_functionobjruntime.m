@@ -92,8 +92,20 @@ tic
     plot(measBox([1,3,3,1,1]), measBox([2,2,4,4,2]), 'w--');
     %axis xy image
     axis(ax)
-    poolobj = gcp('nocreate');
-    delete(poolobj);
+%     poolobj = gcp('nocreate');
+%     delete(poolobj);
     
+    figure(323)
+    
+    
+    for i = 1:length(VV.ParticleArray)
+    plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
+    %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
+    end
 
+    figure(324)
+    for i = 1:length(VV.ParticleArray)
+        plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
+    %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
+    end
 end 

@@ -19,7 +19,7 @@ function [particles, hit_objective] = SetupParticles_smalldistancedebug()
     
     Nt = 1500;
     end_time = (120e-3 ./ (v_center))*2.5;
-    end_time = end_time - 0.99*end_time;
+    end_time = end_time - 0.6*end_time;
 
     n_charges = -1;
     n_masses = ion_mass/electron_mass;

@@ -13,9 +13,9 @@ N_quad = N_field;
 %N_geom=2;
 %N_quad=2;
 
-lng = LinearNodalGeometry(faces, vertices, N_geom);
+lng = PoissonFEM2D.LinearNodalGeometry(faces, vertices, N_geom);
 xyNodes = lng.getNodeCoordinates();
-tnMesh = TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
+tnMesh = PoissonFEM2D.TriNodalMesh(faces, xyNodes, N_field, N_geom, N_quad);
 
 poi = PoissonFEM2D(tnMesh);
 

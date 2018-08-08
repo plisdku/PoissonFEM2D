@@ -130,10 +130,12 @@ classdef PoissonFEM2D < handle
             else
             %numEdges = length(boundaryEdges);
                 
-            
-                for ii = reshape(iEdges, 1, [])
-                    ee = boundaryEdges(ii);
-                    oo = orientations(ii);
+            [relevantEdges, idxiEdges, idxboundaryEdges] = ...
+                intersect(iEdges, boundaryEdges);
+                
+                for ii = 1:length(relevantEdges)%reshape(iEdges, 1, [])
+                    ee = boundaryEdges(idxboundaryEdges(ii));
+                    oo = orientations(idxboundaryEdges(ii));
 
                     iGeomGlobal = obj.tnMesh.hGeomNodes.getEdgeNodes(ee,oo);
                     iFieldGlobal = obj.tnMesh.hFieldNodes.getEdgeNodes(ee,oo);
