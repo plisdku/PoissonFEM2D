@@ -183,22 +183,30 @@ classdef FEMProblem < handle
 %             [iBoundaryFaces,~,~] = find(feMat(:,boundaryEdges));
 %             iBoundaryFaces = unique(iBoundaryFaces);
             %[boundaryFaces, = find(adjMat(:,boundaryEdges));
+            
             if nargin == 2
                 obj.dA = obj.poi.getSystemMatrixSensitivity();
                 obj.dB = obj.poi.getRhsMatrixSensitivity();
                 obj.dNM = obj.poi.getNeumannMatrixSensitivity();
             else
+              
                  FVAm = obj.poi.tnMesh.hMesh.getFaceVertexAdjacency();
                 [iF,~,~] = find(FVAm(:,varargin{1}));
                 iF = unique(iF);
                 EVAm = obj.poi.tnMesh.hMesh.getEdgeVertexAdjacency();
                 [iE,~,~] = find(EVAm(:,varargin{1}));
                 iE = unique(iE);
+                
                 obj.dA = obj.poi.getSystemMatrixSensitivity(iF);
                 obj.dB = obj.poi.getRhsMatrixSensitivity(iF);
-                obj.dNM = obj.poi.getNeumannMatrixSensitivity(iE);
+                obj.dNM = obj.poi.getNeumannMatrixSensitivity(iE);    
             end
             
+            for ii = 1:size(obj.dB,2)
+                
+                nnzs(ii) = nnz(obj.dB{1,2});
+                
+            end 
             % Sensitivity to free charge (1 x N)
             
             obj.dF_dCharge = v_center' * B_center;
@@ -243,20 +251,28 @@ classdef FEMProblem < handle
 %                 
 %             end              
 
-%    Version if parfor should be used:         
+%    Version if parfor should be used:  aparrently this is sitll faster.   
             iCenterl = obj.iCenter;
             iDirichletl = obj.iDirichlet;
             iNeumannl = obj.iNeumann;
             
-            dACC2{numGeomNodes} = obj.dA{2,numGeomNodes}(iCenterl, iCenterl);
-            dACD2{numGeomNodes} = obj.dA{2,numGeomNodes}(iCenterl, iDirichletl);
-            dNMCN2{numGeomNodes} = obj.dNM{2,numGeomNodes}(iCenterl,iNeumannl);
-            dBC2{numGeomNodes} = obj.dB{2,numGeomNodes}(iCenterl, :);
+            dACC2{numGeomNodes} = ...
+                obj.dA{2,numGeomNodes}(iCenterl, iCenterl);
+            dACD2{numGeomNodes} = ...
+                obj.dA{2,numGeomNodes}(iCenterl, iDirichletl);
+            dNMCN2{numGeomNodes} = ...
+                obj.dNM{2,numGeomNodes}(iCenterl,iNeumannl);
+            dBC2{numGeomNodes} = ...
+                obj.dB{2,numGeomNodes}(iCenterl, :);
             
-            dACC1{numGeomNodes} = obj.dA{1,numGeomNodes}(iCenterl, iCenterl);
-            dACD1{numGeomNodes} = obj.dA{1,numGeomNodes}(iCenterl, iDirichletl);
-            dNMCN1{numGeomNodes} = obj.dNM{1,numGeomNodes}(iCenterl,iNeumannl);
-            dBC1{numGeomNodes} = obj.dB{1,numGeomNodes}(iCenterl, :);
+            dACC1{numGeomNodes} = ...
+                obj.dA{1,numGeomNodes}(iCenterl, iCenterl);
+            dACD1{numGeomNodes} = ...
+                obj.dA{1,numGeomNodes}(iCenterl, iDirichletl);
+            dNMCN1{numGeomNodes} = ...
+                obj.dNM{1,numGeomNodes}(iCenterl,iNeumannl);
+            dBC1{numGeomNodes} = ...
+                obj.dB{1,numGeomNodes}(iCenterl, :);
             
             for mm = 1:numGeomNodes
                 
@@ -274,15 +290,12 @@ classdef FEMProblem < handle
             
             Bl1 = obj.B(iCenterl,:);
 
-            
-
-            
             dInterpolationOperator1 = {obj.dInterpolationOperator{1,:}};
             dInterpolationOperator2 = {obj.dInterpolationOperator{2,:}};
-            
-            
+                       
             dFdxl = zeros(numGeomNodes,1);
             dFdyl = zeros(numGeomNodes,1);
+            
             for mm = 1:numGeomNodes
                 
                 u_sp_mm = u_sp;
@@ -299,11 +312,11 @@ classdef FEMProblem < handle
                     + dBC2{mm}*freeCharge_sp ...
                     + Bl1*dFreecharge_dy_sp(:,mm);
                 
-                dFdxl(mm,1) = v_center'*wx + (dF_du_rowVector * dInterpolationOperator1{mm}) * u_sp_mm;
-                dFdyl(mm,1) = v_center'*wy + (dF_du_rowVector * dInterpolationOperator2{mm}) * u_sp_mm;  
-                
-                
-                
+                dFdxl(mm,1) = v_center'*wx + (dF_du_rowVector ...
+                    * dInterpolationOperator1{mm}) * u_sp_mm;
+                dFdyl(mm,1) = v_center'*wy + (dF_du_rowVector ...
+                    * dInterpolationOperator2{mm}) * u_sp_mm;  
+    
             end
             
             obj.dF_dxy(:,1) = dFdxl;

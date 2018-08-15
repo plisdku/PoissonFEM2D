@@ -7,7 +7,7 @@ function [particles, hit_objective] = SetupParticles_smalldistancedebug()
     E_center = 30*1e3*elementary_charge;
     v_center = sqrt(2*E_center / ion_mass);
 
-    Nr = 10;
+    Nr = 100;
 
     y_vec = linspace(-0.2e-3,0.2e-3,Nr);
 
@@ -32,7 +32,7 @@ function [particles, hit_objective] = SetupParticles_smalldistancedebug()
     end
     
 
-    x_p = 39.5e-3;
+    x_p = 50e-3;%39.5e-3;
     y_p  = 0;
     z_p  = 0;
     vx_p = 1e-3;

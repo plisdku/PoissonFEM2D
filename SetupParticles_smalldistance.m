@@ -32,7 +32,7 @@ function [particles, hit_objective] = SetupParticles_smalldistance()
     end
     
 
-    x_p = 39.5e-3;
+    x_p = 50e-3;%39.5e-3;
     y_p  = 0;
     z_p  = 0;
     vx_p = 1e-3;

@@ -54,9 +54,10 @@ function [F, dFdp] = return_FEM_functionobj(fem, p, Lx, Ly)
     plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
         [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'color', [0.8 0.8 0.8], 'linewidth', 2)
     
-   
+   figure()
+   hold on 
     for i = 1:length(VV.ParticleArray)
-    plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'w', 'LineWidth', 1)
+    plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
     %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
     end
     %plot(x_p,y_p,'bx')
