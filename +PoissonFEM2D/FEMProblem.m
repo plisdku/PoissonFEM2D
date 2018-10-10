@@ -148,7 +148,7 @@ classdef FEMProblem < handle
         end
         
         function solveAdjointCartesian(obj, dF_du_cartesian, varargin)
-            
+            t_adjoint = tic; 
             dF_du_rowVector = sparse(reshape(dF_du_cartesian, 1, []));
             
             Df_val = dF_du_rowVector * obj.interpolationOperator;
@@ -164,7 +164,7 @@ classdef FEMProblem < handle
             
             % Solve for the adjoint variable
             
-            t_adjoint = tic; 
+           
             v_center = A_center' \ Df_center';
             obj.timer_variable(1) = toc(t_adjoint); 
             

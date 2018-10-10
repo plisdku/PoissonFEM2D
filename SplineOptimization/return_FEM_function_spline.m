@@ -1,14 +1,5 @@
-function [F, dFdp] = return_FEM_functionobjruntime(fem, p, Lx, Ly)
-    contours = fem.instantiatedGeom.parameterizedGeometry.contours;
-    figure()
-    plot(contours(1).xFunc(p),contours(1).yFunc(p))
-    hold on
-    plot(contours(2).xFunc(p),contours(2).yFunc(p))
-    plot(contours(3).xFunc(p),contours(3).yFunc(p))
-    plot(contours(4).xFunc(p),contours(4).yFunc(p))
-    plot(contours(4).xFunc(p),contours(4).yFunc(p),'x')
-    plot(contours(3).xFunc(p),contours(3).yFunc(p),'x')
-    plot(contours(2).xFunc(p),contours(2).yFunc(p),'x')
+function [F, dFdp] = return_FEM_function_spline(fem, p, Lx, Ly)
+     
     [~] = fem.instantiateProblem(p);
    
     [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.adjustProblem(p);

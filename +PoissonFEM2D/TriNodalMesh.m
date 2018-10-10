@@ -1213,7 +1213,8 @@ classdef TriNodalMesh < handle
             outI = sparse(cell2mat(iPoints)',cell2mat(iFieldGlobals)',cell2mat(Ms)',numPts,numFieldNodes);
 
             DM_cell = cell(length(ffs),1);
-            
+           
+
          startS = ticBytes(gcp);
          parfor j = 1:length(ffs)
 

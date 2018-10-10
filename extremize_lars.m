@@ -1,4 +1,4 @@
-function [xBest, fBest, iter, xHist, fHist, DfHist, t_iter] = extremize12(fn, x0, varargin)
+function [xBest, fBest, iter, xHist, fHist, DfHist, t_iter, alphas] = extremize_lars(fn, x0, varargin)
 % extremize    minimize or maximize a function
 %
 % [x, fval, iter] = extremize(fun, x0, named parameters)
@@ -27,6 +27,7 @@ function [xBest, fBest, iter, xHist, fHist, DfHist, t_iter] = extremize12(fn, x0
 % Callback      a function f(xHistory, fHistory, DfHistory)
 %
 
+
     X.Direction = 'Minimize';
     X.Bounds = [];
     X.Deltas = [];
@@ -36,7 +37,7 @@ function [xBest, fBest, iter, xHist, fHist, DfHist, t_iter] = extremize12(fn, x0
     X.MaxStep = [];
     X.Silent = false;
     X.TolF = 1e-20;
-    X.RelTolF = 1e-20;
+    X.RelTolF = 1e-5;
     X.Callback = @(xHist, fHist, DfHist) pause(0);
 
     X = parseargs(X, varargin{:});
@@ -66,6 +67,7 @@ function [xBest, fBest, iter, xHist, fHist, DfHist, t_iter] = extremize12(fn, x0
     xBest = x0;
     fBest = Inf;
     stepSizes = 0.02*X.MaxStep;%0.1*X.MaxStep;
+    alphas = [1];
     
     iter = 0;
     while ~done
@@ -98,6 +100,7 @@ function [xBest, fBest, iter, xHist, fHist, DfHist, t_iter] = extremize12(fn, x0
         DfHist(end+1,:) = Df_eval;
         xHist(:,end+1) = x;
         
+        
         f = fSign*f_eval;
         Df = fSign*Df_eval;
         
@@ -106,7 +109,7 @@ function [xBest, fBest, iter, xHist, fHist, DfHist, t_iter] = extremize12(fn, x0
             fBest = f;
         end
         
-        X.Callback(xHist, fHist, DfHist, size(x0,1));
+        X.Callback(xHist, fHist, DfHist, size(x0,1), alphas);
         
         % Check if we've reached the goal value.
         if (fSign < 0 && f_eval > X.GoalF) || ...
@@ -184,13 +187,23 @@ function [xBest, fBest, iter, xHist, fHist, DfHist, t_iter] = extremize12(fn, x0
         iStepTooBig = stepSizes > X.MaxStep;
         stepSizes(iStepTooBig) = X.MaxStep(iStepTooBig);
     
-        unitGrad = Df / norm(Df(ii));
+        unitGrad = Df;% / norm(Df(ii));
         unitGrad(isnan(unitGrad) | isinf(unitGrad)) = 0;
-    
-        step = -stepSizes .* unitGrad';
-        step(activeConstraints) = 0;
         
+        if iter == 1
+            alpha = 1;
+            Df_past = Df;
+        else 
+            alpha = calculate_Stepsize(Df, Df_past, x(:), x_past);
+            Df_past = Df;
+        end
+        
+        step = -alpha .* unitGrad';
+        step(activeConstraints) = 0;
+        x_past = x(:);
+        alphas(end+1) = alpha;
         x(:) = x(:) + step(:);
+        
     
         iBelowMin = x < X.Bounds(:,1);
         iAboveMax = x > X.Bounds(:,2);

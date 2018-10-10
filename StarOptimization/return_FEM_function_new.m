@@ -1,4 +1,4 @@
-function [F, dFdp] = return_FEM_functionobjruntime(fem, p, Lx, Ly)
+function [F, dFdp] = return_FEM_function_new(fem, p, Lx, Ly)
     contours = fem.instantiatedGeom.parameterizedGeometry.contours;
     figure()
     plot(contours(1).xFunc(p),contours(1).yFunc(p))
@@ -6,6 +6,8 @@ function [F, dFdp] = return_FEM_functionobjruntime(fem, p, Lx, Ly)
     plot(contours(2).xFunc(p),contours(2).yFunc(p))
     plot(contours(3).xFunc(p),contours(3).yFunc(p))
     plot(contours(4).xFunc(p),contours(4).yFunc(p))
+    plot(contours(5).xFunc(p),contours(4).yFunc(p))
+    plot(contours(6).xFunc(p),contours(4).yFunc(p))
     plot(contours(4).xFunc(p),contours(4).yFunc(p),'x')
     plot(contours(3).xFunc(p),contours(3).yFunc(p),'x')
     plot(contours(2).xFunc(p),contours(2).yFunc(p),'x')
@@ -22,8 +24,8 @@ function [F, dFdp] = return_FEM_functionobjruntime(fem, p, Lx, Ly)
     PoissonFEM2D.plotGeomNodes(325, xyGeomNodes, idxN)
     
     %measBox = [-55e-3, 0, 55e-3, 1e-3];
-    measBox = [-55e-3, 0, 55e-3, 5e-4];
-    measNxy = [380, 9500];%[100 350];%[350, 18000];
+    measBox = [-55e-3, 0, 55e-3, 2.5e-4];
+    measNxy = [380, 20000];%[100 350];%[350, 18000];
     
     fprintf('Forward solution... ');
     
@@ -32,9 +34,15 @@ function [F, dFdp] = return_FEM_functionobjruntime(fem, p, Lx, Ly)
     toc
     fprintf('Solved Forward ')
     
-    [particles, hit_objective] = SetupParticles_smalldistancedebug();
-    [VV] = ElectronSetup_objdebug(femProblem.uCartesian, measBox, measNxy, particles, hit_objective); 
-    
+    [particles, hit_objective] = SetupParticles_starnew();
+    [VV] = ElectronSetup_star(femProblem.uCartesian, measBox, measNxy, particles, hit_objective); 
+    figure(); clf
+    hold on
+
+    for i = 1:length(VV.ParticleArray)
+        plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
+    %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
+    end
     fprintf('Adjoint solution... ');
     tic
     femProblem.solveAdjointCartesian(VV.dFdV, idxN);
@@ -52,7 +60,7 @@ function [F, dFdp] = return_FEM_functionobjruntime(fem, p, Lx, Ly)
     hold on
 
     for i = 1:length(VV.ParticleArray)
-    plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
+        plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
     %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
     end
 
@@ -61,4 +69,5 @@ function [F, dFdp] = return_FEM_functionobjruntime(fem, p, Lx, Ly)
         plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
     %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
     end
+    
 end 

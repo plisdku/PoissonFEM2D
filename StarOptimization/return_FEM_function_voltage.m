@@ -1,4 +1,4 @@
-function [F, dFdp] = return_FEM_functionobjruntime(fem, p, Lx, Ly)
+function [F, dFdp] = return_FEM_function_voltage(fem, p, Lx, Ly)
     contours = fem.instantiatedGeom.parameterizedGeometry.contours;
     figure()
     plot(contours(1).xFunc(p),contours(1).yFunc(p))
@@ -32,8 +32,8 @@ function [F, dFdp] = return_FEM_functionobjruntime(fem, p, Lx, Ly)
     toc
     fprintf('Solved Forward ')
     
-    [particles, hit_objective] = SetupParticles_smalldistancedebug();
-    [VV] = ElectronSetup_objdebug(femProblem.uCartesian, measBox, measNxy, particles, hit_objective); 
+    [particles, hit_objective] = SetupParticles_star();
+    [VV] = ElectronSetup_star(femProblem.uCartesian, measBox, measNxy, particles, hit_objective); 
     
     fprintf('Adjoint solution... ');
     tic
@@ -52,7 +52,7 @@ function [F, dFdp] = return_FEM_functionobjruntime(fem, p, Lx, Ly)
     hold on
 
     for i = 1:length(VV.ParticleArray)
-    plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
+        plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
     %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
     end
 

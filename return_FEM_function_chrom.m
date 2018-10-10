@@ -1,4 +1,4 @@
-function [F, dFdp] = return_FEM_function(fem, p, Lx, Ly)
+function [F, dFdp] = return_FEM_function_chrom(fem, p, Lx, Ly)
      
     [~] = fem.instantiateProblem(p);
    
