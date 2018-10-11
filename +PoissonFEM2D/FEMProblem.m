@@ -296,7 +296,7 @@ classdef FEMProblem < handle
             dFdxl = zeros(numGeomNodes,1);
             dFdyl = zeros(numGeomNodes,1);
             
-            for mm = 1:numGeomNodes
+            parfor mm = 1:numGeomNodes
                 
                 u_sp_mm = u_sp;
                 
