@@ -1,5 +1,14 @@
+ScriptsPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/Scripts';
+VVPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/Velocity-Verlet';
+FEMPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/PoissonFEM2D';
+%rmpath(genpath('/Volumes/GoogleDrive/My Drive/Research/Design Optimization /Charged Particle Optics/Velocity-Verlet_Objective'), genpath('/Volumes/GoogleDrive/My Drive/Research/Design Optimization /Charged Particle Optics/Scripts'), genpath('/Volumes/GoogleDrive/My Drive/Research/Design Optimization /Charged Particle Optics/FEM'));
+addpath(genpath(ScriptsPath), genpath(VVPath), genpath(FEMPath));
+%%
+
 import PoissonFEM2D.*
 %%
+
+
 
 Lx_outer = 3*60e-3;
 isAxisymmetric = 1;
@@ -237,7 +246,7 @@ t1 = tic;
 
 plot_func = @(xHistory,fHistory,DfHistory,max_x, alpha) plotfunc_star_alpha(xHistory, fHistory, DfHistory, max_x, alpha, end_p3, [0 0 0], 1);
 
-[x, fval, iter, xHist, fHist, DfHist, times, alphas] = extremize_lars(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', plot_func, 'MaxIter', 15);
+[x, fval, iter, xHist, fHist, DfHist, times, alphas] = extremize_lars(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', plot_func, 'MaxIter', 2);
 toc(t1)
 save('StarOpti444_bigBox' , 'x' , 'fval', 'iter', 'xHist', 'fHist', 'DfHist', 'alpha')
 % 
