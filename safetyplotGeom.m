@@ -8,5 +8,6 @@ function safetyplotGeom(geom2d, p)
      geometry = geom2d.evaluateGeometry(p);
     figure(77)
        plot([geometry.vertices(geometry.lines(:,1),1), geometry.vertices(geometry.lines(:,2),1)]', ...
-    [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'o-', 'color', [0.8 0.8 0.8], 'linewidth', 2)
+    [geometry.vertices(geometry.lines(:,1),2), geometry.vertices(geometry.lines(:,2),2)]', 'o-', 'color', [0 0 0], 'linewidth', 8, 'Markersize', 12)
+    %set(gcf, 'LineWidth', 16)
 end 
