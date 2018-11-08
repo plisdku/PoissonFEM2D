@@ -1,9 +1,10 @@
-
+delete(gcp('nocreate'))
+parpool(24)
 
 import PoissonFEM2D.*
 %%
 
-Lx_outer = 60e-3;
+Lx_outer = 3*60e-3;
 isAxisymmetric = 1;
 
 N_field = 5;
@@ -14,11 +15,10 @@ s = 1.4e-3;%4e-3; %1.3e-3; % mesh scale
 ratio = 0.22;
 geom2d = PoissonFEM2D.ParameterizedGeometry2D();
 
-
 Vb = 29e3;
 D1 = 3e-3;
 
-Ly = 45e-3;
+Ly = 3*45e-3;
 
 D12 = 5e-3;
 D23 = D12;
@@ -121,7 +121,7 @@ plot_func = @(xHistory,fHistory,DfHistory,max_x,alpha) plotfunc_star_alpha44(xHi
 
 %plot_func = @(xHistory,fHistory,DfHistory,max_x, alpha) plotfunc_star_voltage_alpha(xHistory, fHistory, DfHistory, max_x, alpha, end_p3, [5 5 5], 5);
 
-[x, fval, iter, xHist, fHist, DfHist, times, alphas] = extremize_lars(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', plot_func, 'MaxIter', 25);
+[x, fval, iter, xHist, fHist, DfHist, times, alphas] = extremize_lars(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', plot_func, 'MaxIter', 15);
 toc(t1)
 save('StarOpti_fiveElement_shapeOnlychromtighter' , 'x' , 'fval', 'iter', 'xHist', 'fHist', 'DfHist', 'alphas')
 

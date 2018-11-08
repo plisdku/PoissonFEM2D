@@ -189,8 +189,10 @@ classdef PoissonFEM2D < handle
             numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             numGeomNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             DM = cell(2, numGeomNodes);
+            
             for nn = 1:numel(DM)
                 DM{nn} = sparse(numFieldNodes,numFieldNodes);
+                
             end
             
             

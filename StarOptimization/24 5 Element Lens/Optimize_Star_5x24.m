@@ -2,6 +2,8 @@
 
 import PoissonFEM2D.*
 %%
+delete(gcp('nocreate'))
+parpool(24)
 
 Lx_outer = 3*60e-3;
 isAxisymmetric = 1;

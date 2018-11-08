@@ -274,7 +274,7 @@ classdef FEMProblem < handle
             dBC1{numGeomNodes} = ...
                 obj.dB{1,numGeomNodes}(iCenterl, :);
             
-            for mm = 1:numGeomNodes
+            parfor mm = 1:numGeomNodes
                 
                 dACC2{mm} = obj.dA{2,mm}(iCenterl, iCenterl);
                 dACD2{mm} = obj.dA{2,mm}(iCenterl, iDirichletl);
