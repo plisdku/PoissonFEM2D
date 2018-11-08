@@ -1243,6 +1243,117 @@ classdef TriNodalMesh < handle
             
         end
         
+        
+function [dFdxy_Interpolation] = calcRasterInterpolationOperatorSensitivity(obj, corner0, corner1, Nxy, u, dF_du_rowVector)
+            
+            numPts = prod(Nxy);
+            numFieldNodes = obj.hFieldNodes.getNumNodes();
+            numGeomNodes = obj.hGeomNodes.getNumNodes();
+            numFaces = obj.hMesh.getNumFaces();
+            
+            DoutI = cell(2, numGeomNodes);
+            for nn = 1:numel(DoutI)
+                DoutI{nn} = sparse(numPts, numFieldNodes);
+            end
+            
+            [iEnclosingFaces, rr, ss] = obj.rasterize(corner0, corner1, Nxy);
+            
+            %iPoints = {};
+            %iFieldGlobals = {};
+            %Ms = {};
+            
+            ffs = [];
+  
+            %iPoints_cell = {};
+            %iFieldGlobal_cell = {};
+            iGeomGlobal_cell = {};
+            dMdr_cell = {};
+            dMds_cell = {};
+            K_cell = {};
+            I_g_cell = {};
+                 
+            cnt = 0;
+
+            
+            
+            
+            for ff = 1:numFaces
+                
+                iPoint = find(iEnclosingFaces == ff);
+                
+                if isempty(iPoint)
+                    continue
+                end
+                
+                ffs = [ffs ff];
+                cnt = cnt + 1;
+                
+                iFieldGlobal = obj.hFieldNodes.getFaceNodes(ff);
+                iGeomGlobal = obj.hGeomNodes.getFaceNodes(ff);
+                
+                %[repPoints, repFieldGlobals]= ndgrid(iPoint, iFieldGlobal);
+                %iPoints{cnt} = repPoints(:)';
+                %iFieldGlobals{cnt} = repFieldGlobals(:)';
+                                
+                iPoints_cell{cnt} = iPoint;
+                iFieldGlobal_cell{cnt} = iFieldGlobal;
+                iGeomGlobal_cell{cnt} = iGeomGlobal;
+                                
+                %M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));  
+                %Ms{cnt} = M(:)';
+                
+                K_cell{cnt} = obj.getInverseJacobian(ff, rr(iPoint), ss(iPoint));
+                I_g_cell{cnt} = obj.hGeomNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
+                [dMdr_cell{cnt}, dMds_cell{cnt}] = obj.hFieldNodes.basis.gradientMatrix(rr(iPoint), ss(iPoint)); 
+                          
+            end 
+            
+            %outI = sparse(cell2mat(iPoints)',cell2mat(iFieldGlobals)',cell2mat(Ms)',numPts,numFieldNodes);
+
+            DM_cell = cell(length(ffs),1);
+           
+
+         startS = ticBytes(gcp);
+         parfor j = 1:length(ffs)
+
+           Drs = -mTensorwrap(K_cell{j},3,[3],I_g_cell{j},2,[1]);%-multiplyTensors.tfxtf(K_cell{j},3,[3],I_g_cell{j},2,[1]); 
+           Drs = permute(Drs, [1,3,2,4]);
+           Dr = squish(Drs(1,:,:,:), 1); 
+           Ds = squish(Drs(2,:,:,:), 1);
+
+
+            DM_cell{j} = mTensorwrap(dMdr_cell{j}, 2, [1], Dr, 3, [1])+...;%multiplyTensors.tfxtf(dMdr_cell{j}, 2, [1], Dr, 3, [1]) + ...
+            mTensorwrap(dMds_cell{j}, 2, [1], Ds, 3, [1]);%multiplyTensors.tfxtf(dMds_cell{j}, 2, [1], Ds, 3, [1]);
+
+
+         end
+         tocBytes(gcp,startS)
+         
+        dFdxy_Interpolation = sparse(numGeomNodes ,2);
+        for ii = 1:length(ffs)
+            for mm = 1:length(iGeomGlobal_cell{ii})
+                %for kk = 1:2
+                %    DoutI{kk,iGeomGlobal_cell{ii}(mm)}(iPoints_cell{ii},iFieldGlobal_cell{ii}) = ...
+                %         DoutI{kk,iGeomGlobal_cell{ii}(mm)}(iPoints_cell{ii},iFieldGlobal_cell{ii}) + DM_cell{ii}(:,:,kk,mm);
+                %end
+                
+                DM_1 = DM_cell{ii}(:,:,1,mm);
+                DM_2 = DM_cell{ii}(:,:,2,mm);
+                [iPoints, iFields] = ndgrid(iPoints_cell{ii}, iFieldGlobal_cell{ii});
+                dI_part1 = sparse(iPoints, iFields, DM_1, numPts, numFieldNodes);
+                dI_part2 = sparse(iPoints, iFields, DM_2, numPts, numFieldNodes);
+                
+                dFdxy_Interpolation(iGeomGlobal_cell{ii}(mm),1) = dFdxy_Interpolation(iGeomGlobal_cell{ii}(mm),1) + (dF_du_rowVector * dI_part1)*u;
+                dFdxy_Interpolation(iGeomGlobal_cell{ii}(mm),2) = dFdxy_Interpolation(iGeomGlobal_cell{ii}(mm),2) + (dF_du_rowVector * dI_part2)*u;
+                
+                
+                
+            end
+        end
+          
+            
+        end
+        
         function pixels = rasterizeField(obj, fieldValues, xs, ys)
             
             I = obj.getRasterInterpolationOperator([xs(1),ys(1)], [xs(end),ys(end)], [length(xs), length(ys)]);

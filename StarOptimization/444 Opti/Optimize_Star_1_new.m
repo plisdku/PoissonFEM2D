@@ -1,8 +1,8 @@
-ScriptsPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/Scripts';
-VVPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/Velocity-Verlet';
-FEMPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/PoissonFEM2D';
+%ScriptsPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/Scripts';
+%VVPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/Velocity-Verlet';
+%FEMPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/PoissonFEM2D';
 %rmpath(genpath('/Volumes/GoogleDrive/My Drive/Research/Design Optimization /Charged Particle Optics/Velocity-Verlet_Objective'), genpath('/Volumes/GoogleDrive/My Drive/Research/Design Optimization /Charged Particle Optics/Scripts'), genpath('/Volumes/GoogleDrive/My Drive/Research/Design Optimization /Charged Particle Optics/FEM'));
-addpath(genpath(ScriptsPath), genpath(VVPath), genpath(FEMPath));
+%addpath(genpath(ScriptsPath), genpath(VVPath), genpath(FEMPath));
 %%
 
 import PoissonFEM2D.*

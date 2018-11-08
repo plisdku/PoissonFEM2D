@@ -38,6 +38,7 @@ classdef FEMProblem < handle
         dF_dNeumann;
         dF_dxy;
         
+        
         timer_variable 
         
     end
@@ -146,6 +147,213 @@ classdef FEMProblem < handle
             
             obj.uCartesian = reshape(obj.interpolationOperator*obj.u, Nxy);
         end
+        
+        function solveAdjointCartesian_new(obj,dF_du_cartesian, corner0, corner1, Nxy, varargin)
+            
+            t_adjoint = tic; 
+            dF_du_rowVector = sparse(reshape(dF_du_cartesian, 1, []));
+            
+            Df_val = dF_du_rowVector * obj.interpolationOperator;
+            %Df_val = objFunDerivative(obj.u);
+            assert(isrow(Df_val));
+            
+            Df_center = Df_val(obj.iCenter);
+            
+            A_center = obj.A(obj.iCenter, obj.iCenter);
+            B_center = obj.B(obj.iCenter, :);
+            NM_neumann = obj.NM(obj.iCenter, obj.iNeumann);
+            A_dirichlet = obj.A(obj.iCenter, obj.iDirichlet);
+            
+            % Solve for the adjoint variable
+            
+           
+            v_center = A_center' \ Df_center';
+            obj.timer_variable(1) = toc(t_adjoint); 
+            
+            obj.v = 0*obj.u;
+            obj.v(obj.iCenter) = v_center;
+            
+            % Matrix sensitivities
+            
+            
+            % Get all faces that have a boundary vertex.
+            % This is more faces than just those that have a boundary edge.
+%             [boundaryEdges, ~] = obj.poi.tnMesh.hMesh.getBoundaryEdges();
+%             evMat = obj.poi.tnMesh.hMesh.getEdgeVertexAdjacency();
+%             fvMat = obj.poi.tnMesh.hMesh.getFaceVertexAdjacency();
+%             feMat = fvMat * evMat';
+%             [iBoundaryFaces,~,~] = find(feMat(:,boundaryEdges));
+%             iBoundaryFaces = unique(iBoundaryFaces);
+            %[boundaryFaces, = find(adjMat(:,boundaryEdges));
+            
+            if nargin == 5
+                obj.dA = obj.poi.getSystemMatrixSensitivity();
+                obj.dB = obj.poi.getRhsMatrixSensitivity();
+                obj.dNM = obj.poi.getNeumannMatrixSensitivity();
+            else
+              
+                 FVAm = obj.poi.tnMesh.hMesh.getFaceVertexAdjacency();
+                [iF,~,~] = find(FVAm(:,varargin{1}));
+                iF = unique(iF);
+                EVAm = obj.poi.tnMesh.hMesh.getEdgeVertexAdjacency();
+                [iE,~,~] = find(EVAm(:,varargin{1}));
+                iE = unique(iE);
+                
+                obj.dA = obj.poi.getSystemMatrixSensitivity(iF);
+                obj.dB = obj.poi.getRhsMatrixSensitivity(iF);
+                obj.dNM = obj.poi.getNeumannMatrixSensitivity(iE);    
+            end
+            
+            for ii = 1:size(obj.dB,2)
+                
+                nnzs(ii) = nnz(obj.dB{1,2});
+                
+            end 
+            % Sensitivity to free charge (1 x N)
+            
+            obj.dF_dCharge = v_center' * B_center;
+            
+            % Sensitivity to Dirichlet boundary value (1 x N_dirichlet)
+            
+            obj.dF_dDirichlet = -v_center' * A_dirichlet + Df_val(obj.iDirichlet);
+            
+            % Sensitivity to Neumann boundary value (1 x N_neumann)
+            
+            obj.dF_dNeumann = v_center' * NM_neumann;
+            
+            % Sensitivity to perturbing geometry nodes
+            
+            numGeomNodes = obj.poi.tnMesh.hGeomNodes.getNumNodes();
+            
+            obj.dF_dxy = zeros(numGeomNodes,2);
+            
+            u_sp = sparse(obj.u);
+            u0_dirichlet_sp = sparse(obj.u0_dirichlet);
+            en_neumann_sp = sparse(obj.en_neumann);
+            freeCharge_sp = sparse(obj.freeCharge);
+            dFreecharge_dx_sp = sparse(obj.dFreeCharge_dx);
+            dFreecharge_dy_sp = sparse(obj.dFreeCharge_dy);
+            
+%             for mm = 1:numGeomNodes
+%                 
+%                 wx = -obj.dA{1,mm}(obj.iCenter, obj.iCenter)*u_sp(obj.iCenter)...
+%                     -obj.dA{1,mm}(obj.iCenter, obj.iDirichlet)*u0_dirichlet_sp...
+%                     + obj.dNM{1,mm}(obj.iCenter, obj.iNeumann)*en_neumann_sp...
+%                     + obj.dB{1,mm}(obj.iCenter,:)*freeCharge_sp...
+%                     + obj.B(obj.iCenter,:)*dFreecharge_dx_sp(:,mm);
+%                 
+%                 wy = -obj.dA{2,mm}(obj.iCenter, obj.iCenter)*u_sp(obj.iCenter)...
+%                     -obj.dA{2,mm}(obj.iCenter, obj.iDirichlet)*u0_dirichlet_sp...
+%                     + obj.dNM{2,mm}(obj.iCenter, obj.iNeumann)*en_neumann_sp...
+%                     + obj.dB{2,mm}(obj.iCenter,:)*freeCharge_sp...
+%                     + obj.B(obj.iCenter,:)*dFreecharge_dy_sp(:,mm);
+%                 
+%                 obj.dF_dxy(:,1) = v_center'*wx + (dF_du_rowVector * obj.dInterpolationOperator{1,mm}) * u_sp;
+%                 obj.dF_dxy(:,2) = v_center'*wy + (dF_du_rowVector * obj.dInterpolationOperator{2,mm}) * u_sp;
+%                 
+%             end              
+
+%    Version if parfor should be used:  aparrently this is sitll faster.   
+%             iCenterl = obj.iCenter;
+%             iDirichletl = obj.iDirichlet;
+%             iNeumannl = obj.iNeumann;
+%             
+%             dACC2{numGeomNodes} = ...
+%                 obj.dA{2,numGeomNodes}(iCenterl, iCenterl);
+%             dACD2{numGeomNodes} = ...
+%                 obj.dA{2,numGeomNodes}(iCenterl, iDirichletl);
+%             dNMCN2{numGeomNodes} = ...
+%                 obj.dNM{2,numGeomNodes}(iCenterl,iNeumannl);
+%             dBC2{numGeomNodes} = ...
+%                 obj.dB{2,numGeomNodes}(iCenterl, :);
+%             
+%             dACC1{numGeomNodes} = ...
+%                 obj.dA{1,numGeomNodes}(iCenterl, iCenterl);
+%             dACD1{numGeomNodes} = ...
+%                 obj.dA{1,numGeomNodes}(iCenterl, iDirichletl);
+%             dNMCN1{numGeomNodes} = ...
+%                 obj.dNM{1,numGeomNodes}(iCenterl,iNeumannl);
+%             dBC1{numGeomNodes} = ...
+%                 obj.dB{1,numGeomNodes}(iCenterl, :);
+%             
+%             for mm = 1:numGeomNodes
+%                 
+%                 dACC2{mm} = obj.dA{2,mm}(iCenterl, iCenterl);
+%                 dACD2{mm} = obj.dA{2,mm}(iCenterl, iDirichletl);
+%                 dNMCN2{mm} = obj.dNM{2,mm}(iCenterl,iNeumannl);
+%                 dBC2{mm} = obj.dB{2,mm}(iCenterl, :);
+% 
+%                 dACC1{mm} = obj.dA{1,mm}(iCenterl, iCenterl);
+%                 dACD1{mm} = obj.dA{1,mm}(iCenterl, iDirichletl);
+%                 dNMCN1{mm} = obj.dNM{1,mm}(iCenterl,iNeumannl);
+%                 dBC1{mm} = obj.dB{1,mm}(iCenterl, :);
+%             
+%             end
+%             
+            Bl1 = obj.B(obj.iCenter,:);
+
+            %dInterpolationOperator1 = {obj.dInterpolationOperator{1,:}};
+            %dInterpolationOperator2 = {obj.dInterpolationOperator{2,:}};
+                       
+%             dFdxl = zeros(numGeomNodes,1);
+%             dFdyl = zeros(numGeomNodes,1);
+%             
+%             for mm = 1:numGeomNodes
+%                 
+%                 u_sp_mm = u_sp;
+%                 
+%                 wx = -dACC1{mm}*u_sp_mm(iCenterl)...
+%                     - dACD1{mm}*u0_dirichlet_sp ...
+%                     + dNMCN1{mm}*en_neumann_sp ...
+%                     + dBC1{mm}*freeCharge_sp ...
+%                     + Bl1*dFreecharge_dx_sp(:,mm);
+%                 
+%                 wy = -dACC2{mm}*u_sp_mm(iCenterl)...
+%                     - dACD2{mm}*u0_dirichlet_sp ...
+%                     + dNMCN2{mm}*en_neumann_sp ...
+%                     + dBC2{mm}*freeCharge_sp ...
+%                     + Bl1*dFreecharge_dy_sp(:,mm);
+%                 
+%                 dFdxl(mm,1) = v_center'*wx + (dF_du_rowVector ...
+%                     * dInterpolationOperator1{mm}) * u_sp_mm;
+%                 dFdyl(mm,1) = v_center'*wy + (dF_du_rowVector ...
+%                     * dInterpolationOperator2{mm}) * u_sp_mm;  
+%     
+%             end
+%             
+            dFdxy_SystemMatrix = obj.poi.calcSystemMatrixSensitivity(...
+                iF, u_sp, obj.iCenter, obj.iDirichlet,...
+                u0_dirichlet_sp, v_center);
+            dFdxy_Rhs = obj.poi.calcRhsMatrixSensitivity(...
+                iF, freeCharge_sp, v_center, obj.iCenter);
+            dFdxy_Neumann = ...
+                obj.poi.calcNeumannMatrixSensitivity(iE, en_neumann_sp,...
+                v_center, obj.iCenter, obj.iNeumann);
+         
+            dFdxy_freeCharge = zeros(numGeomNodes,2);
+            
+            for mm = 1:numGeomNodes
+                
+                wx = Bl1*dFreecharge_dx_sp(:,mm);
+                wy = Bl1*dFreecharge_dy_sp(:,mm);
+                
+                dFdxy_freeCharge(mm,1) = v_center'*wx;
+                dFdxy_freeCharge(mm,2) = v_center'*wy;
+
+            end
+            
+            
+            dFdxy_InterpolationOperator =...
+                obj.poi.tnMesh.calcRasterInterpolationOperatorSensitivity...
+                (corner0, corner1, Nxy, u_sp, dF_du_rowVector);
+            
+            obj.dF_dxy = dFdxy_SystemMatrix + dFdxy_Rhs +  ...
+                dFdxy_Neumann + sparse(dFdxy_freeCharge) ...
+                + dFdxy_InterpolationOperator;
+            
+            
+        end 
+        
         
         function solveAdjointCartesian(obj, dF_du_cartesian, varargin)
             t_adjoint = tic; 
@@ -318,6 +526,16 @@ classdef FEMProblem < handle
                     * dInterpolationOperator2{mm}) * u_sp_mm;  
     
             end
+%             dF_dxy_SystemMatrix = obj.poi.calcSystemMatrixSensitivity(...
+%                 iF, u_sp, obj.iCenter, obj.iDirichlet,...
+%                 u0_dirichlet_sp, v_center);
+%             dFdxy_Rhs = obj.poi.calcRhsMatrixSensitivity(...
+%                 iF, freeCharge_sp, v_center, obj.iCenter);
+% 
+%             dFdxy_Neumann = ...
+%                 obj.poi.calcNeumannMatrixSensitivity(iE, en_neumann_sp,...
+%                 v_center, obj.iCenter, obj.iNeumann);
+            
             
             obj.dF_dxy(:,1) = dFdxl;
             obj.dF_dxy(:,2) = dFdyl;

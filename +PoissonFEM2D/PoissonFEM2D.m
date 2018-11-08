@@ -153,7 +153,46 @@ classdef PoissonFEM2D < handle
             
         end % getNeumannMatrixSensitivity
         
-        
+        function dF_dxy_Neumann = calcNeumannMatrixSensitivity(obj, iEdges, en_neumann, v_center, iCenter, iNeumann)
+            
+            numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
+            
+            [boundaryEdges, orientations] =...
+                obj.tnMesh.hMesh.getBoundaryEdges();
+
+            dF_dxy_Neumann = sparse(numGeomNodes,2); 
+            [relevantEdges, idxiEdges, idxboundaryEdges] = ...
+                intersect(iEdges, boundaryEdges);
+                
+            for ii = 1:length(relevantEdges)%reshape(iEdges, 1, [])
+                
+                ee = boundaryEdges(idxboundaryEdges(ii));
+                oo = orientations(idxboundaryEdges(ii));
+
+                iGeomGlobal = obj.tnMesh.hGeomNodes.getEdgeNodes(ee,oo);
+                iFieldGlobal = obj.tnMesh.hFieldNodes.getEdgeNodes(ee,oo);
+
+                DNM_edge = obj.getElementNeumannMatrixSensitivity(ee,oo);
+                
+                for mm = 1:length(iGeomGlobal)
+                    DNM_edge_1 = DNM_edge(:,:,1,mm);
+                    DNM_edge_2 = DNM_edge(:,:,2,mm);
+
+                    [iFieldGlobals1, iFieldGlobals2] = ndgrid(iFieldGlobal, iFieldGlobal);
+
+                    dA_part_mm_1 = sparse(iFieldGlobals1(:), iFieldGlobals2(:), DNM_edge_1(:),numFieldNodes, numFieldNodes);
+                    dA_part_mm_2 = sparse(iFieldGlobals1(:), iFieldGlobals2(:), DNM_edge_2(:),numFieldNodes, numFieldNodes);
+
+                    wx_part = dA_part_mm_1(iCenter,iNeumann)*en_neumann;
+                    wy_part = dA_part_mm_2(iCenter,iNeumann)*en_neumann;
+
+                    dF_dxy_Neumann(iGeomGlobal(mm),1) = dF_dxy_Neumann(iGeomGlobal(mm),1) + v_center'*wx_part;
+                    dF_dxy_Neumann(iGeomGlobal(mm),2) = dF_dxy_Neumann(iGeomGlobal(mm),2) + v_center'*wy_part;
+                end
+            
+            end
+        end 
         
         function M = getRhsMatrix(obj)
             numNodes = obj.tnMesh.hFieldNodes.getNumNodes();
@@ -187,7 +226,7 @@ classdef PoissonFEM2D < handle
         
         function DM = getRhsMatrixSensitivity(obj, iFaces)
             numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
-            numGeomNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
             DM = cell(2, numGeomNodes);
             for nn = 1:numel(DM)
                 DM{nn} = sparse(numFieldNodes,numFieldNodes);
@@ -212,8 +251,79 @@ classdef PoissonFEM2D < handle
                     end
                 end
             end
+         
+%             
+%             for ff = reshape(iFaces, 1, [])
+%                 
+%                 iFieldGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
+%                 iGeomGlobal = obj.tnMesh.hGeomNodes.getFaceNodes(ff);
+%                 
+%                 [repField1, repField2] = ndgrid(iFieldsGlobal, iFieldsGlobal);
+%                 iFields1{ff} = repField1(:)';
+%                 iFields2{ff} = repField2(:)';
+%                 
+%                 DM_face = obj.getElementChargeMatrixSensitivity(ff);
+%                 
+%                 DM_faces{ff} = DM_face(:)';
+%                 
+%                 l_array(ff) = length(iGeomGlobal);
+%                 
+%             end
+%             
+%             
+            
+            
+            
         end % getRhsMatrixSensitivity
         
+        function dF_dxy_RhsMatrix = calcRhsMatrixSensitivity(obj, iFaces, freeCharge, v_center, iCenter)
+            
+            
+            numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
+
+            if nargin < 2
+                numFaces = obj.tnMesh.hMesh.getNumFaces();
+                iFaces = 1:numFaces;
+            end
+            
+            dF_dxy_RhsMatrix = sparse(numGeomNodes,2);
+            
+            for ff = reshape(iFaces, 1, [])
+                DM_face = obj.getElementChargeMatrixSensitivity(ff);
+                
+                iFieldGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
+                iGeomGlobal = obj.tnMesh.hGeomNodes.getFaceNodes(ff);
+                
+                for mm = 1:length(iGeomGlobal)
+                    %for kk = 1:2
+%                         DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
+%                             DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DM_face(:,:,kk,mm);
+%                         
+                    DM_face_1 = DM_face(:,:,1,mm);
+                    DM_face_2 = DM_face(:,:,2,mm);
+                    
+                    [iFieldGlobals1, iFieldGlobals2] = ndgrid(iFieldGlobal, iFieldGlobal);
+                    
+                    dA_part_mm_1 = sparse(iFieldGlobals1(:), iFieldGlobals2(:), DM_face_1(:),numFieldNodes, numFieldNodes);
+                    dA_part_mm_2 = sparse(iFieldGlobals1(:), iFieldGlobals2(:), DM_face_2(:),numFieldNodes, numFieldNodes);
+                    
+                    wx_part = -dA_part_mm_1(iCenter,:)*freeCharge;
+                    wy_part = -dA_part_mm_2(iCenter,:)*freeCharge;
+                    
+                    dF_dxy_RhsMatrix(iGeomGlobal(mm),1) = dF_dxy_RhsMatrix(iGeomGlobal(mm),1) + v_center'*wx_part;
+                    dF_dxy_RhsMatrix(iGeomGlobal(mm),2) = dF_dxy_RhsMatrix(iGeomGlobal(mm),2) + v_center'*wy_part;
+                        
+                        
+                        
+                        
+                    %end
+                end
+            end
+        end
+            
+            
+         
         
         
         function M = getSystemMatrix(obj)
@@ -275,9 +385,74 @@ classdef PoissonFEM2D < handle
                     for kk = 1:2
                         DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
                             DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DM_face(:,:,kk,mm);
+                        
+                        
                     end
                 end
             end
+            
+        end
+            
+            
+          
+            
+          function dF_dxy_SystemMatrix = calcSystemMatrixSensitivity(obj, iFaces, u, iCenter, iDirichlet, u0_dirichlet, v_center)
+            numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
+            numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
+             
+            dF_dxy_SystemMatrix = sparse(numGeomNodes,2);
+            %DM{2,numGeomNodes} = sparse(numFieldNodes, numFieldNodes);
+            %DM(:) = {sparse(numFieldNodes, numFieldNodes)};
+            
+            numFaces = obj.tnMesh.hMesh.getNumFaces();
+            if nargin < 2
+                iFaces = 1:numFaces;
+            end
+            
+            for ff = reshape(iFaces, 1, [])
+                DM_face = obj.getElementPotentialMatrixSensitivity(ff);
+                iFieldGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
+                iGeomGlobal = obj.tnMesh.hGeomNodes.getFaceNodes(ff);
+                
+                
+                for mm = 1:length(iGeomGlobal)
+                    %for kk = 1:2
+                        %DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
+                        %    DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DM_face(:,:,kk,mm);
+                        [iFieldGlobals1, iFieldGlobals2] = ndgrid(iFieldGlobal,iFieldGlobal);
+                        DM_face_1 = DM_face(:,:,1,mm);
+                        DM_face_2 = DM_face(:,:,2,mm);
+                        dA_part_mm_1 = sparse(iFieldGlobals1(:),iFieldGlobals2(:), DM_face_1(:),numFieldNodes, numFieldNodes);
+                        dA_part_mm_2 = sparse(iFieldGlobals1(:),iFieldGlobals2(:), DM_face_2(:),numFieldNodes, numFieldNodes);
+                        
+                        wx_part = - dA_part_mm_1(iCenter,iCenter) * u(iCenter) - dA_part_mm_1(iCenter, iDirichlet) * u0_dirichlet;
+                        wy_part = - dA_part_mm_2(iCenter,iCenter) * u(iCenter) - dA_part_mm_2(iCenter, iDirichlet) * u0_dirichlet;
+                        
+                        dF_dxy_SystemMatrix(iGeomGlobal(mm),1) = dF_dxy_SystemMatrix(iGeomGlobal(mm),1) + v_center'*wx_part;
+                        dF_dxy_SystemMatrix(iGeomGlobal(mm),2) = dF_dxy_SystemMatrix(iGeomGlobal(mm),2) + v_center'*wy_part;
+                    %end
+                end
+            end
+%             
+%            
+%            for mm = 1:numGeomNodes
+%                 
+%                 wx = -obj.dA{1,mm}(obj.iCenter, obj.iCenter)*u_sp(obj.iCenter)...
+%                     -obj.dA{1,mm}(obj.iCenter, obj.iDirichlet)*u0_dirichlet_sp...
+%                     + obj.dNM{1,mm}(obj.iCenter, obj.iNeumann)*en_neumann_sp...
+%                     + obj.dB{1,mm}(obj.iCenter,:)*freeCharge_sp...
+%                     + obj.B(obj.iCenter,:)*dFreecharge_dx_sp(:,mm);
+%                 
+%                 wy = -obj.dA{2,mm}(obj.iCenter, obj.iCenter)*u_sp(obj.iCenter)...
+%                     -obj.dA{2,mm}(obj.iCenter, obj.iDirichlet)*u0_dirichlet_sp...
+%                     + obj.dNM{2,mm}(obj.iCenter, obj.iNeumann)*en_neumann_sp...
+%                     + obj.dB{2,mm}(obj.iCenter,:)*freeCharge_sp...
+%                     + obj.B(obj.iCenter,:)*dFreecharge_dy_sp(:,mm);
+%                 
+%                 obj.dF_dxy(:,1) = v_center'*wx + (dF_du_rowVector * obj.dInterpolationOperator{1,mm}) * u_sp;
+%                 obj.dF_dxy(:,2) = v_center'*wy + (dF_du_rowVector * obj.dInterpolationOperator{2,mm}) * u_sp;
+%                 
+%             end            
           
             
 %             tic

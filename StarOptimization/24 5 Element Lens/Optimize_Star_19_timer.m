@@ -112,7 +112,7 @@ x0 = zeros(1,end_p7)';
 %x0(end) = 1;
 
 
-fn_handle = @(fem) @(p) return_FEM_function_star_timer(fem, p, Lx_outer, Ly); 
+fn_handle = @(fem) @(p) return_FEM_function_inPlace(fem, p, Lx_outer, Ly); 
 [minX, maxX] = getBoundsStar_shape_7elem([5 5 5], r1_start, r2_start, r3_start, r_i);
 
 t1 = tic;
