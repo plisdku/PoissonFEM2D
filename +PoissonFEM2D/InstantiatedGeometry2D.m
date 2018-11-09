@@ -248,32 +248,32 @@ classdef InstantiatedGeometry2D < handle
                 contourVertices{cc} = obj.geometry.vertices(obj.geometry.contourVertexIndices{cc},:);
             end
             i_error = 0;
-             while(1)
+        %     while(1)
 %                  try
                     PoissonFEM2D.writeGEO('fromMatlab.geo', contourVertices, obj.geometry.contourMeshSizes);
-                    gmshPath = PoissonFEM2D.getGmshPath();
-                    cmd = sprintf('%s -2 fromMatlab.geo > gmshOut.txt', gmshPath);
-%                     path = pwd;
-%                     path = strrep(path,'\','/');
-%                     path = strrep(path,' ','\ ');
-%                     file = sprintf('%s/fromMatlab.geo',path);
-%                     system(sprintf('C:\\cygwin64\\bin\\bash --login -c " /cygdrive/c/Users/larstn/Desktop/gmsh-4.0.2-Windows64/gmsh-4.0.2-Windows64/gmsh -2 -format msh2 %s > gmshOut.txt"', file));
+                    %gmshPath = PoissonFEM2D.getGmshPath();
+                   % cmd = sprintf('%s -2 fromMatlab.geo > gmshOut.txt', gmshPath);
+                     path = pwd;
+                     path = strrep(path,'\','/');
+                     path = strrep(path,' ','\ ');
+                     file = sprintf('%s/fromMatlab.geo',path);
+                     system(sprintf('C:\\cygwin64\\bin\\bash --login -c " /cygdrive/c/Users/larstn/Desktop/gmsh-4.0.2-Windows64/gmsh-4.0.2-Windows64/gmsh -2 -format msh2 %s > gmshOut.txt"', file));
 %                     %[status, result] = unix('/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt');
-                    [status, result] = unix(cmd);
-                    if status
+%                    [status, result] = unix(cmd);
+%                    if status
 %                        contourMeshSizes = obj.geometry.contourMeshSizes;
 %                        save('GmshWritingErrorData','contourVertices', 'contourMeshSizes')
 %                         
 %                        warning('An error occured while WRITING the gmsh file')
 %                        warning('please refer to file GmshwritingErrorData.m for the data causing this error')
-                    %while status  
-                        warning(result);
-                        PoissonFEM2D.writeGEO('fromMatlab.geo', contourVertices, obj.geometry.contourMeshSizes);
-                        [status, result] = unix(cmd);                        
-                    else
+%                    %while status  
+ %                       warning(result);
+  %                      PoissonFEM2D.writeGEO('fromMatlab.geo', contourVertices, obj.geometry.contourMeshSizes);
+ %                       [status, result] = unix(cmd);                        
+  %                  else
                         
                     %end
-                        break
+  %                      break
 %                 catch e
 %                     pause(0.5)
 %                     fprintf('%s \n', e.identifier)
@@ -286,9 +286,9 @@ classdef InstantiatedGeometry2D < handle
 %                     if i_error > 20
 %                         keyboard
 %                     end
-                    end
+                    %end
                 
-            end
+            %end
             
             [mshFaceVertices, mshEdgeVertices, mshVerts, mshEdgeContour, mshEdgeLine] = PoissonFEM2D.readMSH('fromMatlab.msh');
             
