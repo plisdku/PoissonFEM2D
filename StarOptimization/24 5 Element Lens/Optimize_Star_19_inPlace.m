@@ -2,7 +2,7 @@
 
 import PoissonFEM2D.*
 %%
-
+parpool(24)
 Lx_outer = 3*60e-3;
 isAxisymmetric = 1;
 
@@ -31,6 +31,7 @@ L1 = 2e-3;
 L2 = 5e-3;
 L3 = L1;
 L4 = L1;
+
 L5 = L1;
 L6 = L1;
 L7 = L1;
