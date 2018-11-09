@@ -11,6 +11,7 @@ function [F, dFdp] = return_FEM_function_inPlace(fem, p, Lx, Ly)
 %     plot(contours(4).xFunc(p),contours(4).yFunc(p),'x')
 %     plot(contours(3).xFunc(p),contours(3).yFunc(p),'x')
 %     plot(contours(2).xFunc(p),contours(2).yFunc(p),'x')
+    tic
     [~] = fem.instantiateProblem(p);
    
     [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.adjustProblem(p);
@@ -28,7 +29,7 @@ function [F, dFdp] = return_FEM_function_inPlace(fem, p, Lx, Ly)
     measNxy = [380, 18500];%[100 350];%[350, 18000];
     
     fprintf('Forward solution... ');
-    tic
+    
     femProblem.solveForwardCartesian(measBox(1:2), measBox(3:4), measNxy);
     %disp('just forward')
     toc
