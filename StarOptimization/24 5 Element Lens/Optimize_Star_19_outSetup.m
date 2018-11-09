@@ -41,7 +41,7 @@ D_vec = [D12, D12, D12, D12, D12, D12, D12];
 r_i = 3e-3;
 r_o = 11e-3;
 
-N_elements = 7;
+N_elements = 33;
 N_moveable = 5*ones(1,N_elements);
 
 L_vec = L1*ones(1,N_elements);
@@ -178,7 +178,7 @@ fem.setFreeCharge(@(p,x,y) 0.0);
 %%
 
 
-x0 = zeros(1,end_p7)';
+x0 = zeros(1,end_p{N_elements})';
 %x0(end) = 1;
 
 

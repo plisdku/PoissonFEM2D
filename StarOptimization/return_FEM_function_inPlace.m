@@ -46,7 +46,7 @@ function [F, dFdp] = return_FEM_function_inPlace(fem, p, Lx, Ly)
     %femProblem.solveAdjointCartesian(VV.dFdV, idxN);
     toc
     fprintf('complete.\n');
-    Star    dFdp = femProblem.dF_dxy(:,1)' * dnx_dp + femProblem.dF_dxy(:,2)' * dny_dp ...
+    dFdp = femProblem.dF_dxy(:,1)' * dnx_dp + femProblem.dF_dxy(:,2)' * dny_dp ...
         + femProblem.dF_dDirichlet * dDirichlet_dp;
 
     F = VV.Fval;
