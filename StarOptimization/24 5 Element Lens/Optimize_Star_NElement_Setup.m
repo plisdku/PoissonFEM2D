@@ -28,7 +28,7 @@ L2 = 5e-3;
 r_i = 3e-3;
 r_o = 11e-3;
 
-N_elements = 33;
+N_elements = 15;
 N_moveable = 5*ones(1,N_elements);
 
 L_vec = L1*ones(1,N_elements);
@@ -69,9 +69,9 @@ plot_func = @(xHistory,fHistory,DfHistory,max_x,alpha) plotfunc_star_alpha44(xHi
 
 %plot_func = @(xHistory,fHistory,DfHistory,max_x, alpha) plotfunc_star_voltage_alpha(xHistory, fHistory, DfHistory, max_x, alpha, end_p3, [5 5 5], 5);
 
-[x, fval, iter, xHist, fHist, DfHist, times, alphas] = extremize_lars(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', plot_func, 'MaxIter', 2);
+[x, fval, iter, xHist, fHist, DfHist, times, alphas] = extremize_lars(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', plot_func, 'MaxIter', 1);
 toc(t1)
-save('StarOpti_fiveElement_shapeOnlychromtighter' , 'x' , 'fval', 'iter', 'xHist', 'fHist', 'DfHist', 'alphas')
+save('StarOpti_15Element_shapeOnly' , 'x' , 'fval', 'iter', 'xHist', 'fHist', 'DfHist', 'alphas')
 
 
 

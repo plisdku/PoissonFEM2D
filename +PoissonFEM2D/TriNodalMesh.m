@@ -234,12 +234,15 @@ classdef TriNodalMesh < handle
             
             numFieldNodes = obj.hFieldNodes.getNumNodes();
             numGeomNodes = obj.hGeomNodes.getNumNodes();
-            dxdx = sparse(numFieldNodes, numGeomNodes);
+            %dxdx = sparse(numFieldNodes, numGeomNodes);
             %dydy = sparse(numFieldNodes, numGeomNodes);
-            
+            iFieldGlobals_cell = {};
+            iFieldGlobals_cell2 = {};
+            iGeomGlobals_cell = {};
+            iGeomGlobals_cell2 = {};
             % Section 1/3: Vertices
             numVertices = obj.hMesh.getNumVertices();
-            dxdx(1:numVertices, 1:numVertices) = speye(numVertices);
+            %dxdx(1:numVertices, 1:numVertices) = speye(numVertices);
             %dydy(1:numVertices, 1:numVertices) = speye(numVertices);
             
             % Section 2/3: Edge-centers
@@ -249,7 +252,12 @@ classdef TriNodalMesh < handle
                 iFieldGlobal = obj.hFieldNodes.getEdgeInteriorNodes(iEdge);
                 iGeomGlobal = obj.hGeomNodes.getEdgeNodes(iEdge);
                 
-                dxdx(iFieldGlobal, iGeomGlobal) = M;
+                [iFieldGlobals,iGeomGlobals] = ndgrid(iFieldGlobal,iGeomGlobal);
+                iFieldGlobals_cell{iEdge} = iFieldGlobals(:);
+                iGeomGlobals_cell{iEdge} = iGeomGlobals(:);
+                Ms{iEdge} = M(:);
+                
+                %dxdx(iFieldGlobal, iGeomGlobal) = M;
                 %dydy(iFieldGlobal, iGeomGlobal) = M;
             end
             
@@ -260,9 +268,18 @@ classdef TriNodalMesh < handle
                 iFieldGlobal = obj.hFieldNodes.getFaceInteriorNodes(iFace);
                 iGeomGlobal = obj.hGeomNodes.getFaceNodes(iFace);
                 
-                dxdx(iFieldGlobal, iGeomGlobal) = M;
+                [iFieldGlobals,iGeomGlobals] = ndgrid(iFieldGlobal,iGeomGlobal);
+                iFieldGlobals_cell2{iFace} = iFieldGlobals(:);
+                iGeomGlobals_cell2{iFace} = iGeomGlobals(:);
+                
+                Ms{iEdge + iFace} = M(:);
+                
+                %dxdx(iFieldGlobal, iGeomGlobal) = M;
                 %dydy(iFieldGlobal, iGeomGlobal) = M;
             end
+            
+            dxdx = sparse([1:numVertices, cell2mat(iFieldGlobals_cell')', cell2mat(iFieldGlobals_cell2')'],[1:numVertices, cell2mat(iGeomGlobals_cell')', cell2mat(iGeomGlobals_cell2')'],[ones(1,numVertices), cell2mat(Ms')'], numFieldNodes,numGeomNodes);
+        
         end
         
         function xy = getBoundaryNodeCoordinates(obj)
@@ -1120,15 +1137,30 @@ classdef TriNodalMesh < handle
             iGlobals = {};
             Ms = {};
             
+            [iEnclosingFaces_sorted, iEnclosing_ix] = sort(iEnclosingFaces(:));
+            [N_EnclosingFaces] = histcounts(iEnclosingFaces_sorted,(0:(numFaces+1)));
+            
+            N_end = N_EnclosingFaces(1);
+            
             cnt = 0;
             for ff = 1:numFaces
-                iPoint = find(iEnclosingFaces == ff);
+%                 iPoint = find(iEnclosingFaces == ff);
+%                 
+%                 if isempty(iPoint)
+%                     continue
+%                 end
+
+                N_start = N_end + 1;
                 
-                if isempty(iPoint)
+                if N_EnclosingFaces(ff+1) == 0
                     continue
                 end
-                
                 cnt = cnt + 1;
+
+                N_end = N_start + N_EnclosingFaces(ff+1) - 1;
+                iPoint = iEnclosing_ix(N_start:(N_end));
+                
+                
                 
                 M = obj.hFieldNodes.basis.interpolationMatrix(rr(iPoint), ss(iPoint));
                 iGlobal = obj.hFieldNodes.getFaceNodes(ff);
@@ -1186,9 +1218,15 @@ classdef TriNodalMesh < handle
                 if isempty(iPoint)
                     continue
                 end
+
+       
+                
                 
                 ffs = [ffs ff];
                 cnt = cnt + 1;
+                
+                
+              
                 
                 iFieldGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 iGeomGlobal = obj.hGeomNodes.getFaceNodes(ff);
@@ -1251,10 +1289,10 @@ function [dFdxy_Interpolation] = calcRasterInterpolationOperatorSensitivity(obj,
             numGeomNodes = obj.hGeomNodes.getNumNodes();
             numFaces = obj.hMesh.getNumFaces();
             
-            DoutI = cell(2, numGeomNodes);
-            for nn = 1:numel(DoutI)
-                DoutI{nn} = sparse(numPts, numFieldNodes);
-            end
+%             DoutI = cell(2, numGeomNodes);
+%             for nn = 1:numel(DoutI)
+%                 DoutI{nn} = sparse(numPts, numFieldNodes);
+%             end
             
             [iEnclosingFaces, rr, ss] = obj.rasterize(corner0, corner1, Nxy);
             
@@ -1271,22 +1309,66 @@ function [dFdxy_Interpolation] = calcRasterInterpolationOperatorSensitivity(obj,
             dMds_cell = {};
             K_cell = {};
             I_g_cell = {};
+            
+            
                  
             cnt = 0;
+            %cnt2 = cnt;
 
+            [iEnclosingFaces_sorted, iEnclosing_ix] = sort(iEnclosingFaces(:));
+            [N_EnclosingFaces] = histcounts(iEnclosingFaces_sorted,(0:(numFaces+1)));
+            
+            N_end = N_EnclosingFaces(1);
+%             for ff = 1:numFaces
+%                 N_start = N_end + 1;
+%                 
+%                 if N_EnclosingFaces(ff+1) == 0
+%                     continue
+%                 end
+%                 cnt2 = cnt2 + 1;
+%                 N_end = N_start + N_EnclosingFaces(ff+1) - 1;
+%                 iPoints_cell2{cnt2} = iEnclosing_ix(N_start:(N_end));
+%                 
+%             end 
+%             
+%             YY = [0 0 3; 8 2 1;8 9 0];
+%             [YY_sorted, YY_idx] = sort(YY(:));
+%             N_YY = histcounts(YY_sorted, 0:10)
+%             YY_idx(1:N_YY(1))
+%             YY(YY_idx(1:N_YY(1)))
+%             N_end = N_YY(1);
+%             
+%             for ii = 1:9
+%                 
+%                 N_start = N_end + 1;
+%                 N_end   = N_start - 1 + N_YY(ii+1);
+%                 YY(YY_idx(N_start:N_end))
+%                 
+%             end
+%             
             
             
             
             for ff = 1:numFaces
                 
-                iPoint = find(iEnclosingFaces == ff);
+                %iPoint = find(iEnclosingFaces == ff);
                 
-                if isempty(iPoint)
+               % if isempty(iPoint)
+                 %   continue
+               % end
+               
+                N_start = N_end + 1;
+                
+                if N_EnclosingFaces(ff+1) == 0
                     continue
                 end
                 
                 ffs = [ffs ff];
                 cnt = cnt + 1;
+                
+                N_end = N_start + N_EnclosingFaces(ff+1) - 1;
+                iPoint = iEnclosing_ix(N_start:(N_end));
+                %iPoints_cell{cnt} = iEnclosing_ix(N_start:(N_end));
                 
                 iFieldGlobal = obj.hFieldNodes.getFaceNodes(ff);
                 iGeomGlobal = obj.hGeomNodes.getFaceNodes(ff);

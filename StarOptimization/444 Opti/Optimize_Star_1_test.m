@@ -10,7 +10,7 @@ import PoissonFEM2D.*
 
 
 
-Lx_outer = 3*60e-3;
+Lx_outer = 0.3*60e-3;
 isAxisymmetric = 1;
 
 N_field = 5;
@@ -25,7 +25,7 @@ geom2d = PoissonFEM2D.ParameterizedGeometry2D();
 Vb = 29e3;
 D1 = 3e-3;
 
-Ly = 3*45e-3;
+Ly = 0.3*45e-3;
 
 D12 = 5e-3;
 D23 = D12;

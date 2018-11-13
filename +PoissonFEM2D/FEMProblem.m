@@ -186,23 +186,23 @@ classdef FEMProblem < handle
 %             iBoundaryFaces = unique(iBoundaryFaces);
             %[boundaryFaces, = find(adjMat(:,boundaryEdges));
             
-            if nargin == 5
-                obj.dA = obj.poi.getSystemMatrixSensitivity();
-                obj.dB = obj.poi.getRhsMatrixSensitivity();
-                obj.dNM = obj.poi.getNeumannMatrixSensitivity();
-            else
-              
-                 FVAm = obj.poi.tnMesh.hMesh.getFaceVertexAdjacency();
-                [iF,~,~] = find(FVAm(:,varargin{1}));
-                iF = unique(iF);
-                EVAm = obj.poi.tnMesh.hMesh.getEdgeVertexAdjacency();
-                [iE,~,~] = find(EVAm(:,varargin{1}));
-                iE = unique(iE);
-                
-                obj.dA = obj.poi.getSystemMatrixSensitivity(iF);
-                obj.dB = obj.poi.getRhsMatrixSensitivity(iF);
-                obj.dNM = obj.poi.getNeumannMatrixSensitivity(iE);    
-            end
+%             if nargin == 5
+%                 obj.dA = obj.poi.getSystemMatrixSensitivity();
+%                 obj.dB = obj.poi.getRhsMatrixSensitivity();
+%                 obj.dNM = obj.poi.getNeumannMatrixSensitivity();
+%             else
+%               
+%                  FVAm = obj.poi.tnMesh.hMesh.getFaceVertexAdjacency();
+%                 [iF,~,~] = find(FVAm(:,varargin{1}));
+%                 iF = unique(iF);
+%                 EVAm = obj.poi.tnMesh.hMesh.getEdgeVertexAdjacency();
+%                 [iE,~,~] = find(EVAm(:,varargin{1}));
+%                 iE = unique(iE);
+%                 
+%                 obj.dA = obj.poi.getSystemMatrixSensitivity(iF);
+%                 obj.dB = obj.poi.getRhsMatrixSensitivity(iF);
+%                 obj.dNM = obj.poi.getNeumannMatrixSensitivity(iE);    
+%             end
             
             for ii = 1:size(obj.dB,2)
                 
@@ -321,6 +321,14 @@ classdef FEMProblem < handle
 %     
 %             end
 %             
+
+
+            FVAm = obj.poi.tnMesh.hMesh.getFaceVertexAdjacency();
+            [iF,~,~] = find(FVAm(:,varargin{1}));
+            iF = unique(iF);
+            EVAm = obj.poi.tnMesh.hMesh.getEdgeVertexAdjacency();
+            [iE,~,~] = find(EVAm(:,varargin{1}));
+            iE = unique(iE);
             dFdxy_SystemMatrix = obj.poi.calcSystemMatrixSensitivity(...
                 iF, u_sp, obj.iCenter, obj.iDirichlet,...
                 u0_dirichlet_sp, v_center);

@@ -258,8 +258,8 @@ classdef InstantiatedGeometry2D < handle
 %                      path = strrep(path,' ','\ ');
 %                      file = sprintf('%s/fromMatlab.geo',path);
 %                      system(sprintf('C:\\cygwin64\\bin\\bash --login -c " /cygdrive/c/Users/larstn/Desktop/gmsh-4.0.2-Windows64/gmsh-4.0.2-Windows64/gmsh -2 -format msh2 %s > gmshOut.txt"', file));
-                    [status, result] = unix('/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt');
-%                    [status, result] = unix(cmd);
+                    %[status, result] = unix('/usr/local/bin/gmsh -2 fromMatlab.geo > gmshOut.txt');
+                    [status, result] = unix(cmd);
                     if status
 %                        contourMeshSizes = obj.geometry.contourMeshSizes;
 %                        save('GmshWritingErrorData','contourVertices', 'contourMeshSizes')

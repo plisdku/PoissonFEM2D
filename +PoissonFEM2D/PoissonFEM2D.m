@@ -402,7 +402,7 @@ classdef PoissonFEM2D < handle
             numFieldNodes = obj.tnMesh.hFieldNodes.getNumNodes();
             numGeomNodes = obj.tnMesh.hGeomNodes.getNumNodes();
              
-            dF_dxy_SystemMatrix = sparse(numGeomNodes,2);
+           % dF_dxy_SystemMatrix = sparse(numGeomNodes,2);
             %DM{2,numGeomNodes} = sparse(numFieldNodes, numFieldNodes);
             %DM(:) = {sparse(numFieldNodes, numFieldNodes)};
             
@@ -411,30 +411,76 @@ classdef PoissonFEM2D < handle
                 iFaces = 1:numFaces;
             end
             
+            
+           % DM_face = {};
+           % iFieldGlobal = {};
+           % iGeomGlobal = {};
+           dA_part_mm1 = {};
+           dA_part_mm2 = {};
+           cnt = 1;
+           idx_vec = [];
+            
             for ff = reshape(iFaces, 1, [])
+                
                 DM_face = obj.getElementPotentialMatrixSensitivity(ff);
                 iFieldGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
                 iGeomGlobal = obj.tnMesh.hGeomNodes.getFaceNodes(ff);
                 
-                
                 for mm = 1:length(iGeomGlobal)
-                    %for kk = 1:2
-                        %DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
-                        %    DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DM_face(:,:,kk,mm);
-                        [iFieldGlobals1, iFieldGlobals2] = ndgrid(iFieldGlobal,iFieldGlobal);
-                        DM_face_1 = DM_face(:,:,1,mm);
-                        DM_face_2 = DM_face(:,:,2,mm);
-                        dA_part_mm_1 = sparse(iFieldGlobals1(:),iFieldGlobals2(:), DM_face_1(:),numFieldNodes, numFieldNodes);
-                        dA_part_mm_2 = sparse(iFieldGlobals1(:),iFieldGlobals2(:), DM_face_2(:),numFieldNodes, numFieldNodes);
-                        
-                        wx_part = - dA_part_mm_1(iCenter,iCenter) * u(iCenter) - dA_part_mm_1(iCenter, iDirichlet) * u0_dirichlet;
-                        wy_part = - dA_part_mm_2(iCenter,iCenter) * u(iCenter) - dA_part_mm_2(iCenter, iDirichlet) * u0_dirichlet;
-                        
-                        dF_dxy_SystemMatrix(iGeomGlobal(mm),1) = dF_dxy_SystemMatrix(iGeomGlobal(mm),1) + v_center'*wx_part;
-                        dF_dxy_SystemMatrix(iGeomGlobal(mm),2) = dF_dxy_SystemMatrix(iGeomGlobal(mm),2) + v_center'*wy_part;
-                    %end
+                    [iFieldGlobals1, iFieldGlobals2] = ndgrid(iFieldGlobal,iFieldGlobal);
+                    DM_face_1 = DM_face(:,:,1,mm);
+                    DM_face_2 = DM_face(:,:,2,mm);
+                    dA_part_mm_1 = sparse(iFieldGlobals1(:),iFieldGlobals2(:), DM_face_1(:),numFieldNodes, numFieldNodes);
+                    dA_part_mm_2 = sparse(iFieldGlobals1(:),iFieldGlobals2(:), DM_face_2(:),numFieldNodes, numFieldNodes);
+                    dA_part_mm1{cnt} = dA_part_mm_1;
+                    dA_part_mm2{cnt} = dA_part_mm_2;
+                    cnt = cnt + 1;
+                    idx_vec = [idx_vec, iGeomGlobal(mm)];
                 end
+                
             end
+            dF_x_val = {};
+            dF_y_val = {};
+            
+            parfor ii = 1:(cnt-1)
+                
+                wx_part = - dA_part_mm1{ii}(iCenter,iCenter) * u(iCenter) - dA_part_mm1{ii}(iCenter, iDirichlet) * u0_dirichlet;
+                wy_part = - dA_part_mm2{ii}(iCenter,iCenter) * u(iCenter) - dA_part_mm2{ii}(iCenter, iDirichlet) * u0_dirichlet;
+                dF_x_val{ii} = v_center'*wx_part;
+                dF_y_val{ii} = v_center'*wy_part;
+                
+            end
+            
+            dF_dxy_SystemMatrix = sparse([idx_vec, idx_vec],[ones(1,cnt-1), 2*ones(1,cnt-1)],[cell2mat(dF_x_val) cell2mat(dF_y_val)],numGeomNodes,2);
+            
+%             for ff = reshape(iFaces, 1, [])
+%                 DM_face = obj.getElementPotentialMatrixSensitivity(ff);
+%                 iFieldGlobal = obj.tnMesh.hFieldNodes.getFaceNodes(ff);
+%                 iGeomGlobal = obj.tnMesh.hGeomNodes.getFaceNodes(ff);
+%                 
+%                 
+%                 for mm = 1:length(iGeomGlobal)
+%                     %for kk = 1:2
+%                         %DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) = ...
+%                         %    DM{kk,iGeomGlobal(mm)}(iFieldGlobal,iFieldGlobal) + DM_face(:,:,kk,mm);
+%                         [iFieldGlobals1, iFieldGlobals2] = ndgrid(iFieldGlobal,iFieldGlobal);
+%                         DM_face_1 = DM_face(:,:,1,mm);
+%                         DM_face_2 = DM_face(:,:,2,mm);
+%                         dA_part_mm_1 = sparse(iFieldGlobals1(:),iFieldGlobals2(:), DM_face_1(:),numFieldNodes, numFieldNodes);
+%                         dA_part_mm_2 = sparse(iFieldGlobals1(:),iFieldGlobals2(:), DM_face_2(:),numFieldNodes, numFieldNodes);
+%                         
+%                         wx_part = - dA_part_mm_1(iCenter,iCenter) * u(iCenter) - dA_part_mm_1(iCenter, iDirichlet) * u0_dirichlet;
+%                         wy_part = - dA_part_mm_2(iCenter,iCenter) * u(iCenter) - dA_part_mm_2(iCenter, iDirichlet) * u0_dirichlet;
+%                         dF_dxy_SystemMatrix(iGeomGlobal(mm),1) = dF_dxy_SystemMatrix(iGeomGlobal(mm),1) + v_center'*wx_part;
+%                         dF_dxy_SystemMatrix(iGeomGlobal(mm),2) = dF_dxy_SystemMatrix(iGeomGlobal(mm),2) + v_center'*wy_part;
+%                         %cnt2 = cnt2 + 1;
+%                         %m_vec = [m_vec iGeomm];
+%                         
+%                     %end
+%                 end
+%             end
+            
+           
 %             
 %            
 %            for mm = 1:numGeomNodes
