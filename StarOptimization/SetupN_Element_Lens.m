@@ -16,18 +16,23 @@ end
 
 element_height = ((r_o-r_i)*0.5)+r_i;
 
-center_start{2} = [-L_vec(2)/2-D_vec(1)-L_vec(1)/2 element_height];
+center_start{2} = [-L_vec(1)/2-D_vec(1)-L_vec(2)/2 element_height];
 center_start{1} = [0 element_height];
-center_start{3} = [L_vec(2)/2+D_vec(2)+L_vec(3)/2 element_height];
+center_start{3} = [L_vec(1)/2+D_vec(2)+L_vec(3)/2 element_height];
 
 for ii = 4:2:(N_elements-1)
-    
-    
-    center_start{ii} = [center_start{ii-2}(1)-L_vec(ii-2)/2-D_vec(ii-1)-L_vec(ii)/2 ...
-        element_height];
-    center_start{ii+1} = [center_start{ii-1}(1)+L_vec(ii-1)/2+D_vec(ii)+L_vec(ii+1)/2 ...
-        element_height];
-    
+
+
+        center_start{ii} = [center_start{ii-2}(1)-L_vec(ii-2)/2-D_vec(ii-1)-L_vec(ii)/2 ...
+            element_height];
+        center_start{ii+1} = [center_start{ii-1}(1)+L_vec(ii-1)/2+D_vec(ii)+L_vec(ii+1)/2 ...
+            element_height];
+
+end
+
+if mod(N_elements,2) == 0
+    center_start{N_elements} = [center_start{N_elements-2}(1)-L_vec(N_elements-2)/2-D_vec(N_elements-1)-L_vec(N_elements)/2 ...
+            element_height];
 end
 
 

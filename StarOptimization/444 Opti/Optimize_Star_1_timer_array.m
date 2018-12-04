@@ -1,23 +1,14 @@
-%ScriptsPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/Scripts';
-%VVPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/Velocity-Verlet';
-%FEMPath = '/home/users/larstn/DesignOptimisation/ChargedParticles/PoissonFEM2D';
-%rmpath(genpath('/Volumes/GoogleDrive/My Drive/Research/Design Optimization /Charged Particle Optics/Velocity-Verlet_Objective'), genpath('/Volumes/GoogleDrive/My Drive/Research/Design Optimization /Charged Particle Optics/Scripts'), genpath('/Volumes/GoogleDrive/My Drive/Research/Design Optimization /Charged Particle Optics/FEM'));
-%addpath(genpath(ScriptsPath), genpath(VVPath), genpath(FEMPath));
-%%
-
 import PoissonFEM2D.*
 %%
 
-
-
-Lx_outer = 0.3*60e-3;
+Lx_outer = 60e-3;
 isAxisymmetric = 1;
 
 N_field = 5;
 N_geom = 2;
 N_quad = N_field + isAxisymmetric;
 
-s = 20*1.28e-3;%4e-3; %1.3e-3; % mesh scale
+s = 1.28e-3;%4e-3; %1.3e-3; % mesh scale
 ratio = 0.3;
 geom2d = PoissonFEM2D.ParameterizedGeometry2D();
 
@@ -25,7 +16,7 @@ geom2d = PoissonFEM2D.ParameterizedGeometry2D();
 Vb = 29e3;
 D1 = 3e-3;
 
-Ly = 0.3*45e-3;
+Ly = 45e-3;
 
 D12 = 5e-3;
 D23 = D12;
@@ -200,7 +191,7 @@ y_vec = r1_start .* sin(angles1_start) + center1_start(2);
     center3_start, angles3_start);
 
 
-geom2d.addContour(@(p) [-Lx_outer -L2/2-D12-L1 0 L2/2+D23+L3 Lx_outer Lx_outer 0 -Lx_outer], @(p) [0, 0, 0, 0, 0, Ly, Ly, Ly], s*[15, ratio, ratio, ratio, 15, 25, 25, 25], 1, 1:8);
+geom2d.addContour(@(p) [-Lx_outer -L2/2-D12-L1 0 L2/2+D23+L3 Lx_outer Lx_outer 0 -Lx_outer], @(p) [0, 0, 0, 0, 0, Ly, Ly, Ly], s*[4.5, ratio, ratio, ratio, 4.5, 9, 9, 9], 1, 1:8);
 %geom2d.addContour(Ex1Spline, Ey1Spline, s*ratio*s11_vec, 2, 1:l11);
 %geom2d.addContour(Ex2Spline, Ey2Spline, s*ratio*s21_vec, 3, 1:l21);
 %geom2d.addContour(Ex3Spline, Ey3Spline, s*ratio*s31_vec, 4, 1:l13);
@@ -236,7 +227,7 @@ fem.setFreeCharge(@(p,x,y) 0.0);
 x0 = zeros(1,end_p3)';
 
 
-fn_handle = @(fem) @(p) return_FEM_function_test(fem, p, Lx_outer, Ly); 
+fn_handle = @(fem) @(p) return_FEM_function_Array(fem, p, Lx_outer, Ly); 
 
 minX = [ones(1,4)'*(-r1_start(1)); -5e-3; -r_i; -pi/4*ones(1,4)';ones(1,4)'*(-r2_start(1)); -5e-3; -r_i; -pi/4*ones(1,4)';ones(1,4)'*(-r3_start(1)); -5e-3; -r_i; -pi/4*ones(1,4)'];
 %minX = ones(1,end_p3)'*(-5e-3);
@@ -244,9 +235,7 @@ minX = [ones(1,4)'*(-r1_start(1)); -5e-3; -r_i; -pi/4*ones(1,4)';ones(1,4)'*(-r2
 maxX = [ones(1,4)'*(r1_start(1)); 5e-3; 10*r_i; pi/4*ones(1,4)';ones(1,4)'*(r2_start(1)); 5e-3; 10*r_i; pi/4*ones(1,4)';ones(1,4)'*(r3_start(1)); 5e-3; 10*r_i; pi/4*ones(1,4)'];
 t1 = tic;
 
-plot_func = @(xHistory,fHistory,DfHistory,max_x, alpha) plotfunc_star_alpha(xHistory, fHistory, DfHistory, max_x, alpha, end_p3, [0 0 0], 1);
-
-[x, fval, iter, xHist, fHist, DfHist, times, alphas] = extremize_lars(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', plot_func, 'MaxIter', 2);
+[x, fval, iter, xHist, fHist, DfHist] = extremize12(fn_handle(fem), x0, 'Bounds', [minX, maxX], 'Callback', @ plotfunc, 'MaxIter', 25);
 toc(t1)
-save('StarOpti444_bigBox' , 'x' , 'fval', 'iter', 'xHist', 'fHist', 'DfHist', 'alpha')
+save('StarOpti444' , 'x' , 'fval', 'iter', 'xHist', 'fHist', 'DfHist')
 % 

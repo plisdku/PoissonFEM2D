@@ -1,4 +1,4 @@
-function [F, dFdp] = return_FEM_function_test(fem, p, Lx, Ly)
+function [F, dFdp] = return_FEM_function_Array(fem, p, Lx, Ly)
 %     contours = fem.instantiatedGeom.parameterizedGeometry.contours;
 %     figure()
 %     plot(contours(1).xFunc(p),contours(1).yFunc(p))
@@ -30,20 +30,19 @@ function [F, dFdp] = return_FEM_function_test(fem, p, Lx, Ly)
     fprintf('Forward solution... ');
     tic
     femProblem.solveForwardCartesian(measBox(1:2), measBox(3:4), measNxy);
-    %disp('just forward')
+    disp('just forward')
     toc
-    %tic
-    %femProblem.solveCartesian(measBox(1:2), measBox(3:4), measNxy);
-    %toc
+    tic
+    femProblem.solveCartesian(measBox(1:2), measBox(3:4), measNxy);
+    toc
     fprintf('Solved Forward ')
     
-    [particles, hit_objective, particles2] = SetupParticles_test();
-    [VV] = ElectronSetup_test(femProblem.uCartesian, measBox, measNxy, particles, particles2, hit_objective); 
+    [particles, hit_objective] = SetupParticles_Array();
+    [VV] = ElectronSetup_Array(femProblem.uCartesian, measBox, measNxy, particles, hit_objective); 
     
     fprintf('Adjoint solution... ');
     tic
-    femProblem.solveAdjointCartesian_new(VV.dFdV, measBox(1:2), measBox(3:4), measNxy,idxN)
-    %femProblem.solveAdjointCartesian(VV.dFdV, idxN);
+    femProblem.solveAdjointCartesian(VV.dFdV, idxN);
     toc
     fprintf('complete.\n');
     dFdp = femProblem.dF_dxy(:,1)' * dnx_dp + femProblem.dF_dxy(:,2)' * dny_dp ...

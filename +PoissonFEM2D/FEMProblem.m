@@ -168,11 +168,11 @@ classdef FEMProblem < handle
             
            
             v_center = A_center' \ Df_center';
-            obj.timer_variable(1) = toc(t_adjoint); 
+            
             
             obj.v = 0*obj.u;
             obj.v(obj.iCenter) = v_center;
-            
+            obj.timer_variable(1) = toc(t_adjoint); 
             % Matrix sensitivities
             
             
@@ -204,11 +204,11 @@ classdef FEMProblem < handle
 %                 obj.dNM = obj.poi.getNeumannMatrixSensitivity(iE);    
 %             end
             
-            for ii = 1:size(obj.dB,2)
-                
-                nnzs(ii) = nnz(obj.dB{1,2});
-                
-            end 
+%             for ii = 1:size(obj.dB,2)
+%                 
+%                 nnzs(ii) = nnz(obj.dB{1,2});
+%                 
+%             end 
             % Sensitivity to free charge (1 x N)
             
             obj.dF_dCharge = v_center' * B_center;

@@ -1,4 +1,4 @@
-function [F, dFdp] = return_FEM_function_inPlace(fem, p, Lx, Ly)
+function [F, dFdp] = return_FEM_function_star_timer(fem, p, Lx, Ly)
 %     contours = fem.instantiatedGeom.parameterizedGeometry.contours;
 %     figure()
 %     plot(contours(1).xFunc(p),contours(1).yFunc(p))
@@ -11,7 +11,6 @@ function [F, dFdp] = return_FEM_function_inPlace(fem, p, Lx, Ly)
 %     plot(contours(4).xFunc(p),contours(4).yFunc(p),'x')
 %     plot(contours(3).xFunc(p),contours(3).yFunc(p),'x')
 %     plot(contours(2).xFunc(p),contours(2).yFunc(p),'x')
-    tic
     [~] = fem.instantiateProblem(p);
    
     [femProblem, dDirichlet_dp, dnx_dp, dny_dp] = fem.adjustProblem(p);
@@ -29,13 +28,13 @@ function [F, dFdp] = return_FEM_function_inPlace(fem, p, Lx, Ly)
     measNxy = [380, 18500];%[100 350];%[350, 18000];
     
     fprintf('Forward solution... ');
-    
+    tic
     femProblem.solveForwardCartesian(measBox(1:2), measBox(3:4), measNxy);
-    %disp('just forward')
+    disp('just forward')
     toc
-    %tic
-    %femProblem.solveCartesian(measBox(1:2), measBox(3:4), measNxy);
-    %toc
+   % tic
+   % femProblem.solveCartesian(measBox(1:2), measBox(3:4), measNxy);
+   % toc
     fprintf('Solved Forward ')
     
     [particles, hit_objective] = SetupParticles_star();
@@ -43,8 +42,7 @@ function [F, dFdp] = return_FEM_function_inPlace(fem, p, Lx, Ly)
     
     fprintf('Adjoint solution... ');
     tic
-    femProblem.solveAdjointCartesian_new(VV.dFdV, measBox(1:2), measBox(3:4), measNxy,idxN)
-    %femProblem.solveAdjointCartesian(VV.dFdV, idxN);
+    femProblem.solveAdjointCartesian(VV.dFdV, idxN);
     toc
     fprintf('complete.\n');
     dFdp = femProblem.dF_dxy(:,1)' * dnx_dp + femProblem.dF_dxy(:,2)' * dny_dp ...
@@ -61,16 +59,16 @@ function [F, dFdp] = return_FEM_function_inPlace(fem, p, Lx, Ly)
     
     disp('time not for gradient')
     disp(femProblem.timer_variable)
-    
-    for i = 1:length(VV.ParticleArray)
-        plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
-    %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
-    end
-
-    figure(324)
-    for i = 1:length(VV.ParticleArray)
-        plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
-    %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
-    end
+%     
+%     for i = 1:length(VV.ParticleArray)
+%         plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
+%     %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
+%     end
+% 
+%     figure(324)
+%     for i = 1:length(VV.ParticleArray)
+%         plot(VV.ParticleArray(i).xx,VV.ParticleArray(i).yy,'k', 'LineWidth', 1)
+%     %plot(VV.ParticleArray(i).xv(ix_x(1)),VV.ParticleArray(i).xv(ix_y(1)),'rx')
+%     end
     
 end 
