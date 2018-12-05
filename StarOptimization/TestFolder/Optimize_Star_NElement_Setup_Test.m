@@ -30,7 +30,7 @@ L3 = L2;
 r_i = 3e-3;
 r_o = 11e-3;
 
-N_elements = 13;
+N_elements = 33;
 N_moveable = 10*ones(1,N_elements);
 
 L_vec = L1*ones(1,N_elements);
